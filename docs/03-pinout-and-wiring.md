@@ -1,8 +1,20 @@
 # 03 · Pin Layout and Wiring
 
-![Wiring diagram](wiring.svg)
+## Build diagrams (real board layouts)
 
-The source of truth in code is `firmware/include/pins.h`. The diagram is generated from `tools/make_wiring_svg.py`.
+**Stage 1: sensors.** Wire this first.
+
+![Stage 1: ESP32 to both sensors](wiring-stage1-sensors.png)
+
+**Stage 2: LED ring.** Wire this after the sensors work.
+
+![Stage 2: LED ring](wiring-stage2-leds.png)
+
+**Overview schematic:**
+
+![Wiring overview](wiring.svg)
+
+All three diagrams are generated from `firmware/include/pins.h` (`tools/make_board_diagrams.py` and `tools/make_wiring_svg.py`), so they always match the firmware. Board layouts were checked against the ESP32-S3-DevKitC-1 pinout and the SparkFun XM125 product photo.
 
 ## Why two I2C buses
 Both XM125 boards answer at I2C address **0x52**. SparkFun documents the ADDR jumper as not yet implemented, so the boards cannot share a bus. The ESP32-S3 has two hardware I2C controllers, and each sensor gets one. No jumpers to solder. (Bench test T1 checks whether the ADDR pad works after all; see review R3.)

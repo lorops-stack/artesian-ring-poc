@@ -1,0 +1,385 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1960 1830" width="1960" height="1830" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="1960" height="1830" fill="#FFFFFF"/>
+<text x="40" y="50" font-size="28" fill="#111" text-anchor="start" font-weight="800">Stage 1 wiring: ESP32 to both radar sensors</text>
+<text x="40" y="80" font-size="15" fill="#444" text-anchor="start" font-weight="400">Boards drawn component side up, as in your photos. Coloured pins get a wire; dark pins stay empty. Unplug USB before wiring.</text>
+<rect x="1080" y="170" width="300" height="1302" rx="16" fill="#15181C" stroke="none" stroke-width="1.5" />
+<rect x="1150" y="188" width="160" height="200" rx="6" fill="#BFC5CC" stroke="#8D949C" stroke-width="1.5" />
+<rect x="1150" y="136" width="160" height="52" rx="4" fill="#26292E" stroke="none" stroke-width="1.5" />
+<text x="1230" y="158" font-size="12" fill="#9AA" text-anchor="middle" font-weight="400">antenna end</text>
+<text x="1230" y="250" font-size="15" fill="#333" text-anchor="middle" font-weight="700">ESP32-S3-N8R2</text>
+<text x="1230" y="272" font-size="12" fill="#555" text-anchor="middle" font-weight="400">module</text>
+<circle cx="1104" cy="420" r="11" fill="#D62828" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="420" r="4" fill="#fff"/>
+<text x="1124" y="425" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">3V3</text>
+<circle cx="1104" cy="462" r="11" fill="#D62828" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="462" r="4" fill="#fff"/>
+<text x="1124" y="467" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">3V3</text>
+<circle cx="1104" cy="504" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="509" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">RST</text>
+<circle cx="1104" cy="546" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="551" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">4</text>
+<circle cx="1104" cy="588" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="593" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">5</text>
+<circle cx="1104" cy="630" r="11" fill="#7A4FD0" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="630" r="4" fill="#fff"/>
+<text x="1124" y="635" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">6</text>
+<circle cx="1104" cy="672" r="11" fill="#7A4FD0" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="672" r="4" fill="#fff"/>
+<text x="1124" y="677" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">7</text>
+<circle cx="1104" cy="714" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="719" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">15</text>
+<circle cx="1104" cy="756" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="761" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">16</text>
+<circle cx="1104" cy="798" r="11" fill="#1D6FD8" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="798" r="4" fill="#fff"/>
+<text x="1124" y="803" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">17</text>
+<circle cx="1104" cy="840" r="11" fill="#E0A100" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="840" r="4" fill="#fff"/>
+<text x="1124" y="845" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">18</text>
+<circle cx="1104" cy="882" r="11" fill="#1D6FD8" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="882" r="4" fill="#fff"/>
+<text x="1124" y="887" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">8</text>
+<circle cx="1104" cy="924" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="929" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">3</text>
+<circle cx="1104" cy="966" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="971" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">46</text>
+<circle cx="1104" cy="1008" r="11" fill="#E0A100" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="1008" r="4" fill="#fff"/>
+<text x="1124" y="1013" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">9</text>
+<circle cx="1104" cy="1050" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="1055" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">10</text>
+<circle cx="1104" cy="1092" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="1097" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">11</text>
+<circle cx="1104" cy="1134" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="1139" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">12</text>
+<circle cx="1104" cy="1176" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="1181" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">13</text>
+<circle cx="1104" cy="1218" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="1223" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">14</text>
+<circle cx="1104" cy="1260" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1124" y="1265" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">5Vin</text>
+<circle cx="1104" cy="1302" r="11" fill="#1F1F1F" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1104" cy="1302" r="4" fill="#fff"/>
+<text x="1124" y="1307" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">GND</text>
+<circle cx="1356" cy="420" r="11" fill="#1F1F1F" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1356" cy="420" r="4" fill="#fff"/>
+<text x="1336" y="425" font-size="13.5" fill="#FFFFFF" text-anchor="end" font-weight="700">GND</text>
+<circle cx="1356" cy="462" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="467" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">TX</text>
+<circle cx="1356" cy="504" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="509" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">RX</text>
+<circle cx="1356" cy="546" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="551" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">1</text>
+<circle cx="1356" cy="588" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="593" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">2</text>
+<circle cx="1356" cy="630" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="635" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">42</text>
+<circle cx="1356" cy="672" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="677" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">41</text>
+<circle cx="1356" cy="714" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="719" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">40</text>
+<circle cx="1356" cy="756" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="761" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">39</text>
+<circle cx="1356" cy="798" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="803" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">38</text>
+<circle cx="1356" cy="840" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="845" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">37</text>
+<circle cx="1356" cy="882" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="887" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">36</text>
+<circle cx="1356" cy="924" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="929" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">35</text>
+<circle cx="1356" cy="966" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="971" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">0</text>
+<circle cx="1356" cy="1008" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1013" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">45</text>
+<circle cx="1356" cy="1050" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1055" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">48</text>
+<circle cx="1356" cy="1092" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1097" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">47</text>
+<circle cx="1356" cy="1134" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1139" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">21</text>
+<circle cx="1356" cy="1176" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1181" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">20</text>
+<circle cx="1356" cy="1218" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1223" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">19</text>
+<circle cx="1356" cy="1260" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1265" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">GND</text>
+<circle cx="1356" cy="1302" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1336" y="1307" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">GND</text>
+<text x="1104" y="390" font-size="11" fill="#8899AA" text-anchor="middle" font-weight="700">LEFT</text>
+<text x="1356" y="390" font-size="11" fill="#8899AA" text-anchor="middle" font-weight="700">RIGHT</text>
+<rect x="1120" y="1402" width="90" height="70" rx="10" fill="#A9B0B8" stroke="#1A9B4B" stroke-width="3" />
+<text x="1165" y="1436" font-size="11" fill="#333" text-anchor="middle" font-weight="700">USB-C</text>
+<text x="1165" y="1452" font-size="11" fill="#111" text-anchor="middle" font-weight="800">COM / UART</text>
+<rect x="1250" y="1402" width="90" height="70" rx="10" fill="#A9B0B8" stroke="#6C737B" stroke-width="1.5" />
+<text x="1295" y="1436" font-size="11" fill="#333" text-anchor="middle" font-weight="700">USB-C</text>
+<text x="1295" y="1452" font-size="11" fill="#111" text-anchor="middle" font-weight="800">USB</text>
+<text x="1230.0" y="1496" font-size="13" fill="#333" text-anchor="middle" font-weight="400">Use the COM / UART port (normally the left one; the label is on the back).</text>
+<text x="1230.0" y="1514" font-size="12.5" fill="#555" text-anchor="middle" font-weight="400">Check: Windows Device Manager shows "USB-SERIAL CH343".</text>
+<rect x="360" y="150" width="250" height="740" rx="12" fill="#DD2C24" stroke="none" stroke-width="1.5" />
+<rect x="440" y="140" width="90" height="44" rx="8" fill="#B9C0C7" stroke="#7B828A" stroke-width="1.5" />
+<text x="485" y="168" font-size="11" fill="#333" text-anchor="middle" font-weight="700">USB-C</text>
+<rect x="376" y="210" width="44" height="70" rx="3" fill="#1B1B1B" stroke="none" stroke-width="1.5" />
+<text x="398" y="300" font-size="10.5" fill="#FFD8D6" text-anchor="middle" font-weight="400">Qwiic</text>
+<rect x="550" y="210" width="44" height="70" rx="3" fill="#1B1B1B" stroke="none" stroke-width="1.5" />
+<text x="572" y="300" font-size="10.5" fill="#FFD8D6" text-anchor="middle" font-weight="400">Qwiic</text>
+<rect x="422" y="400" width="126" height="150" rx="4" fill="#1F3E8C" stroke="none" stroke-width="1.5" />
+<rect x="455" y="440" width="60" height="60" rx="3" fill="#2F5F55" stroke="none" stroke-width="1.5" />
+<text x="485" y="424" font-size="11.5" fill="#DCE6FF" text-anchor="middle" font-weight="700">XM125 module</text>
+<text x="485" y="526" font-size="10.5" fill="#DCE6FF" text-anchor="middle" font-weight="400">radar faces UP</text>
+<text x="485" y="214" font-size="20" fill="#FFFFFF" text-anchor="middle" font-weight="800">SENSOR A</text>
+<text x="485" y="236" font-size="12" fill="#FFE3E1" text-anchor="middle" font-weight="400">back-left corner</text>
+<rect x="415" y="830" width="46" height="46" rx="6" fill="#C8CDD2" stroke="#7B828A" stroke-width="1.5" />
+<text x="438" y="824" font-size="11" fill="#FFE3E1" text-anchor="middle" font-weight="700">RST</text>
+<rect x="510" y="830" width="46" height="46" rx="6" fill="#C8CDD2" stroke="#7B828A" stroke-width="1.5" />
+<text x="533" y="824" font-size="11" fill="#FFE3E1" text-anchor="middle" font-weight="700">BOOT</text>
+<circle cx="588" cy="340" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="345" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">BOOT</text>
+<circle cx="588" cy="378" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="383" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">IO1</text>
+<circle cx="588" cy="416" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="421" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">IO0</text>
+<circle cx="588" cy="454" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="459" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">TX</text>
+<circle cx="588" cy="492" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="497" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">RX</text>
+<circle cx="588" cy="530" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="535" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">ADDR</text>
+<circle cx="588" cy="568" r="11" fill="#1F1F1F" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="568" r="4" fill="#fff"/>
+<text x="568" y="573" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">G</text>
+<circle cx="588" cy="606" r="11" fill="#D62828" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="606" r="4" fill="#fff"/>
+<text x="568" y="611" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">3V3</text>
+<circle cx="588" cy="644" r="11" fill="#1D6FD8" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="644" r="4" fill="#fff"/>
+<text x="568" y="649" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">SDA</text>
+<circle cx="588" cy="682" r="11" fill="#E0A100" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="682" r="4" fill="#fff"/>
+<text x="568" y="687" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">SCL</text>
+<circle cx="588" cy="720" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="725" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">WU</text>
+<circle cx="382" cy="416" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="421" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">INT</text>
+<circle cx="382" cy="454" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="459" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">3V3</text>
+<circle cx="382" cy="492" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="497" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">1V8</text>
+<circle cx="382" cy="530" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="535" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">VU</text>
+<circle cx="382" cy="568" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="573" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">G</text>
+<circle cx="382" cy="606" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="611" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">G</text>
+<circle cx="382" cy="644" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="649" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">SIO</text>
+<circle cx="382" cy="682" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="687" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">CLK</text>
+<circle cx="382" cy="720" r="11" fill="#7A4FD0" stroke="#fff" stroke-width="2.5"/>
+<circle cx="382" cy="720" r="4" fill="#fff"/>
+<text x="402" y="725" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="700">RST</text>
+<rect x="456" y="764" width="124" height="22" rx="11" fill="#FFFFFF" stroke="none" stroke-width="1.5" />
+<text x="518" y="780" font-size="11.5" fill="#B00020" text-anchor="middle" font-weight="800">▲ NO WIRE here</text>
+<rect x="372" y="736" width="130" height="22" rx="11" fill="#FFFFFF" stroke="none" stroke-width="1.5" />
+<text x="437" y="752" font-size="11.5" fill="#B00020" text-anchor="middle" font-weight="800">▲ solder 1 pin</text>
+<path d="M580,712 L596,728 M596,712 L580,728" stroke="#FFFFFF" stroke-width="3"/>
+<rect x="360" y="960" width="250" height="740" rx="12" fill="#DD2C24" stroke="none" stroke-width="1.5" />
+<rect x="440" y="950" width="90" height="44" rx="8" fill="#B9C0C7" stroke="#7B828A" stroke-width="1.5" />
+<text x="485" y="978" font-size="11" fill="#333" text-anchor="middle" font-weight="700">USB-C</text>
+<rect x="376" y="1020" width="44" height="70" rx="3" fill="#1B1B1B" stroke="none" stroke-width="1.5" />
+<text x="398" y="1110" font-size="10.5" fill="#FFD8D6" text-anchor="middle" font-weight="400">Qwiic</text>
+<rect x="550" y="1020" width="44" height="70" rx="3" fill="#1B1B1B" stroke="none" stroke-width="1.5" />
+<text x="572" y="1110" font-size="10.5" fill="#FFD8D6" text-anchor="middle" font-weight="400">Qwiic</text>
+<rect x="422" y="1210" width="126" height="150" rx="4" fill="#1F3E8C" stroke="none" stroke-width="1.5" />
+<rect x="455" y="1250" width="60" height="60" rx="3" fill="#2F5F55" stroke="none" stroke-width="1.5" />
+<text x="485" y="1234" font-size="11.5" fill="#DCE6FF" text-anchor="middle" font-weight="700">XM125 module</text>
+<text x="485" y="1336" font-size="10.5" fill="#DCE6FF" text-anchor="middle" font-weight="400">radar faces UP</text>
+<text x="485" y="1024" font-size="20" fill="#FFFFFF" text-anchor="middle" font-weight="800">SENSOR B</text>
+<text x="485" y="1046" font-size="12" fill="#FFE3E1" text-anchor="middle" font-weight="400">back-right corner</text>
+<rect x="415" y="1640" width="46" height="46" rx="6" fill="#C8CDD2" stroke="#7B828A" stroke-width="1.5" />
+<text x="438" y="1634" font-size="11" fill="#FFE3E1" text-anchor="middle" font-weight="700">RST</text>
+<rect x="510" y="1640" width="46" height="46" rx="6" fill="#C8CDD2" stroke="#7B828A" stroke-width="1.5" />
+<text x="533" y="1634" font-size="11" fill="#FFE3E1" text-anchor="middle" font-weight="700">BOOT</text>
+<circle cx="588" cy="1150" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="1155" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">BOOT</text>
+<circle cx="588" cy="1188" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="1193" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">IO1</text>
+<circle cx="588" cy="1226" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="1231" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">IO0</text>
+<circle cx="588" cy="1264" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="1269" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">TX</text>
+<circle cx="588" cy="1302" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="1307" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">RX</text>
+<circle cx="588" cy="1340" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="1345" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">ADDR</text>
+<circle cx="588" cy="1378" r="11" fill="#1F1F1F" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="1378" r="4" fill="#fff"/>
+<text x="568" y="1383" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">G</text>
+<circle cx="588" cy="1416" r="11" fill="#D62828" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="1416" r="4" fill="#fff"/>
+<text x="568" y="1421" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">3V3</text>
+<circle cx="588" cy="1454" r="11" fill="#1D6FD8" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="1454" r="4" fill="#fff"/>
+<text x="568" y="1459" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">SDA</text>
+<circle cx="588" cy="1492" r="11" fill="#E0A100" stroke="#fff" stroke-width="2.5"/>
+<circle cx="588" cy="1492" r="4" fill="#fff"/>
+<text x="568" y="1497" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="700">SCL</text>
+<circle cx="588" cy="1530" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="568" y="1535" font-size="13" fill="#FFFFFF" text-anchor="end" font-weight="400">WU</text>
+<circle cx="382" cy="1226" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1231" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">INT</text>
+<circle cx="382" cy="1264" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1269" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">3V3</text>
+<circle cx="382" cy="1302" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1307" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">1V8</text>
+<circle cx="382" cy="1340" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1345" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">VU</text>
+<circle cx="382" cy="1378" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1383" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">G</text>
+<circle cx="382" cy="1416" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1421" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">G</text>
+<circle cx="382" cy="1454" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1459" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">SIO</text>
+<circle cx="382" cy="1492" r="8" fill="#2A2A2A" stroke="#D9D9D9" stroke-width="3"/>
+<text x="402" y="1497" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="400">CLK</text>
+<circle cx="382" cy="1530" r="11" fill="#7A4FD0" stroke="#fff" stroke-width="2.5"/>
+<circle cx="382" cy="1530" r="4" fill="#fff"/>
+<text x="402" y="1535" font-size="13" fill="#FFFFFF" text-anchor="start" font-weight="700">RST</text>
+<rect x="456" y="1574" width="124" height="22" rx="11" fill="#FFFFFF" stroke="none" stroke-width="1.5" />
+<text x="518" y="1590" font-size="11.5" fill="#B00020" text-anchor="middle" font-weight="800">▲ NO WIRE here</text>
+<rect x="372" y="1546" width="130" height="22" rx="11" fill="#FFFFFF" stroke="none" stroke-width="1.5" />
+<text x="437" y="1562" font-size="11.5" fill="#B00020" text-anchor="middle" font-weight="800">▲ solder 1 pin</text>
+<path d="M580,1522 L596,1538 M596,1522 L580,1538" stroke="#FFFFFF" stroke-width="3"/>
+<path d="M1104,420 L680,420 L680,606 L588,606" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,420 L680,420 L680,606 L588,606" fill="none" stroke="#D62828" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="595" width="34" height="22" rx="11" fill="#D62828" stroke="#fff" stroke-width="2"/>
+<text x="634" y="611" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W1</text>
+<rect x="1043" y="389" width="34" height="22" rx="11" fill="#D62828" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="405" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W1</text>
+<path d="M1104,462 L860,462 L860,1416 L588,1416" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,462 L860,462 L860,1416 L588,1416" fill="none" stroke="#D62828" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="1405" width="34" height="22" rx="11" fill="#D62828" stroke="#fff" stroke-width="2"/>
+<text x="634" y="1421" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W2</text>
+<rect x="1043" y="431" width="34" height="22" rx="11" fill="#D62828" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="447" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W2</text>
+<path d="M1104,1302 L710,1302 L710,568 L588,568" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,1302 L710,1302 L710,568 L588,568" fill="none" stroke="#1F1F1F" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="557" width="34" height="22" rx="11" fill="#1F1F1F" stroke="#fff" stroke-width="2"/>
+<text x="634" y="573" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W3</text>
+<rect x="1043" y="1271" width="34" height="22" rx="11" fill="#1F1F1F" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="1287" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W3</text>
+<path d="M1356,420 L1396,420 L1396,110 L1020,110 L1020,1378 L588,1378" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1356,420 L1396,420 L1396,110 L1020,110 L1020,1378 L588,1378" fill="none" stroke="#1F1F1F" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="1367" width="34" height="22" rx="11" fill="#1F1F1F" stroke="#fff" stroke-width="2"/>
+<text x="634" y="1383" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W4</text>
+<rect x="1379" y="433" width="34" height="22" rx="11" fill="#1F1F1F" stroke="#fff" stroke-width="2"/>
+<text x="1396" y="449" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W4</text>
+<path d="M1104,882 L740,882 L740,644 L588,644" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,882 L740,882 L740,644 L588,644" fill="none" stroke="#1D6FD8" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="633" width="34" height="22" rx="11" fill="#1D6FD8" stroke="#fff" stroke-width="2"/>
+<text x="634" y="649" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W5</text>
+<rect x="1043" y="851" width="34" height="22" rx="11" fill="#1D6FD8" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="867" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W5</text>
+<path d="M1104,1008 L770,1008 L770,682 L588,682" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,1008 L770,1008 L770,682 L588,682" fill="none" stroke="#E0A100" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="671" width="34" height="22" rx="11" fill="#E0A100" stroke="#fff" stroke-width="2"/>
+<text x="634" y="687" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W6</text>
+<rect x="1043" y="977" width="34" height="22" rx="11" fill="#E0A100" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="993" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W6</text>
+<path d="M1104,798 L890,798 L890,1454 L588,1454" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,798 L890,798 L890,1454 L588,1454" fill="none" stroke="#1D6FD8" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="1443" width="34" height="22" rx="11" fill="#1D6FD8" stroke="#fff" stroke-width="2"/>
+<text x="634" y="1459" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W7</text>
+<rect x="1043" y="767" width="34" height="22" rx="11" fill="#1D6FD8" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="783" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W7</text>
+<path d="M1104,840 L920,840 L920,1492 L588,1492" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,840 L920,840 L920,1492 L588,1492" fill="none" stroke="#E0A100" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="617" y="1481" width="34" height="22" rx="11" fill="#E0A100" stroke="#fff" stroke-width="2"/>
+<text x="634" y="1497" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W8</text>
+<rect x="1043" y="809" width="34" height="22" rx="11" fill="#E0A100" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="825" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W8</text>
+<path d="M1104,630 L800,630 L800,918 L342,918 L342,720 L382,720" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,630 L800,630 L800,918 L342,918 L342,720 L382,720" fill="none" stroke="#7A4FD0" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="10 7"/>
+<rect x="305" y="687" width="34" height="22" rx="11" fill="#7A4FD0" stroke="#fff" stroke-width="2"/>
+<text x="322" y="703" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W9</text>
+<rect x="1043" y="599" width="34" height="22" rx="11" fill="#7A4FD0" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="615" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W9</text>
+<path d="M1104,672 L950,672 L950,1728 L342,1728 L342,1530 L382,1530" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1104,672 L950,672 L950,1728 L342,1728 L342,1530 L382,1530" fill="none" stroke="#7A4FD0" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="10 7"/>
+<rect x="305" y="1497" width="34" height="22" rx="11" fill="#7A4FD0" stroke="#fff" stroke-width="2"/>
+<text x="322" y="1513" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W10</text>
+<rect x="1043" y="641" width="34" height="22" rx="11" fill="#7A4FD0" stroke="#fff" stroke-width="2"/>
+<text x="1060" y="657" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W10</text>
+<rect x="1440" y="160" width="490" height="560" rx="14" fill="#F6F7F9" stroke="#C9CED4" stroke-width="1.5" />
+<text x="1460" y="196" font-size="20" fill="#111" text-anchor="start" font-weight="800">Wire list</text>
+<text x="1460" y="218" font-size="12.5" fill="#555" text-anchor="start" font-weight="400">Pin positions counted from the TOP of each header.</text>
+<rect x="1457" y="236" width="34" height="22" rx="11" fill="#D62828" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="252" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W1</text>
+<text x="1502" y="252" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 3V3</text>
+<text x="1502" y="269" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 1</text>
+<text x="1690" y="252" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ A 3V3</text>
+<text x="1690" y="269" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 8</text>
+<rect x="1457" y="282" width="34" height="22" rx="11" fill="#D62828" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="298" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W2</text>
+<text x="1502" y="298" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 3V3</text>
+<text x="1502" y="315" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 2</text>
+<text x="1690" y="298" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ B 3V3</text>
+<text x="1690" y="315" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 8</text>
+<rect x="1457" y="328" width="34" height="22" rx="11" fill="#1F1F1F" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="344" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W3</text>
+<text x="1502" y="344" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GND</text>
+<text x="1502" y="361" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 22</text>
+<text x="1690" y="344" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ A G</text>
+<text x="1690" y="361" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 7</text>
+<rect x="1457" y="374" width="34" height="22" rx="11" fill="#1F1F1F" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="390" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W4</text>
+<text x="1502" y="390" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GND</text>
+<text x="1502" y="407" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 1</text>
+<text x="1690" y="390" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ B G</text>
+<text x="1690" y="407" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 7</text>
+<rect x="1457" y="420" width="34" height="22" rx="11" fill="#1D6FD8" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="436" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W5</text>
+<text x="1502" y="436" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GPIO8</text>
+<text x="1502" y="453" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 12</text>
+<text x="1690" y="436" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ A SDA</text>
+<text x="1690" y="453" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 9</text>
+<rect x="1457" y="466" width="34" height="22" rx="11" fill="#E0A100" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="482" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W6</text>
+<text x="1502" y="482" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GPIO9</text>
+<text x="1502" y="499" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 15</text>
+<text x="1690" y="482" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ A SCL</text>
+<text x="1690" y="499" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 10</text>
+<rect x="1457" y="512" width="34" height="22" rx="11" fill="#1D6FD8" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="528" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W7</text>
+<text x="1502" y="528" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GPIO17</text>
+<text x="1502" y="545" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 10</text>
+<text x="1690" y="528" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ B SDA</text>
+<text x="1690" y="545" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 9</text>
+<rect x="1457" y="558" width="34" height="22" rx="11" fill="#E0A100" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="574" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W8</text>
+<text x="1502" y="574" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GPIO18</text>
+<text x="1502" y="591" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 11</text>
+<text x="1690" y="574" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ B SCL</text>
+<text x="1690" y="591" font-size="12" fill="#555" text-anchor="start" font-weight="400">right header, pin 10</text>
+<rect x="1457" y="604" width="34" height="22" rx="11" fill="#7A4FD0" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="620" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W9</text>
+<text x="1502" y="620" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GPIO6</text>
+<text x="1502" y="637" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 6</text>
+<text x="1690" y="620" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ A RST</text>
+<text x="1690" y="637" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 9</text>
+<rect x="1457" y="650" width="34" height="22" rx="11" fill="#7A4FD0" stroke="#fff" stroke-width="2"/>
+<text x="1474" y="666" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">W10</text>
+<text x="1502" y="666" font-size="14" fill="#111" text-anchor="start" font-weight="700">ESP32 GPIO7</text>
+<text x="1502" y="683" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 7</text>
+<text x="1690" y="666" font-size="14" fill="#111" text-anchor="start" font-weight="700">→ B RST</text>
+<text x="1690" y="683" font-size="12" fill="#555" text-anchor="start" font-weight="400">left header, pin 9</text>
+<rect x="1440" y="760" width="490" height="300" rx="14" fill="#FFF4F2" stroke="#F2B8B0" stroke-width="1.5" />
+<text x="1460" y="794" font-size="18" fill="#B00020" text-anchor="start" font-weight="800">Do NOT connect</text>
+<text x="1460" y="830" font-size="14" fill="#402020" text-anchor="start" font-weight="400">Sensor WU pin (you soldered one): leave it empty.</text>
+<text x="1460" y="864" font-size="14" fill="#402020" text-anchor="start" font-weight="400">Any other sensor pin not listed: leave empty.</text>
+<text x="1460" y="898" font-size="14" fill="#402020" text-anchor="start" font-weight="400">The sensors' own USB-C ports: only for reflashing,</text>
+<text x="1460" y="932" font-size="14" fill="#402020" text-anchor="start" font-weight="400">   never plugged in while wired to the ESP32.</text>
+<text x="1460" y="966" font-size="14" fill="#402020" text-anchor="start" font-weight="400">ESP32 5Vin: not used.</text>
+<text x="1460" y="1000" font-size="14" fill="#402020" text-anchor="start" font-weight="400">Sensor 3V3 must come from ESP32 3V3, never 5 V.</text>
+<text x="40" y="1800" font-size="14" fill="#444" text-anchor="start" font-weight="400">W9 and W10 are dashed purple: reset lines, required. Solder one header pin into each sensor's RST hole (left header, bottom pin) first.</text>
+</svg>

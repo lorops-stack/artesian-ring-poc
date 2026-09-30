@@ -1,0 +1,274 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1960 1640" width="1960" height="1640" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="1960" height="1640" fill="#FFFFFF"/>
+<text x="40" y="50" font-size="28" fill="#111" text-anchor="start" font-weight="800">Stage 2 wiring: LED ring (after the sensors work)</text>
+<text x="40" y="80" font-size="15" fill="#444" text-anchor="start" font-weight="400">Every orange 5V tag connects together, and every black GND tag connects together: use the breadboard's two long power rails.</text>
+<rect x="1520" y="170" width="300" height="1302" rx="16" fill="#15181C" stroke="none" stroke-width="1.5" />
+<rect x="1590" y="188" width="160" height="200" rx="6" fill="#BFC5CC" stroke="#8D949C" stroke-width="1.5" />
+<rect x="1590" y="136" width="160" height="52" rx="4" fill="#26292E" stroke="none" stroke-width="1.5" />
+<text x="1670" y="158" font-size="12" fill="#9AA" text-anchor="middle" font-weight="400">antenna end</text>
+<text x="1670" y="250" font-size="15" fill="#333" text-anchor="middle" font-weight="700">ESP32-S3-N8R2</text>
+<text x="1670" y="272" font-size="12" fill="#555" text-anchor="middle" font-weight="400">module</text>
+<circle cx="1544" cy="420" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="425" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">3V3</text>
+<circle cx="1544" cy="462" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="467" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">3V3</text>
+<circle cx="1544" cy="504" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="509" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">RST</text>
+<circle cx="1544" cy="546" r="11" fill="#1A9B4B" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1544" cy="546" r="4" fill="#fff"/>
+<text x="1564" y="551" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">4</text>
+<circle cx="1544" cy="588" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="593" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">5</text>
+<circle cx="1544" cy="630" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="635" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">6</text>
+<circle cx="1544" cy="672" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="677" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">7</text>
+<circle cx="1544" cy="714" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="719" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">15</text>
+<circle cx="1544" cy="756" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="761" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">16</text>
+<circle cx="1544" cy="798" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="803" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">17</text>
+<circle cx="1544" cy="840" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="845" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">18</text>
+<circle cx="1544" cy="882" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="887" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">8</text>
+<circle cx="1544" cy="924" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="929" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">3</text>
+<circle cx="1544" cy="966" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="971" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">46</text>
+<circle cx="1544" cy="1008" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="1013" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">9</text>
+<circle cx="1544" cy="1050" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="1055" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">10</text>
+<circle cx="1544" cy="1092" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="1097" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">11</text>
+<circle cx="1544" cy="1134" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="1139" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">12</text>
+<circle cx="1544" cy="1176" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="1181" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">13</text>
+<circle cx="1544" cy="1218" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="1223" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">14</text>
+<circle cx="1544" cy="1260" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1564" y="1265" font-size="13.5" fill="#6FA8DC" text-anchor="start" font-weight="400">5Vin</text>
+<circle cx="1544" cy="1302" r="11" fill="#1F1F1F" stroke="#fff" stroke-width="2.5"/>
+<circle cx="1544" cy="1302" r="4" fill="#fff"/>
+<text x="1564" y="1307" font-size="13.5" fill="#FFFFFF" text-anchor="start" font-weight="700">GND</text>
+<circle cx="1796" cy="420" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="425" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">GND</text>
+<circle cx="1796" cy="462" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="467" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">TX</text>
+<circle cx="1796" cy="504" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="509" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">RX</text>
+<circle cx="1796" cy="546" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="551" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">1</text>
+<circle cx="1796" cy="588" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="593" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">2</text>
+<circle cx="1796" cy="630" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="635" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">42</text>
+<circle cx="1796" cy="672" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="677" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">41</text>
+<circle cx="1796" cy="714" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="719" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">40</text>
+<circle cx="1796" cy="756" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="761" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">39</text>
+<circle cx="1796" cy="798" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="803" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">38</text>
+<circle cx="1796" cy="840" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="845" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">37</text>
+<circle cx="1796" cy="882" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="887" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">36</text>
+<circle cx="1796" cy="924" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="929" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">35</text>
+<circle cx="1796" cy="966" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="971" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">0</text>
+<circle cx="1796" cy="1008" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1013" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">45</text>
+<circle cx="1796" cy="1050" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1055" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">48</text>
+<circle cx="1796" cy="1092" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1097" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">47</text>
+<circle cx="1796" cy="1134" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1139" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">21</text>
+<circle cx="1796" cy="1176" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1181" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">20</text>
+<circle cx="1796" cy="1218" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1223" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">19</text>
+<circle cx="1796" cy="1260" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1265" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">GND</text>
+<circle cx="1796" cy="1302" r="8" fill="#2A2A2A" stroke="#C9A227" stroke-width="3"/>
+<text x="1776" y="1307" font-size="13.5" fill="#6FA8DC" text-anchor="end" font-weight="400">GND</text>
+<text x="1544" y="390" font-size="11" fill="#8899AA" text-anchor="middle" font-weight="700">LEFT</text>
+<text x="1796" y="390" font-size="11" fill="#8899AA" text-anchor="middle" font-weight="700">RIGHT</text>
+<rect x="1560" y="1402" width="90" height="70" rx="10" fill="#A9B0B8" stroke="#1A9B4B" stroke-width="3" />
+<text x="1605" y="1436" font-size="11" fill="#333" text-anchor="middle" font-weight="700">USB-C</text>
+<text x="1605" y="1452" font-size="11" fill="#111" text-anchor="middle" font-weight="800">COM / UART</text>
+<rect x="1690" y="1402" width="90" height="70" rx="10" fill="#A9B0B8" stroke="#6C737B" stroke-width="1.5" />
+<text x="1735" y="1436" font-size="11" fill="#333" text-anchor="middle" font-weight="700">USB-C</text>
+<text x="1735" y="1452" font-size="11" fill="#111" text-anchor="middle" font-weight="800">USB</text>
+<text x="1670.0" y="1496" font-size="13" fill="#333" text-anchor="middle" font-weight="400">Use the COM / UART port (normally the left one; the label is on the back).</text>
+<text x="1670.0" y="1514" font-size="12.5" fill="#555" text-anchor="middle" font-weight="400">Check: Windows Device Manager shows "USB-SERIAL CH343".</text>
+<rect x="820" y="300" width="190" height="476" rx="8" fill="#2B2E33" stroke="none" stroke-width="1.5" />
+<path d="M897.0,300 a18,18 0 0 0 36,0" fill="#FFFFFF"/>
+<circle cx="844" cy="322" r="6" fill="#666"/>
+<text x="915.0" y="742" font-size="16" fill="#FFFFFF" text-anchor="middle" font-weight="800">74AHCT125</text>
+<text x="915.0" y="762" font-size="11" fill="#BBB" text-anchor="middle" font-weight="400">top view · notch up · dot = pin 1</text>
+<rect x="792" y="337" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="832" y="350" font-size="13" fill="#FFF" text-anchor="start" font-weight="700">1 · 1OE</text>
+<path d="M792,345 L736,345" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M792,345 L736,345" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="676" y="333" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="706" y="350" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<rect x="792" y="393" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="832" y="406" font-size="13" fill="#FFF" text-anchor="start" font-weight="700">2 · 1A</text>
+<rect x="792" y="449" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="832" y="462" font-size="13" fill="#FFF" text-anchor="start" font-weight="700">3 · 1Y</text>
+<rect x="792" y="505" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="832" y="518" font-size="13" fill="#FFF" text-anchor="start" font-weight="700">4 · 2OE</text>
+<path d="M792,513 L736,513" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M792,513 L736,513" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="676" y="501" width="60" height="24" rx="12" fill="#F07C00" stroke="none" stroke-width="1.5" />
+<text x="706" y="518" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">5V</text>
+<rect x="792" y="561" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="832" y="574" font-size="13" fill="#FFF" text-anchor="start" font-weight="700">5 · 2A</text>
+<path d="M792,569 L736,569" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M792,569 L736,569" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="676" y="557" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="706" y="574" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<rect x="792" y="617" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="832" y="630" font-size="13" fill="#FFF" text-anchor="start" font-weight="700">6 · 2Y</text>
+<text x="782" y="630" font-size="12" fill="#999" text-anchor="end" font-weight="400">empty</text>
+<rect x="792" y="673" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="832" y="686" font-size="13" fill="#FFF" text-anchor="start" font-weight="700">7 · GND</text>
+<path d="M792,681 L736,681" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M792,681 L736,681" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="676" y="669" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="706" y="686" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<rect x="1010" y="673" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="998" y="686" font-size="13" fill="#FFF" text-anchor="end" font-weight="700">3Y · 8</text>
+<text x="1048" y="686" font-size="12" fill="#999" text-anchor="start" font-weight="400">empty</text>
+<rect x="1010" y="617" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="998" y="630" font-size="13" fill="#FFF" text-anchor="end" font-weight="700">3A · 9</text>
+<path d="M1038,625 L1094,625" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1038,625 L1094,625" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1094" y="613" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="1124" y="630" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<rect x="1010" y="561" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="998" y="574" font-size="13" fill="#FFF" text-anchor="end" font-weight="700">3OE · 10</text>
+<path d="M1038,569 L1094,569" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1038,569 L1094,569" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1094" y="557" width="60" height="24" rx="12" fill="#F07C00" stroke="none" stroke-width="1.5" />
+<text x="1124" y="574" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">5V</text>
+<rect x="1010" y="505" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="998" y="518" font-size="13" fill="#FFF" text-anchor="end" font-weight="700">4Y · 11</text>
+<text x="1048" y="518" font-size="12" fill="#999" text-anchor="start" font-weight="400">empty</text>
+<rect x="1010" y="449" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="998" y="462" font-size="13" fill="#FFF" text-anchor="end" font-weight="700">4A · 12</text>
+<path d="M1038,457 L1094,457" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1038,457 L1094,457" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1094" y="445" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="1124" y="462" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<rect x="1010" y="393" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="998" y="406" font-size="13" fill="#FFF" text-anchor="end" font-weight="700">4OE · 13</text>
+<path d="M1038,401 L1094,401" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1038,401 L1094,401" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1094" y="389" width="60" height="24" rx="12" fill="#F07C00" stroke="none" stroke-width="1.5" />
+<text x="1124" y="406" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">5V</text>
+<rect x="1010" y="337" width="28" height="16" rx="2" fill="#C0C4C8" stroke="none" stroke-width="1.5" />
+<text x="998" y="350" font-size="13" fill="#FFF" text-anchor="end" font-weight="700">VCC · 14</text>
+<path d="M1038,345 L1094,345" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1038,345 L1094,345" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1094" y="333" width="60" height="24" rx="12" fill="#F07C00" stroke="none" stroke-width="1.5" />
+<text x="1124" y="350" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">5V</text>
+<path d="M1544,546 L1330,546 L1330,230 L560,230 L560,401 L792,401" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1544,546 L1330,546 L1330,230 L560,230 L560,401 L792,401" fill="none" stroke="#1A9B4B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1483" y="515" width="34" height="22" rx="11" fill="#1A9B4B" stroke="#fff" stroke-width="2"/>
+<text x="1500" y="531" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">D1</text>
+<text x="570" y="220" font-size="13.5" fill="#1A9B4B" text-anchor="start" font-weight="800" stroke="#fff" stroke-width="4" paint-order="stroke">D1: ESP32 GPIO4 (left header, pin 4) → chip pin 2 (1A)</text>
+<path d="M792,457 L620,457 L620,880 L230,880 L230,1040 L310,1040" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M792,457 L620,457 L620,880 L230,880 L230,1040 L310,1040" fill="none" stroke="#1A9B4B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="380" y="868" width="80" height="24" rx="4" fill="#FFFFFF" stroke="#1A9B4B" stroke-width="2.5" />
+<text x="420" y="860" font-size="13" fill="#1A9B4B" text-anchor="middle" font-weight="800">330 Ω</text>
+<text x="630" y="872" font-size="13.5" fill="#1A9B4B" text-anchor="start" font-weight="800" stroke="#fff" stroke-width="4" paint-order="stroke">D2: chip pin 3 (1Y) → 330 Ω → strip DIN</text>
+<path d="M1544,1302 L1420,1302" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1544,1302 L1420,1302" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1360" y="1290" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="1390" y="1307" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<text x="1510" y="1276" font-size="12.5" fill="#333" text-anchor="end" font-weight="700">ESP32 GND (left header, bottom pin) joins the GND rail</text>
+<rect x="300" y="1000" width="880" height="80" rx="10" fill="#F1F3F5" stroke="#9AA0A6" stroke-width="1.5" />
+<rect x="420" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="458" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="496" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="534" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="572" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="610" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="648" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="686" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="724" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="762" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="800" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="838" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="876" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="914" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="952" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="990" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<rect x="1028" y="1028" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#BBB" stroke-width="1.5" />
+<text x="740.0" y="986" font-size="14" fill="#111" text-anchor="middle" font-weight="700">WS2812B strip around the ring · data flows left to right (printed arrows point away from the input)</text>
+<rect x="310" y="1004" width="56" height="20" rx="3" fill="#D8B25A" stroke="none" stroke-width="1.5" />
+<text x="338" y="1019" font-size="11.5" fill="#111" text-anchor="middle" font-weight="800">5V</text>
+<rect x="310" y="1030" width="56" height="20" rx="3" fill="#D8B25A" stroke="none" stroke-width="1.5" />
+<text x="338" y="1045" font-size="11.5" fill="#111" text-anchor="middle" font-weight="800">DIN</text>
+<rect x="310" y="1056" width="56" height="20" rx="3" fill="#D8B25A" stroke="none" stroke-width="1.5" />
+<text x="338" y="1071" font-size="11.5" fill="#111" text-anchor="middle" font-weight="800">GND</text>
+<rect x="1114" y="1004" width="56" height="20" rx="3" fill="#D8B25A" stroke="none" stroke-width="1.5" />
+<text x="1142" y="1019" font-size="11.5" fill="#111" text-anchor="middle" font-weight="800">5V</text>
+<rect x="1114" y="1030" width="56" height="20" rx="3" fill="#D8B25A" stroke="none" stroke-width="1.5" />
+<text x="1142" y="1045" font-size="11.5" fill="#111" text-anchor="middle" font-weight="800">DO</text>
+<rect x="1114" y="1056" width="56" height="20" rx="3" fill="#D8B25A" stroke="none" stroke-width="1.5" />
+<text x="1142" y="1071" font-size="11.5" fill="#111" text-anchor="middle" font-weight="800">GND</text>
+<text x="338" y="1102" font-size="13" fill="#111" text-anchor="middle" font-weight="800">INPUT end</text>
+<text x="1142" y="1102" font-size="13" fill="#111" text-anchor="middle" font-weight="800">FAR end</text>
+<text x="1142" y="1118" font-size="11.5" fill="#888" text-anchor="middle" font-weight="400">DO: leave empty</text>
+<path d="M310,1014 L250,1014" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M310,1014 L250,1014" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="190" y="1002" width="60" height="24" rx="12" fill="#F07C00" stroke="none" stroke-width="1.5" />
+<text x="220" y="1019" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">5V</text>
+<path d="M310,1066 L250,1066" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M310,1066 L250,1066" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="190" y="1054" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="220" y="1071" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<path d="M1170,1014 L1220,1014" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1170,1014 L1220,1014" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1220" y="1002" width="60" height="24" rx="12" fill="#F07C00" stroke="none" stroke-width="1.5" />
+<text x="1250" y="1019" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">5V</text>
+<path d="M1170,1066 L1220,1066" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1170,1066 L1220,1066" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1220" y="1054" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="1250" y="1071" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<rect x="40" y="1140" width="380" height="70" rx="10" fill="#F6F7F9" stroke="#C9CED4" stroke-width="1.5" />
+<text x="56" y="1168" font-size="13" fill="#111" text-anchor="start" font-weight="800">1000 µF capacitor at the INPUT end:</text>
+<text x="56" y="1190" font-size="13" fill="#333" text-anchor="start" font-weight="400">long leg to 5V, striped leg to GND.</text>
+<rect x="480" y="1240" width="440" height="120" rx="12" fill="#FFF4E6" stroke="#F07C00" stroke-width="2" />
+<text x="700" y="1274" font-size="17" fill="#111" text-anchor="middle" font-weight="800">5 V LED power supply, ≥ 4 A</text>
+<text x="700" y="1300" font-size="13.5" fill="#333" text-anchor="middle" font-weight="400">+ output → 5 A inline fuse → 5V rail</text>
+<text x="700" y="1322" font-size="13.5" fill="#333" text-anchor="middle" font-weight="400">− output → GND rail</text>
+<text x="700" y="1344" font-size="13.5" fill="#333" text-anchor="middle" font-weight="400">18 AWG from the rails to BOTH strip ends</text>
+<path d="M920,1276 L960,1276" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M920,1276 L960,1276" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="960" y="1261" width="70" height="30" rx="6" fill="#FFFFFF" stroke="#F07C00" stroke-width="2.5" />
+<text x="995" y="1281" font-size="13" fill="#F07C00" text-anchor="middle" font-weight="800">5 A</text>
+<path d="M1030,1276 L1080,1276" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1030,1276 L1080,1276" fill="none" stroke="#F07C00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1080" y="1264" width="60" height="24" rx="12" fill="#F07C00" stroke="none" stroke-width="1.5" />
+<text x="1110" y="1281" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">5V</text>
+<path d="M920,1326 L1080,1326" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M920,1326 L1080,1326" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="1080" y="1314" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="1110" y="1331" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<rect x="40" y="1420" width="1180" height="170" rx="14" fill="#F6F7F9" stroke="#C9CED4" stroke-width="1.5" />
+<text x="60" y="1454" font-size="18" fill="#111" text-anchor="start" font-weight="800">Checklist</text>
+<text x="60" y="1486" font-size="13.5" fill="#333" text-anchor="start" font-weight="400">• The ESP32 is powered only by its own USB-C (COM port). The LED supply never connects to the ESP32's 5Vin or 3V3.</text>
+<text x="60" y="1510" font-size="13.5" fill="#333" text-anchor="start" font-weight="400">• The LED supply's GND and the ESP32's GND are joined (the GND rail). Without this the data signal does not work.</text>
+<text x="60" y="1534" font-size="13.5" fill="#333" text-anchor="start" font-weight="400">• Solder to the strip's INPUT end (printed arrows point away from it). Feed 5V and GND at the far end too.</text>
+<text x="60" y="1558" font-size="13.5" fill="#333" text-anchor="start" font-weight="400">• Chip goes in the breadboard across the centre gap, notch up; pin 1 is top-left, next to the dot.</text>
+</svg>
