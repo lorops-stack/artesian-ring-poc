@@ -35,6 +35,19 @@ Every ESP32 pin used is on the board's **left header** (the side labelled 3V3, 3
 
 **Level shifter (74AHCT125):** VCC to 5 V, GND to common ground, **1OE tied to GND** (enables the channel). Tie unused inputs 2A, 3A and 4A to GND.
 
+**No level shifter on hand? Two stopgaps, in order of preference:**
+1. **Sacrificial first pixel.** Cut one LED off the strip and wire it in *before* the strip. Feed its 5V pad through a 1N4001 or 1N5819 diode, so it runs at about 4.3 V and accepts a 3.3 V data signal. Its DOUT then drives the rest of the strip with a clean full-strength signal.
+2. **Direct drive.** GPIO4 → 330 Ω → DIN, with the data wire under 15 cm. This often works but can flicker. Fine for bench testing, not for an investor demo.
+
+Buy the 74AHCT125 for the demo build. It is the only one of the three with no failure mode.
+
+**Identify the strip before soldering.** Read the pad labels at the cut point:
+- **5V, DIN (or DI), GND:** addressable 5 V strip (WS2812B / SK6812). **Use this one.**
+- **12V, DI, BI, GND:** addressable 12 V strip (WS2815). Usable, but it needs a 12 V supply. BI is a backup data line: tie it to GND at the input end.
+- **12V (or 5V), R, G, B:** plain RGB strip. **Not usable here.** The whole strip shows one colour, and it needs driver transistors. This is the type the white controller box runs.
+
+Solder to the **input** end: the printed arrows point away from it (DIN, not DOUT).
+
 **LED power:** the 5 V supply feeds the strip's 5V and GND directly, with a 1000 µF capacitor across 5V/GND at the strip end. The strip does **not** draw power through the ESP32. Firmware caps brightness to keep current under 3 A.
 
 ## Power

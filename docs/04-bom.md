@@ -8,9 +8,9 @@
 | 4 | Qwiic cable with female jumper ends, 4-pin (or 4-core cable + female jumpers) | 3 | buy | one per sensor, ≤ 50 cm |
 | 5 | Female-female jumper wires | 10+ | have? | RST lines, shifter |
 | 6 | Header pins (0.1 in) | 2 | have | one on each XM125's RST pad |
-| 7 | WS2812B LED strip, 5 V, 60 LED/m | 2.5 m | buy | cut to the ring perimeter (~2.2 m) |
+| 7 | Addressable LED strip, 5 V (WS2812B/SK6812) | 2.5 m | have (confirm pad labels) | cut to the ring perimeter (~2.2 m) |
 | 8 | 5 V 4 A (20 W) power supply + DC barrel to screw terminal | 1 | buy | LED power only |
-| 9 | 74AHCT125 quad buffer (DIP-14) | 1 | buy | 3.3 V → 5 V LED data |
+| 9 | 74AHCT125 quad buffer (DIP-14) | 1 | buy before demo | 3.3 V → 5 V LED data. Stopgap for bench work: sacrificial pixel + 1N4001/1N5819 diode (see doc 03) |
 | 10 | 330 Ω resistor | 1 | buy | LED data line |
 | 11 | 1000 µF 10 V electrolytic capacitor | 1 | buy | across strip 5V/GND |
 | 12 | Small breadboard or perfboard | 1 | have? | for the shifter |
