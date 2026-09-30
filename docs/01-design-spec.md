@@ -174,6 +174,19 @@ Nothing about the geometry is hard-coded in firmware. Every dimension, position 
 
 Calibration order the studio walks you through: C1 → C2/C3/C4 → C5 check → C6 → C7 → C8 → C11 → save.
 
+## 8b. UI design language (Ring Studio)
+
+Reference design: the "Ring Studio UI" design canvas (live view + calibration studio), 30 Sep 2026.
+
+- **Look:** dark, calm, premium consumer-device feel. Near-black ground (#07090C), frosted translucent cards with hairline borders, large rounded corners (24 to 36 px), generous spacing, one big number or word per card.
+- **Type:** Geist (display and UI) with tabular numerals. The font files are bundled into the ESP32 flash so the UI never depends on the internet.
+- **The sink is the hero:** a top-down ring whose glow mirrors the physical LED ring. The ring and zone tiles fade in the zone colour while a hand settles (hover preview, F20) and go solid on latch. Water is animated from the back manifold; the disposal spins at the drain; soap shows a foam burst.
+- **Function colours** (always paired with a label and icon, never colour alone): soap lilac #B69CFF, disposal amber #F2B44B, cup fill cyan #4FD1E8, waterfall teal #3FC7A6, hot #FF6B4A, warm #FFB27A, cold #6FB6FF, neutral grey #AEB7C2.
+- **Right column:** "Now" card (function, one-line explanation, progress ring for cup volume, disposal time, settle progress or the 1-second off countdown), four metric tiles, and the latch-logic strip (Idle, Tracking, Active, Off in 1 s).
+- **Engineering toggle** swaps the metric tiles for live sensor ranges and draws each sensor's range circle on the sink, so the trilateration is visible.
+- **Motion:** 60 fps CSS animation, springs under 400 ms, all motion off when the viewer's device asks for reduced motion.
+- **Controls:** layout switch (Kitchen, Bathroom, Accessible), °F/°C toggle, Engineering, Calibrate. Touch targets at least 38 px; works on a tablet.
+
 ## 9. Build phases
 
 | Phase | Output | Exit test |
