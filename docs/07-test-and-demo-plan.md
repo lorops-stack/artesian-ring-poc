@@ -18,7 +18,7 @@
 | T12 | 2 | Accuracy test with 5+ people, all three layouts | ≥ 97% overall |
 | T13 | 2 | LED ring: full brightness cap, 30 min run | Supply and strip warm, not hot; no flicker |
 | T14 | 2 | Pull a sensor cable mid-run, then reconnect | UI shows fault, sensor auto-recovers via RST, no crash |
-| T15 | 2 | Cold boot on battery-free setup, no laptop, tablet joins Wi-Fi | Ready in ≤ 10 s, UI loads on tablet |
+| T15 | 2 | Cold boot with no laptop connected, tablet joins Wi-Fi | Ready in ≤ 10 s, UI loads on tablet |
 
 ## Accuracy test protocol (F16)
 1. Calibrate (studio C1 → C8).
