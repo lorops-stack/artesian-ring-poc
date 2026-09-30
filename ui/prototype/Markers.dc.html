@@ -49,7 +49,7 @@ var MARKERS = [
   { id: 'reticle', name: 'Precision reticle', why: 'A fine targeting ring with guide lines and a live millimetre readout. Says measurement, not guesswork.' },
   { id: 'droplet', name: 'Glass droplet', why: 'A lit water droplet that grows as it locks and ripples while water runs. On-brand for a water product.' },
   { id: 'bloom', name: 'Presence bloom', why: 'A soft radar return with contour rings, like a heat signature. Organic and calm, no hard edges.' },
-  { id: 'range', name: 'Radar range', why: 'An arc from each sensor at its measured distance, crossing at the hand. Shows how the position is actually found.' }
+  { id: 'range', name: 'Radar range', why: 'An arc from each sensor at its measured distance, crossing at the hand (plan view). Shows how the position is actually found.' }
 ];
 function drawMarker(ctx, st, o) {
   var x = o.x, y = o.y, c = o.col, s = o.settle, a = o.active, t = o.time, k = o.k || 1, i, I;

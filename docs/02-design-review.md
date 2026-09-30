@@ -20,15 +20,15 @@ Hands reach in from the front. To get to the soap (back-left), the hand crosses 
 ### R2. A pot, cup or dish left in the sink looks like a hand
 Radar sees any object. Leave a pot in the sink and the system could believe a hand is still there, so the water never turns off. In a real kitchen with a slow drain, that is a flood.
 **Fix (spec 4.4):**
-1. **Before anything is latched** (IDLE, ARMING), an echo that stays perfectly still for 5 s is learned as an object and ignored.
-2. **While water runs**, background learning is off, so a still hand holding a pot under Cup fill is never cut off. Instead, a 120 s max-run timer ends the flow if the target stops moving (TIMED_OUT). Hand movement resets it.
+1. An echo that has **not moved since it first appeared** and stays still for 5 s is learned as an object and ignored. The session's own hand arrived moving, so it is never learned while water can run.
+2. **While water runs**, a 120 s max-run timer ends the flow if the target stops moving (TIMED_OUT), and hand movement resets it. Once the water is off (TIMED_OUT, or Cup fill full), a still object is learned after 5 s, so the session ends instead of the sink staying locked.
 
 Investors *will* put things in the sink, so this is tested on purpose (T9, T18, T21).
 
 ### R3. Both XM125 boards answer at the same I2C address
 SparkFun's documentation says the ADDR jumper's function is "to be implemented in the future", so both boards sit at **0x52** and cannot share one I2C bus.
 **Fix:** each sensor gets its own I2C bus (the ESP32-S3 has two). No jumper soldering.
-**Bench check (T1):** Acconeer's own I2C guide documents address selection through an address pin. If SparkFun's ADDR pad turns out to work with the distance detector firmware, the third sensor gets simpler. Until that is proven, the two-bus design stands.
+**Bench check (T1):** Acconeer's own I2C guide may document address selection through an address pin (not yet confirmed). If SparkFun's ADDR pad turns out to work with the distance detector firmware, the third sensor gets simpler. Until that is proven, the two-bus design stands.
 
 ### R4. The boards ship with the wrong firmware for this job
 SparkFun preloads the **presence detector**. It reports "someone is there" and a rough distance, and it can lose a hand held still. Trilateration needs the precise echo distances from the **distance detector** firmware.
@@ -40,6 +40,8 @@ The centre of the Soap zone is **132 mm** from sensor A, and Cup fill is 132 mm 
 
 ### R6. Two range-only sensors cannot see hand height
 Each sensor measures straight-line distance. Two distances pin down left/right and front/back only if hand height is known, and people hold their hands at different depths in the basin. Simulation, 10 mm range noise, hand depth 30 to 200 mm, inner 70% of each zone:
+
+Indicative only: the "calibrated" column uses a simpler nearest-reference-point method than the planned position map.
 
 | Zone row | Geometry only | Calibrated (nearest calibrated point) |
 |---|---|---|
@@ -171,7 +173,7 @@ Two problems:
 Over I2C, the distance detector gives up to 10 echoes (distance and strength) per measurement. It does not give the raw sweep or its internal threshold. Several features first assumed the raw signal.
 **Fix:** F1, C6, the background learning and R2 are all rewritten on echo lists (spec sections 4.4, 6 and 7). Getting the raw signal would need different sensor firmware. That is a scope change, and it is not planned.
 
-### R27. The state machine had gaps, and the prototypes had two bugs from them
+### R27. The state machine had gaps, and the prototypes had bugs from them
 - The disposal restarted by itself when its 15 s ran out with a hand still over it.
 - The soap block leaked into the next person's session when the disposal was running as they left.
 - The state diagram did not cover cup full, disposal, max-run, clean mode or layout changes, and it disagreed with the rules on what happens when a hand leaves while tracking.
@@ -181,11 +183,17 @@ Over I2C, the distance detector gives up to 10 echoes (distance and strength) pe
 - Settling in **any** other zone, Neutral included (it sits over the drain), stops it.
 - Soap and disposal locks clear when the session ends.
 
-Both prototype bugs are fixed. These tables are the spec for the firmware unit tests.
+A second check closed the remaining gaps:
+- A cup set down under Cup fill, or a pot left after a time-out, used to lock the sink until removed. It is now learned as background, because the water is already off in those states.
+- The session's own hand is never learned while water can run.
+- A disposal left running from the last session follows the same rules.
+- Clean mode ends the session.
+
+The prototype bugs are fixed, including the demo loop cutting a real disposal short. These tables are the spec for the firmware unit tests.
 
 ### R28. Calibration only covered the Kitchen layout
 A 9-zone fingerprint cannot serve the Bathroom (6 zones) or Accessible (5 zones) layouts.
-**Fix:** calibration now builds a **position** correction map from 9 reference points (C8), so every layout uses the same calibration. Exact zone boundaries for every layout are in spec section 3. Neither Bathroom nor Accessible has a Neutral zone, so clean mode there starts from the UI or the BOOT button.
+**Fix:** calibration now builds a **position** correction map from 16 reference points on a 4 × 4 grid that reaches the edges and corners (C8), so every layout uses the same calibration. Exact zone boundaries for every layout are in spec section 3. Neither Bathroom nor Accessible has a Neutral zone, so clean mode there starts from the UI or the BOOT button.
 
 ### R29. What plain http cannot do
 Ring Studio is served from `http://192.168.4.1`, which browsers do not treat as secure. As a result:
@@ -239,5 +247,5 @@ The first target ("inner 70% of each zone") could not be controlled in a natural
 | A1 | Read the pad labels on both LED strips (`03-pinout-and-wiring.md`). If neither is a 5 V addressable strip, add one to the buy list | Nathan |
 | A2 | Confirm the LED supply's label says 5 V and at least 4 A | Nathan |
 | A3 | Pick the standard hand marker style (default: Focus lock) | Nathan |
-| A4 | Create the empty private repo `artesian-ring-poc` on GitHub | Nathan |
+| A4 | Create the empty private repo `artesian-ring-poc` on GitHub (no README, no .gitignore), then tell Claude, who pushes the existing history to it. Only clone it (doc 06) after that push | Nathan, then Claude |
 | A5 | Order the parts marked "buy" in `04-bom.md` | Nathan |

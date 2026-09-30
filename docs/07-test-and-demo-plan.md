@@ -1,6 +1,6 @@
 # 07 · Test and Demo Plan
 
-Every rule in spec section 4 has a test here, and every test here has a unit-test twin in `firmware/test/` where the behaviour can be checked without hardware.
+Every rule in spec section 4 has a bench test here and a unit-test twin in `firmware/test/`. Tests of hardware, power and security (T8, T13 to T15, T24 to T26) are bench-only.
 
 ## Bench tests
 
@@ -17,16 +17,16 @@ Every rule in spec section 4 has a test here, and every test here has a unit-tes
 | T9 | 1 | **Objects:** pot, cup and plate put in the sink while idle; hand held perfectly still under Cup fill | Objects ignored after 5 s; the still hand is not cut off |
 | T10 | 1 | **Reach path:** reach for Soap and Cup fill from the front, fast and slow | Latches the back zone, never Hot/Warm/Cold on the way |
 | T11 | 1 | Two hands at once, hand plus forearm, watch and rings | No wrong latch; worst case, no latch |
+| T12 | 2 | Accuracy test, 5+ people, all three layouts | ≥ 97% overall, no zone below 93% |
+| T13 | 2 | LED ring at the brightness cap, 30 min | Supply, wires and strip warm, not hot; no colour shift at the far end; no flicker |
+| T14 | 2 | Pull a sensor cable mid-run, then reconnect | UI shows the fault; the sensor recovers through RST; no crash |
+| T15 | 2 | Cold boot on the wall adapter, no laptop; tablet joins the Wi-Fi | Ready in ≤ 10 s; UI loads on the tablet |
 | T16 | 1 | **Disposal:** 1 s hold starts it; runs 15 s; a hand settling in Neutral stops it; a hand settling in Hot stops it and starts Hot; keeping the hand over Disposal after 15 s does not restart it; it keeps running after hands leave | All as spec 4.3 |
 | T17 | 1 | **Soap:** one dose; then settle in Warm without leaving, and Warm starts; Soap zone blocked; the block clears after the exit countdown, including when the disposal is still running | All as spec 4.3 |
 | T18 | 1 | **Max run:** a drink can left in the sink while Warm runs → Warm stops at 120 s (TIMED_OUT). A hand moving slowly keeps Warm on past 120 s | Both correct |
 | T19 | 1 | **Hands out, person stays:** withdraw hands but keep standing at the sink | Off 1.0 s after the hands leave (R25) |
 | T20 | 1 | **Returning hand:** out for 0.5 s, then back | The same function continues, no chime or restart |
-| T21 | 1 | **Background:** leave the sink empty 30 s (refresh runs), then add a pot while idle; fill a 2 L pot under Cup fill holding it still | Pot ignored; the 21 s fill is not cut off |
-| T12 | 2 | Accuracy test, 5+ people, all three layouts | ≥ 97% overall, no zone below 93% |
-| T13 | 2 | LED ring at the brightness cap, 30 min | Supply, wires and strip warm, not hot; no colour shift at the far end; no flicker |
-| T14 | 2 | Pull a sensor cable mid-run, then reconnect | UI shows the fault; the sensor recovers through RST; no crash |
-| T15 | 2 | Cold boot on the wall adapter, no laptop; tablet joins the Wi-Fi | Ready in ≤ 10 s; UI loads on the tablet |
+| T21 | 1 | **Background:** leave the sink empty 30 s (refresh runs), then add a pot while idle; fill a 2 L pot under Cup fill holding it still; set a cup down under Cup fill and walk away | Pot ignored; the 21 s fill is not cut off; after the cup is full the session ends about 6 s later and the sink is usable again |
 | T22 | 2 | **Clean mode:** start from the UI, from the BOOT button, and by 3 s still in Neutral | Water off, nothing latches for 60 s, disposal stopped |
 | T23 | 2 | **Layout change** while Warm is running | All off, IDLE, new layout active |
 | T24 | 2 | **OTA update** from Ring Studio | Update installs, device reboots, calibration kept |
@@ -39,7 +39,7 @@ Every rule in spec section 4 has a test here, and every test here has a unit-tes
 2. The UI shows a random zone with a target dot at its centre. The tester reaches in naturally from the front, aims at the dot, and stops. No slow, careful placement.
 3. 20 trials per zone per person: 180 trials for the Kitchen layout.
 4. Record the latched zone, the latency and any false-off.
-5. Save the confusion matrix and the CSV. These numbers go to the Project Collins evidence log and are the accuracy claim used with investors.
+5. Export the confusion matrix and the CSV to a file straight away (browser storage can be cleared). These numbers go to the Project Collins evidence log and are the accuracy claim used with investors.
 
 The quick on-site check (C11) is 5 trials per zone, all of which must pass. It confirms the calibration; it is not the accuracy claim.
 
@@ -48,10 +48,10 @@ The quick on-site check (C11) is 5 trials per zone, all of which must pass. It c
 - [ ] Sensors vertical, module face in, nothing metal in front (R17)
 - [ ] ESP32 wall adapter and LED supply on one switched power strip (R23)
 - [ ] Power on; tablet joined to the ArtesianRing Wi-Fi with the password
-- [ ] Full calibration on site: plane, sensor positions, empty-sink background, reference target, the 9-point walkthrough (R20, about 15 min)
+- [ ] Full calibration on site: plane, sensor positions, empty-sink background, reference target, the 16-point walkthrough (R20, about 15 min)
 - [ ] Quick accuracy check: 5 trials per zone, all pass (about 5 min)
 - [ ] Showcase screen on, studio PIN-locked, sound on (first tap)
-- [ ] Laptop copy of Ring Studio open with a recorded good session, ready to replay if the hardware fails (R29)
+- [ ] Laptop copy of Ring Studio open with a recorded good session imported from its exported file, ready to replay if the hardware fails (R29)
 
 ## Demo run sheet (about 5 minutes)
 1. **The problem (30 s):** the faucet is the dirtiest thing in the kitchen, and touch-free faucets only do on/off.

@@ -59,13 +59,19 @@ The Accessible layout replaced the first idea of "3 back + 1 front". Four zones 
 
 ## 4. Behaviour: the latch state machine
 
-This section is the specification for the firmware state machine and its unit tests. The UI shows the states as: **Idle** = IDLE, **Tracking** = ARMING, **Active** = ACTIVE / CUP_FULL / TIMED_OUT, **Off in 1 s** = EXIT_PENDING, **Cleaning** = CLEAN.
+This section is the specification for the firmware state machine and its unit tests. The UI shows the states as:
+- **Idle** = IDLE
+- **Tracking** = ARMING
+- **Active** = ACTIVE, CUP_FULL or TIMED_OUT, or a running disposal with nothing else latched
+- **Off in 1 s** = EXIT_PENDING
+- **Cleaning** = CLEAN
 
 ### 4.1 Definitions
 
 - **Hand present:** the fused target (section 6: one echo from A and one from B that together form a hand-sized target inside the sensing area) exists. Raw echoes from either sensor on their own never count. So a person standing at the sink with their hands out is "no hand".
 - **Hand gone:** no fused target for `GONE_FRAMES` (3) consecutive frames. The off countdown is timed from the **last frame the hand was seen**, so the off time is not delayed by the confirmation frames.
-- **Settled in a zone:** the hand has been inside the zone (20 mm inside its edges) for `SETTLE_MS` (150 ms), with speed below `SETTLE_SPEED` (250 mm/s) for that whole time. If speed goes above the limit, the settle timer restarts.
+- **Settled in a zone:** the hand has been inside the zone (20 mm inside its edges) for `SETTLE_MS` (150 ms), with speed below `SETTLE_SPEED` (250 mm/s) for that whole time. If speed goes above the limit, the settle timer restarts. The Disposal hold uses the same rule with 1000 ms.
+- **Hand back:** during EXIT_PENDING, one frame with the hand present cancels the countdown (bias to staying on). From IDLE, a new session needs `PRESENT_FRAMES` (2).
 - **Session:** from IDLE → ARMING until the exit countdown completes. Soap block and disposal lockout last for one session.
 
 ### 4.2 States
@@ -96,21 +102,23 @@ This section is the specification for the firmware state machine and its unit te
 | ARMING, ACTIVE, CUP_FULL, TIMED_OUT | Hand gone | EXIT_PENDING | Countdown from the last frame seen |
 | EXIT_PENDING | Hand present again within 1.0 s | Back to the state it left | |
 | EXIT_PENDING | 1.0 s elapsed | IDLE | All water off. Session ends: soap block and disposal lockout clear. A running disposal is **not** stopped |
-| Any except CLEAN | Clean started (UI button, BOOT button short press, or 3 s still in Neutral) | CLEAN | Water off, disposal stopped |
+| Any except CLEAN | Clean started (UI button, BOOT button short press, or 3 s still in Neutral) | CLEAN | Water off, disposal stopped, session ends (locks clear) |
 | CLEAN | 60 s elapsed, or ended from the UI | IDLE | Nothing latches during CLEAN |
 | Any | Layout changed in the UI | IDLE | All water off, disposal stopped, session ends |
 
 **DISPOSAL_RUN rules** (the one function that runs without a hand in the sink; decided 30 Sep 2026, review Q2):
 - Starts only from ARMING. If a water function is already latched, holding over the Disposal zone does nothing.
 - Runs a fixed 15 s, then stops.
-- **Stops immediately** if a hand settles in any zone other than Disposal, Neutral included. The Neutral zone sits over the drain, so a hand resting there must stop it. If that zone is a water function, the same settle then latches it.
+- **Stops immediately** if a hand settles in any zone other than Disposal, Neutral included. The Neutral zone sits over the drain, so a hand resting there must stop it. The same settle then starts that zone's function as normal: water latches, and Soap doses.
 - Never restarts in the same session, even after its 15 s ends. A new run needs the hands to leave the sink and a new 1 s hold.
+- A disposal still running from the previous session behaves the same for the new session: a hold over Disposal is ignored (no restart, no extension), and a settle in any other zone stops it.
 
 ### 4.4 Presence and background rules
 
 - **Fail-on:** while any function is latched, a missing frame never turns water off. Only "hand gone" as defined above starts the countdown.
-- **Background learning** runs only in IDLE and ARMING. An echo that stays perfectly still for `STATIC_ABSORB_MS` (5 s) with no function latched is treated as an object (a pot, a plate) and ignored. It is **never** applied to the latched target during ACTIVE or CUP_FULL: a hand holding a pot still under Cup fill for 21 s must not be cut off.
-- **Pot left in the sink while water runs:** the target no longer moves, so the max-run timer (120 s) ends the flow (TIMED_OUT). This is the flood protection.
+- **Background learning:** an echo that has **not moved since it first appeared** and stays still for `STATIC_ABSORB_MS` (5 s) is treated as an object (a pot, a plate) and ignored from then on. The hand that started the session arrived moving, so it is never learned while ARMING or ACTIVE, however still it is held. A hand holding a pot still under Cup fill for 21 s is not cut off.
+- **Water already off (CUP_FULL, TIMED_OUT):** here the latched target *can* be learned after 5 s without movement. So a cup set down under Cup fill, or a pot left after a time-out, becomes background. "Hand gone" then fires and the session ends normally, instead of the sink staying locked until someone removes the object.
+- **Pot left in the sink while water runs:** the target no longer moves, so the max-run timer (120 s) ends the flow (TIMED_OUT). The pot is then learned and the session ends. This is the flood protection.
 - **Sensor recalibration** (the detector's CALIBRATION_NEEDED flag, and re-recording the empty-sink background after 30 s idle) only runs in IDLE with no echoes present. It is never run while a hand is in the sink.
 
 ## 5. Smart functions (simulated)
@@ -149,7 +157,7 @@ This section is the specification for the firmware state machine and its unit te
 - **Echo association (one rule):** from A's and B's echo lists, pick the pair that forms a hand-sized target inside the sensing area. When two pairs qualify, take the nearer one (ghost echoes from the steel basin are always further away than the real hand). This rejects the torso, forearm, basin reflections and objects already learned as background (R7, R8, R15).
 - **Position and zone:**
   - **Trilateration** of the chosen pair gives a raw position, used for the live dot.
-  - **Calibrated position map:** calibration (C8) records the echo distances at known points across the sink, at high and low hand heights. The firmware builds a correction map from measured distances to true position, which absorbs hand-height error and mounting offsets. Because it corrects *position*, it works for every layout without recalibrating per layout.
+  - **Calibrated position map:** calibration (C8) records the echo distances at 16 known points spread across the whole sink, including near every edge and corner, at high and low hand heights. The firmware builds a correction map from measured distances to true position, which absorbs hand-height error and mounting offsets. Because it corrects *position*, it works for every layout without recalibrating per layout.
   - The **zone** is the calibrated position looked up in the active layout, with 20 mm hysteresis at the edges.
   - If trilateration and the calibrated map disagree by more than half a zone, or a sensor has no echo, the frame is flagged, and a flagged frame never latches.
 - **Tracking:** an alpha-beta filter per sensor distance smooths the readings and gives a hand speed for the settle rule.
@@ -162,13 +170,13 @@ This section is the specification for the firmware state machine and its unit te
   2. Web Serial is blocked.
 
   So a **laptop copy of Ring Studio** (run locally from `ui/`) is the fallback. It connects over USB (Web Serial) and plays recorded sessions (F11) even if the ESP32 is down.
-- **Data storage:** recordings (F11), dashboard history (F15) and accuracy results (F16) are kept in the viewing browser's storage, with CSV and JSON export. The ESP32 keeps only config and a small running total of sessions and water.
+- **Data storage:** recordings (F11), dashboard history (F15) and accuracy results (F16) are kept in the viewing browser's storage. Browser storage can be cleared, and each browser (tablet, laptop copy) keeps its own. So every session and every accuracy run is **exported to a JSON/CSV file** straight after it finishes. Files are then imported where they are needed: the laptop copy (for replay), `firmware/test/fixtures/` (as regression tests) or the Project Collins evidence log. The ESP32 keeps only config and a small running total of sessions and water.
 
 ## 7. Feature list
 
 | # | Feature | Where | Phase |
 |---|---|---|---|
-| F1 | Live echo traces from A and B: distance and strength of each echo, with the chosen pair highlighted | UI | 0–1 |
+| F1 | Live echo traces from A and B: distance and strength of each echo, with the chosen pair highlighted (Phase 0 prints the same echo lists on USB serial) | UI | 1 |
 | F2 | Visible state machine, including the 1 s exit countdown | UI + LEDs | 1 |
 | F3 | Latency readout: hand confirmed in sink → function on, in ms | FW + UI | 1 |
 | F4 | False-off counter, plus a "held on" flag when a dropout was correctly bridged | FW + UI | 1 |
@@ -207,7 +215,7 @@ Nothing about the geometry is hard-coded in firmware. Every dimension, position 
 | C5 | Coverage and accuracy heatmap | Live prediction over the plane: beam footprint, near-range blind spot (< 60 mm), mirror ambiguity, and position error from hand depth plus range noise, turned into expected zone accuracy for the active layout |
 | C6 | Empty-sink background capture | Runs the sensor calibration with the sink empty, records the echoes present (basin reflections), and flags anything unusual, such as a forgotten cup |
 | C7 | Reference target check | A drink can placed at 3 to 5 marked points. Fits a distance offset per sensor and back-solves the sensor positions; warns if they disagree with C2 by more than 15 mm |
-| C8 | Calibration walkthrough | The ring LEDs and screen guide the hand to 9 reference points (the Kitchen zone centres), at high and low height, plus one moving pass. Builds the calibrated position map used by **every** layout. Any point can be redone |
+| C8 | Calibration walkthrough | The ring LEDs and screen guide the hand to 16 reference points on a 4 × 4 grid (at 1/8, 3/8, 5/8 and 7/8 of the width and depth, so edges and corners are covered, not extrapolated), each at high and low height, plus one moving pass. Builds the calibrated position map used by **every** layout. Any point can be redone |
 | C9 | Zone editor | Drag zone edges, assign functions, save layouts (Kitchen, Bathroom, Accessible, custom) |
 | C10 | Tuning panel | Settle time and speed, gone frames, exit delay, static absorb time, max run, sensor range, threshold sensitivity. Applies live, with reset to defaults |
 | C11 | Validation | Full: the F16 accuracy test against section 1 (the "demo ready" mark). Quick on-site check: 5 trials per zone, all must pass, about 5 minutes |
@@ -218,7 +226,7 @@ Calibration order: C1 → C2/C3/C4 → C5 → C6 → C7 → C8 → C11 → save.
 
 ## 8b. UI design language (Ring Studio)
 
-Reference: the "Ring Studio UI" design canvas (Showcase, Operator view, Calibration studio, Hand marker options), 30 Sep 2026. The canvas screens are prototypes. They model the section 4 rules except max-run and clean mode, use the cursor as the hand, and do not model the sensor maths. Copies are kept in `ui/prototype/`.
+Reference: the "Ring Studio UI" design canvas (Showcase, Operator view, Calibration studio, Hand marker options), 30 Sep 2026. The canvas screens are prototypes. They use the cursor as the hand and model the main section 4 rules: settle, latch, soap release, the disposal rules, cup full and the 1 s exit. They do not model max-run or TIMED_OUT, clean mode, GONE_FRAMES, the 20 mm hysteresis or the sensor maths, and they show a running disposal as the active function. Copies are kept in `ui/prototype/`.
 
 - **Showcase screen** (presentation mode, F13): a full-screen rendered top-down scene. It shows a speckled stone countertop, a lit resin ring bezel, and a brushed stainless basin with a drain. It is drawn live on an HTML canvas at 60 fps with no libraries.
   - **Ring LEDs** are drawn as 132 individual pixels with bloom, matching the real strip. They chase slowly when idle, fill outward from the manifold as a hand settles, shimmer while active, and retract around the ring during the off countdown.
@@ -249,7 +257,7 @@ Reference: the "Ring Studio UI" design canvas (Showcase, Operator view, Calibrat
 
 | Phase | Output | Exit test |
 |---|---|---|
-| 0 | Reflash XM125s, wire the bench rig, echo lists from A and B on USB serial, F1 traces | T1 to T4 |
-| 1 | Fusion (association, calibrated map, plane gating), the full state machine with unit tests, calibration studio core (C1 to C8, C11), minimal UI over Wi-Fi: F2 to F5, F12, F16, F19 | T5 to T11, T16 to T21; accuracy ≥ 95% with Nathan's hand |
+| 0 | Reflash XM125s, wire the bench rig, echo lists from A and B printed on USB serial | T1 to T4 |
+| 1 | Fusion (association, calibrated map, plane gating), the full state machine with unit tests, calibration studio core (C1 to C8, C11), minimal UI over Wi-Fi: F1 to F5, F12, F16, F19. Soap doses, cup fills and the disposal run fire as state-machine events using the defaults; their F8 settings come in Phase 2 | T5 to T11, T16 to T21; accuracy ≥ 95% with Nathan's hand |
 | 2 | Full Ring Studio (Showcase and Operator view), remaining studio features (C9, C10, C12, C13), and F6 to F11, F13 to F15, F18, F20 to F25 | T12 to T15, T22 to T27; section 1 targets met with 5 people |
 | 3 | Optional: F17 cloud sync; a learned zone classifier trained on recorded sessions, compared head to head against the rule-based fusion | n/a |

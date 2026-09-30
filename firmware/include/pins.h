@@ -4,7 +4,7 @@
 // and LED wiring leaves from one side. See docs/03-pinout-and-wiring.md.
 //
 // Pins deliberately NOT used:
-//   GPIO0            BOOT button (read as the physical "calibrate" button only)
+//   GPIO0            BOOT button (read only as a button: short press clean mode, 3 s press calibration)
 //   GPIO3, 45, 46    strapping pins, affect boot
 //   GPIO19, 20       native USB D-/D+
 //   GPIO43, 44       UART0 TX/RX (USB serial via the CH343 port)
