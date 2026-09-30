@@ -22,7 +22,7 @@ Success criteria for the live demo (measured with the built-in accuracy test, se
 
 - Sensing area: sink opening **584 × 533 mm (23 × 21 in)**. Origin = back-left corner, x to the right, y toward the user.
 - **Sensor A:** back-left corner. **Sensor B:** back-right corner. Both sit in the ring at counter level, aimed at the sink centre (45° inward) and tilted down about 20° into the basin (tilt to be tuned on the bench).
-- Two sensors only. The third board was defective. See the review, item R6, on replacing it.
+- Two sensors only. The third board was defective. A front-centre third sensor is logged as a future fix (review R6). The pin layout reserves it.
 - Controller: ESP32-S3-N8R2 dev board (VCC-GND YD-ESP32-S3 layout), in a dry spot under or behind the ring.
 - Ring LEDs: WS2812B strip around the ring perimeter (~2.2 m).
 
@@ -34,10 +34,23 @@ Success criteria for the live demo (measured with the built-in accuracy test, se
 | **Middle** | Waterfall | Neutral | Waterfall |
 | **Front** | Hot | Warm | Cold |
 
-Alternative layouts, switchable live (zone assignment to be confirmed, see review Q3):
+That is the **Kitchen** layout. Two more layouts can be switched live (decided 30 Sep 2026). Hot, Warm and Cold appear in every layout.
 
-- **3 × 2:** back = Soap · Disposal · Cup fill, front = Hot · Warm · Cold. The waterfall is dropped.
-- **3 back + 1 front:** back = Soap · Disposal · Cup fill, front = one wide Warm zone (temperature from the active profile).
+**Bathroom (3 × 2): no disposal**
+
+| | Left | Centre | Right |
+|---|---|---|---|
+| **Back** | Foaming soap | Waterfall | Cup fill |
+| **Front** | Hot | Warm | Cold |
+
+**Accessible / ADA (2 back + 3 front): no disposal, no waterfall**
+
+| | Left | Centre | Right |
+|---|---|---|---|
+| **Back (40% of depth)** | Foaming soap (wide) | | Cup fill (wide) |
+| **Front (60% of depth)** | Hot | Warm | Cold |
+
+The ADA layout was originally "3 back + 1 front". It changed because 1 front zone cannot hold the five required functions (soap, cup fill, hot, warm, cold). The layout also has to put the most-used functions nearest a seated user. The front row is deeper and every zone is larger, which gives bigger targets and more forgiving accuracy.
 
 ## 4. Behaviour: the latch state machine
 
@@ -73,13 +86,13 @@ Rules:
 |---|---|---|
 | Foaming soap | One measured dose per latch | 0.8 ml |
 | Cup fill | Fills to set volume, then stops and flashes | 350 ml (12 oz) |
-| Hot | Flow at set temperature, anti-scald cap shown | 120 °F / 49 °C cap |
+| Hot | Flow at set temperature, anti-scald cap shown | 120 °F / 49 °C cap (°F default, °C toggle) |
 | Warm | Flow at set temperature | 100 °F / 38 °C |
 | Cold | Flow at mains temperature | shows "mains" |
 | Waterfall | Sheet flow from the back manifold | same temp as last used, default warm |
 | Disposal | 15 s run, safety rules above | 15 s |
 
-Design flow rate for the simulation: **1.5 gpm (5.7 L/min)**. This is an assumption to confirm with Rod.
+Design flow rate for the simulation: **1.5 gpm (5.7 L/min)** (confirmed 30 Sep 2026). Temperatures show in °F by default with a °C toggle.
 
 ## 6. System architecture
 
@@ -115,7 +128,7 @@ Design flow rate for the simulation: **1.5 gpm (5.7 L/min)**. This is an assumpt
 | F7 | WS2812 LED ring: function colour, exit countdown flash, calibration guidance | FW |
 | F8 | Smart functions: cup volume stop, soap dose, set temperatures | FW + UI |
 | F9 | Water saved vs a conventional faucet (2.2 gpm US federal maximum), assumptions shown on screen | UI |
-| F10 | Live layout switching: 3×3, 3×2, 3 back + 1 front | FW + UI |
+| F10 | Live layout switching: Kitchen 3×3, Bathroom 3×2, Accessible 2+3 | FW + UI |
 | F11 | Record and replay of real sessions (JSON), for demo insurance and analysis | UI |
 | F12 | Tablet or phone view over the ESP32's own Wi-Fi access point | FW + UI |
 | F13 | Presentation mode: clean investor view, engineering panels on a toggle | UI |

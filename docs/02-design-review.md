@@ -48,7 +48,9 @@ Range noise on its own is not the problem (under 25 mm position error everywhere
 - Settle-based latching (R1) removes most transition errors.
 - Tilt the sensors down so the beam covers a narrower depth band.
 
-**DECISION:** replace the defective third board and mount it at front-centre, as originally planned. With a third range the height unknown disappears, and back-row accuracy should go above 99%. The firmware and pin layout reserve a third I2C device slot (on bus 0 via a multiplexer, or a software I2C bus), so adding it later is a config change. Recommended before any investor demo.
+**FUTURE FIX (logged 30 Sep 2026):** the demo runs on two sensors. Add a front-centre third sensor later: with a third range the height unknown disappears, and back-row accuracy should go above 99%. The pin layout already reserves it (software I2C bus on GPIO10/11, RST on GPIO12), so adding it is a wiring and config change, not a redesign.
+
+**Risk this leaves open:** back-row accuracy (Soap, Disposal, Cup fill) is the weakest part of the two-sensor demo. Run the accuracy test on the back row first. If it is under 97%, widen the back row in the zone editor (C9) before a demo.
 
 ---
 
@@ -109,13 +111,13 @@ A cloud link needs internet at the venue, accounts and a backend. That is weeks 
 
 ---
 
-## Open decisions for Nathan
+## Decisions (resolved 30 Sep 2026)
 
-| # | Question | Recommendation |
+| # | Question | Decision |
 |---|---|---|
-| Q1 | Replace the defective third XM125 and mount it front-centre? | **Yes**, before any investor demo (R6) |
-| Q2 | Disposal rules: 1 s hold, fixed 15 s run, stop if a hand settles elsewhere. Acceptable? It runs without a hand in the sink, which is an exception to the "all off 1 s after hands leave" rule | Yes |
-| Q3 | Zones for the 3×2 and 3 back + 1 front layouts (spec section 3) | Confirm or change |
-| Q4 | Design flow rate for simulated water (1.5 gpm assumed) | Confirm the Artesian product figure with Rod |
-| Q5 | Temperatures shown in °F, °C or both | °F with a °C toggle (US investors) |
-| Q6 | Existing Ring Studio UI in `lorops-stack/ring-prototype`: reuse its styling and assets, or rebuild fresh to match the screenshot? | Share access so the look carries over; the code is rebuilt either way |
+| Q1 | Third XM125 at front-centre | Two sensors for now; third logged as a future fix |
+| Q2 | Disposal: 1 s hold, fixed 15 s run, stop if a hand settles elsewhere (exception to the 1 s all-off rule) | Approved |
+| Q3 | Other layouts | Bathroom 3×2 without disposal; Accessible layout without disposal or waterfall; Hot/Warm/Cold in every layout (spec section 3) |
+| Q4 | Simulated flow rate | 1.5 gpm |
+| Q5 | Temperature units | °F default with a °C toggle |
+| Q6 | Reuse styling from `lorops-stack/ring-prototype` | Open: fresh build to match the screenshot unless access is shared |

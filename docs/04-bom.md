@@ -4,7 +4,7 @@
 |---|---|---|---|---|
 | 1 | ESP32-S3-N8R2 dev board (YD-ESP32-S3 layout) | 1 | have | |
 | 2 | SparkFun XM125 A121 radar breakout (Qwiic) | 2 | have | third was defective |
-| 3 | SparkFun XM125, replacement | 1 | **buy (recommended)** | review R6: front-centre sensor removes the hand-height error |
+| 3 | SparkFun XM125, replacement | 1 | future fix | review R6: front-centre sensor removes the hand-height error |
 | 4 | Qwiic cable with female jumper ends, 4-pin (or 4-core cable + female jumpers) | 3 | buy | one per sensor, ≤ 50 cm |
 | 5 | Female-female jumper wires | 10+ | have? | RST lines, shifter |
 | 6 | Header pins (0.1 in) | 2 | have | one on each XM125's RST pad |
