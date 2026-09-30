@@ -23,6 +23,8 @@ This repo holds the live proof-of-concept demo: sensor firmware for an ESP32-S3,
 | [03 · Pin layout and wiring](docs/03-pinout-and-wiring.md) | Pin table, wiring diagram, sensor placement |
 | [04 · Bill of materials](docs/04-bom.md) | Parts on hand and to buy |
 | [05 · Reflash the XM125s](docs/05-flash-xm125.md) | Switch the sensors to the distance detector firmware |
+| [06 · Setup on Windows](docs/06-setup-windows.md) | Tools, drivers, clone, build (copy-paste) |
+| [07 · Test and demo plan](docs/07-test-and-demo-plan.md) | Bench tests, accuracy protocol, pre-demo checklist, run sheet |
 
 ## Layout
 

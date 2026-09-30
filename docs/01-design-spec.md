@@ -23,6 +23,7 @@ Success criteria for the live demo (measured with the built-in accuracy test, se
 - Sensing area: sink opening **584 × 533 mm (23 × 21 in)**. Origin = back-left corner, x to the right, y toward the user.
 - **Sensor A:** back-left corner. **Sensor B:** back-right corner. Both sit in the ring at counter level, aimed at the sink centre (45° inward) and tilted down about 20° into the basin (tilt to be tuned on the bench).
 - Two sensors only. The third board was defective. A front-centre third sensor is logged as a future fix (review R6). The pin layout reserves it.
+- Sensor boards mount **vertically, module face toward the sink** (review R17). The back edge of the rig sits against a wall or backboard (review R16).
 - Controller: ESP32-S3-N8R2 dev board (VCC-GND YD-ESP32-S3 layout), in a dry spot under or behind the ring.
 - Ring LEDs: WS2812B strip around the ring perimeter (~2.2 m).
 
@@ -78,7 +79,7 @@ Rules:
    - **Disposal:** needs a 1.0 s hold in its zone to start, runs a fixed 15 s, stops instantly if a hand settles in any other zone, and never restarts without a fresh hold.
    - **Max run timers** per function (hot/warm/cold 120 s, waterfall 120 s). A timer is reset by hand movement, not by a static object. This protects against a pot left in the sink (review R2).
    - **Cup fill** stops at the set volume even if the hand stays.
-   - **Soap** gives one dose per latch.
+   - **Soap** gives one dose per latch. Pending decision Q7: the latch releases after the dose so a rinse zone can be picked without leaving the sink.
 
 ## 5. Smart functions (simulated)
 
@@ -136,6 +137,8 @@ Design flow rate for the simulation: **1.5 gpm (5.7 L/min)** (confirmed 30 Sep 2
 | F15 | Usage dashboard: sessions, water used and saved, function mix, accuracy; CSV export | UI |
 | F16 | Accuracy test mode: UI prompts a zone, records the result, builds a confusion matrix | UI |
 | F17 | Cloud sync of the usage dashboard: **Phase 3, optional** (see review R14) | later |
+| F18 | Over-the-air firmware update from Ring Studio | FW + UI |
+| F19 | Plane boundary gating: targets outside the sensing plane (the user's torso, anything behind the sink) never count as presence (review R15, R16) | FW |
 
 F16 is new from the review. It produces the accuracy numbers that back up the investor pitch.
 

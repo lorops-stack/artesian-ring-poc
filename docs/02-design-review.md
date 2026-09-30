@@ -99,6 +99,52 @@ A cloud link needs internet at the venue, accounts and a backend. That is weeks 
 
 ---
 
+## Final review pass (30 Sep 2026): gaps found after the first review
+
+### R15. The user's own body is inside sensor range (critical)
+The sensors look out to 850 mm. Someone standing at the sink puts their torso about 670 to 780 mm from each sensor (`tools/geometry_sim.py` numbers), so the radar sees them.
+- Standing upright, the torso trilaterates to a point *outside* the plane (in front of the front edge) and is ignored. **The firmware must enforce the plane boundary** with a margin, and never treat an out-of-plane target as presence.
+- **Leaning over the counter is the danger.** A belly or chest just over the front edge lands inside the front row and could trigger Hot, Warm or Cold with no hand in the sink. Two sensors cannot tell height, so the defences are the downward sensor tilt, the latch needing a settled *hand-sized* target, and testing it deliberately (test plan T7). The third sensor (future fix) solves it properly.
+
+### R16. Anything behind the sink mirrors into the sink (critical for an island-style demo table)
+Two sensors on the back edge cannot tell "in front of the back edge" from "behind it". A person walking 400 mm behind the demo sink appears as a hand in the **Warm** zone.
+**Fix:**
+- Set the demo up with the back edge against a wall or a solid backboard. A static backboard is simply background.
+- Fit a small metal or foil-backed shield behind each sensor to kill its rear sensitivity.
+- Keep people out from behind the rig during the demo.
+
+### R17. Sensor board orientation
+The A121 radiates out of the **top face** of the module (the side with the blue XM125 can), not out of the board edge.
+**Fix:** mount each board **vertically**, module side facing into the sink, then yaw 45° inward and tilt down. Nothing metal in front of the module, and no aluminium LED channel across it.
+
+### R18. Soap is a one-shot, but the latch holds it
+Soap doses once. Under the latch rule, the function then stays "soap" with nothing happening, and the user must take their hands out and re-enter to get rinse water. That is clumsy in the most common sequence at a sink: soap, then rinse.
+**DECISION Q7:** after the soap dose, release the latch so the next settled zone (a temperature zone) starts the rinse without leaving the sink. The soap zone stays blocked until hands fully exit, so it cannot dose twice. Cup fill keeps its latch (the hand is still holding the cup).
+
+### R19. Only two sensors and no spare
+If one XM125 fails on demo day, live tracking is gone.
+**Fix:** record-and-replay (F11) is the fallback. A third board bought as a spare (even if not mounted) removes the single point of failure. This is a cheap insurance item, separate from the front-centre future fix.
+
+### R20. Venue setup changes the calibration
+A different table, a metal stand under the sink, or a different room all change the background echoes.
+**Fix:** calibrate on site, every time. The studio's calibration order (C1 → C11) takes about 5 minutes. It is on the pre-demo checklist (`07-test-and-demo-plan.md`).
+
+### R21. Wi-Fi access point security
+An open "ArtesianRing" network lets anyone at a venue connect and change settings.
+**Fix:** WPA2 password on the access point, plus the PIN on the calibration studio (spec section 8).
+
+### R22. Firmware updates without crawling under the sink
+**Fix:** over-the-air (OTA) firmware update from Ring Studio over the ESP32 Wi-Fi. Added to the spec as F18.
+
+### R23. Power sequencing
+With the LED supply on and the ESP32 unpowered, the strip's data line can back-feed the ESP32 pin.
+**Fix:** run the ESP32 USB supply and the LED supply from **one power strip with one switch**, so they come on and off together. The level shifter or sacrificial pixel also isolates the pin.
+
+### R24. No toolchain setup or test plan existed
+**Fix:** added `06-setup-windows.md` (copy-paste install steps) and `07-test-and-demo-plan.md` (bench tests per phase, accuracy test protocol, pre-demo checklist, demo run sheet).
+
+---
+
 ## Product-level: not needed for the dry demo, but investors may ask
 
 - **P1. Water film on the sensor window.** 60 GHz is strongly absorbed by water. In the wet product, a film of water sheeting over the sensor window will weaken or blind it. Put the sensors where spray does not run over them, and test this on the wet rig early. This is the biggest open technical risk for production.
@@ -121,3 +167,5 @@ A cloud link needs internet at the venue, accounts and a backend. That is weeks 
 | Q4 | Simulated flow rate | 1.5 gpm |
 | Q5 | Temperature units | °F default with a °C toggle |
 | Q6 | Reuse styling from `lorops-stack/ring-prototype` | Open: fresh build to match the screenshot unless access is shared |
+| Q7 | Release the latch after the soap dose so rinse starts without leaving the sink (R18) | **Open:** recommended yes |
+| Q8 | Buy a spare XM125 as demo insurance (R19) | **Open:** recommended yes |
