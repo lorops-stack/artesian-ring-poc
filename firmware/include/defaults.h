@@ -13,8 +13,9 @@ constexpr SensorPose DEFAULT_A = {   0.0f, 0.0f, 0.0f,  45.0f, -20.0f, true  };
 constexpr SensorPose DEFAULT_B = { 584.2f, 0.0f, 0.0f, 135.0f, -20.0f, true  };
 constexpr SensorPose DEFAULT_C = { 292.1f, 533.4f, 0.0f, 270.0f, -20.0f, false }; // reserved
 
-constexpr float HAND_DEPTH_MIN_MM = 30.0f;   // studio C4
+constexpr float HAND_DEPTH_MIN_MM = 30.0f;   // studio C4 (for the coverage prediction)
 constexpr float HAND_DEPTH_MAX_MM = 200.0f;
+constexpr float HAND_DEPTH_WORK_MM = 115.0f; // replaced by the C8 hand-profile measurement
 
 // ---- XM125 distance detector (review R5, R7) ----------------------------------
 constexpr uint32_t DET_START_MM = 60;     // default firmware value 250 would hide corner zones
@@ -25,14 +26,14 @@ constexpr uint16_t SETTLE_MS          = 150;
 constexpr float    SETTLE_SPEED_MMPS  = 250.0f;
 constexpr uint8_t  GONE_FRAMES        = 3;       // exit countdown is timed from the LAST frame seen
 constexpr uint16_t EXIT_DELAY_MS      = 1000;
-constexpr uint16_t STATIC_ABSORB_MS   = 5000;    // IDLE/ARMING only, never while a function is latched (spec 4.4)
-constexpr uint32_t MAX_RUN_WATER_MS   = 120000;  // no target movement for this long -> TIMED_OUT
+constexpr uint16_t STILL_OFF_MS       = 10000;   // perfectly still this long = an object, not a hand (spec 4.4, Q9)
+// Still-hand threshold: measured in calibration (C7 static ball vs C8 still hand), not a fixed default.
 constexpr uint16_t DISPOSAL_HOLD_MS   = 1000;
 constexpr uint32_t DISPOSAL_RUN_MS    = 15000;
 constexpr uint32_t BG_RELEARN_IDLE_MS = 30000;   // IDLE with no echoes only
 constexpr uint32_t CLEAN_MODE_MS      = 60000;
 constexpr uint16_t CLEAN_HOLD_MS      = 3000;    // still in Neutral (Kitchen) to start clean mode
-constexpr uint8_t  PRESENT_FRAMES     = 2;       // frames to confirm a hand has entered
+constexpr uint8_t  PRESENT_FRAMES     = 2;       // frames of a MOVING target to start a session
 
 // ---- Smart functions (spec 5) ---------------------------------------------------------
 constexpr float FLOW_GPM        = 1.5f;    // decided 30 Sep 2026 (review Q4)

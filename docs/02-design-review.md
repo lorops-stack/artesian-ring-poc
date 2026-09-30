@@ -1,9 +1,10 @@
 # 02 · Design Review
 
-Review of the whole approach before any build work, revision 2 (30 Sep 2026). There were three passes:
+Review of the whole approach before any build work, revision 3 (30 Sep 2026). There were four passes:
 1. The first review (R1–R14).
 2. A final gap review (R15–R24).
 3. An independent review of every document and prototype (R25–R31). This pass also corrected earlier items in place.
+4. A simulation check of the calibration (R32).
 
 Every fix below is already written into `01-design-spec.md` or the other docs. The open actions at the end are the only things not yet done.
 
@@ -19,9 +20,7 @@ Hands reach in from the front. To get to the soap (back-left), the hand crosses 
 
 ### R2. A pot, cup or dish left in the sink looks like a hand
 Radar sees any object. Leave a pot in the sink and the system could believe a hand is still there, so the water never turns off. In a real kitchen with a slow drain, that is a flood.
-**Fix (spec 4.4):**
-1. An echo that has **not moved since it first appeared** and stays still for 5 s is learned as an object and ignored. The session's own hand arrived moving, so it is never learned while water can run.
-2. **While water runs**, a 120 s max-run timer ends the flow if the target stops moving (TIMED_OUT), and hand movement resets it. Once the water is off (TIMED_OUT, or Cup fill full), a still object is learned after 5 s, so the session ends instead of the sink staying locked.
+**Fix (spec 4.4), decided by Nathan (Q9):** a real hand is never perfectly still. Anything perfectly still for 10 s is an object: the water turns off and the session ends. That covers a pot left under running water, a cup set down after Cup fill, and a plate left in the sink. A session can only start on a moving target, so an object already in the sink never starts water. The still-hand threshold is measured in calibration, and T28 must show a clear gap between a still hand and a real object before the rule is trusted.
 
 Investors *will* put things in the sink, so this is tested on purpose (T9, T18, T21).
 
@@ -39,27 +38,19 @@ The centre of the Soap zone is **132 mm** from sensor A, and Cup fill is 132 mm 
 **Fix:** set the start range to 60 mm, with close-range leakage cancellation on. T3 must confirm a clean reading from 60 mm.
 
 ### R6. Two range-only sensors cannot see hand height
-Each sensor measures straight-line distance. Two distances pin down left/right and front/back only if hand height is known, and people hold their hands at different depths in the basin. Simulation, 10 mm range noise, hand depth 30 to 200 mm, inner 70% of each zone:
+Each sensor measures straight-line distance. Two distances pin down left/right and front/back only if hand height is known, and people hold their hands at different depths in the basin. Range noise alone is not the problem: under 25 mm of position error everywhere, against zones 178 to 195 mm wide (`tools/geometry_sim.py`). **Hand height is.**
 
-Indicative only: the "calibrated" column uses a simpler nearest-reference-point method than the planned position map.
-
-| Zone row | Geometry only | Calibrated (nearest calibrated point) |
-|---|---|---|
-| Back (Soap, Disposal, Cup fill) | 90 to 91% | 96 to 97% |
-| Middle (Waterfall, Neutral, Waterfall) | 97 to 98% | 93 to 95% |
-| Front (Hot, Warm, Cold) | ~99.8% | ~99% |
-
-Range noise on its own is not the problem: under 25 mm position error everywhere, against zones 178 to 195 mm wide. **Hand depth is.**
+Calibration reduces this but cannot remove it (R32). The best two sensors can do, with perfect calibration and hands anywhere from 40 to 160 mm below the ring, is about 96% in the back row and 99.7% or better in the other two.
 
 **Fix:**
-- The calibrated position map (spec section 6) records real hands at high and low height at each reference point.
-- A frame latches only when the map and trilateration agree.
+- The hand profile (C8) measures the working hand height for this sink and these users.
 - The settle rule (R1) removes most errors during movement.
-- A downward sensor tilt narrows the depth band.
+- A downward sensor tilt narrows the range of heights the sensors see.
+- Zone edges can be moved in the zone editor (C9).
 
-**Risk this leaves open:** with calibration, the **middle row** is the weakest (93 to 95%), below the 97% target. Test it first (T5), and if it falls short, widen the middle row or the Neutral zone in the zone editor (C9) before a demo.
+**Risk this leaves open:** the **back row** is the weakest (about 96%), and in some installations a single back-corner zone falls below the 93% floor. Test the back row first (T5). If it falls short, widen the back row in C9 before a demo.
 
-**FUTURE FIX (logged 30 Sep 2026):** a front-centre third sensor removes the height unknown, and should take every row above 99%. The pins are reserved (GPIO10/11/12). It will be read by switching one hardware I2C controller between pin pairs, since all sensors are read one after another anyway, or through a TCA9548A I2C switch. Bit-banged I2C is not used because the XM125 stretches the clock.
+**FUTURE FIX (logged 30 Sep 2026):** a front-centre third sensor removes the height unknown and should take every row above 99%. The pins are reserved (GPIO10/11/12). It will be read by switching one hardware I2C controller between pin pairs (all sensors are read one after another anyway), or through a TCA9548A I2C switch. Bit-banged I2C is not used, because the XM125 stretches the clock.
 
 ---
 
@@ -74,7 +65,7 @@ A stainless basin is a mirror at 60 GHz. It creates strong static echoes and gho
 
 ### R8. Two hands, or hand plus forearm
 A and B may each report a different hand, and the pair of distances then describes a spot where no hand is.
-**Fix:** echo association checks every A/B pair, not just the nearest from each. A frame where trilateration and the calibrated map disagree is flagged and can never latch. Once latched, two hands don't matter.
+**Fix:** echo association checks every A/B pair, not just the nearest from each. A frame is flagged, and can never latch, if either echo is outside a real hand's echo-strength range (measured in C8) or the position jumps further than a hand can move in one frame. Once latched, two hands don't matter.
 
 ### R9. The two radars can interfere with each other
 **Fix:** measure A, then B, never at the same time. This halves the maximum frame rate, so Phase 0 measures the real rate (T2). Target ≥ 20 Hz per sensor.
@@ -176,7 +167,7 @@ Over I2C, the distance detector gives up to 10 echoes (distance and strength) pe
 ### R27. The state machine had gaps, and the prototypes had bugs from them
 - The disposal restarted by itself when its 15 s ran out with a hand still over it.
 - The soap block leaked into the next person's session when the disposal was running as they left.
-- The state diagram did not cover cup full, disposal, max-run, clean mode or layout changes, and it disagreed with the rules on what happens when a hand leaves while tracking.
+- The state diagram did not cover cup full, the disposal, objects left in the sink, clean mode or layout changes, and it disagreed with the rules on what happens when a hand leaves while tracking.
 
 **Fix:** spec section 4 now defines every state and transition in tables. The key points:
 - The disposal never restarts in the same session.
@@ -184,8 +175,7 @@ Over I2C, the distance detector gives up to 10 echoes (distance and strength) pe
 - Soap and disposal locks clear when the session ends.
 
 A second check closed the remaining gaps:
-- A cup set down under Cup fill, or a pot left after a time-out, used to lock the sink until removed. It is now learned as background, because the water is already off in those states.
-- The session's own hand is never learned while water can run.
+- A cup set down under Cup fill, or a pot left in the sink, used to lock the sink until removed. The 10 s stillness rule (Q9) now ends the session.
 - A disposal left running from the last session follows the same rules.
 - Clean mode ends the session.
 
@@ -193,7 +183,7 @@ The prototype bugs are fixed, including the demo loop cutting a real disposal sh
 
 ### R28. Calibration only covered the Kitchen layout
 A 9-zone fingerprint cannot serve the Bathroom (6 zones) or Accessible (5 zones) layouts.
-**Fix:** calibration now builds a **position** correction map from 16 reference points on a 4 × 4 grid that reaches the edges and corners (C8), so every layout uses the same calibration. Exact zone boundaries for every layout are in spec section 3. Neither Bathroom nor Accessible has a Neutral zone, so clean mode there starts from the UI or the BOOT button.
+**Fix:** calibration now measures the **sensor geometry and the working hand height** (C7, C8), not zones. Positions are then worked out the same way for any layout. Exact zone boundaries for every layout are in spec section 3. Neither Bathroom nor Accessible has a Neutral zone, so clean mode there starts from the UI or the BOOT button.
 
 ### R29. What plain http cannot do
 Ring Studio is served from `http://192.168.4.1`, which browsers do not treat as secure. As a result:
@@ -214,6 +204,28 @@ The first target ("inner 70% of each zone") could not be controlled in a natural
 - The quick on-site check (5 trials per zone, all pass) is separate from the full bench validation.
 
 ---
+
+### R32. Does the calibration actually correct what we intend? (simulation check)
+`tools/calibration_sim.py` simulates 40 installations. Each one has sensors mounted up to about 15 mm off their measured positions (in x, y and z), a 10 to 35 mm distance offset per sensor from the resin cover and mounting, 8 mm reading noise, and real hands at varying heights. Zone accuracy (Kitchen layout):
+
+| Calibration applied | Back row | Middle | Front | Overall | Worst zone in any install |
+|---|---|---|---|---|---|
+| None | 83.4% | 94.0% | 98.9% | 92.1% | 23% |
+| Wand only (C7) | 95.9% | 99.1% | 99.9% | 98.3% | 87% |
+| Wand + hand profile (C7 + C8) | 95.7% | 99.6% | 99.9% | 98.4% | 84% |
+| Old plan: + position-correction map | 76.0% | 99.1% | 99.9% | 91.7% | 0% |
+| Physical limit (perfect calibration) | 96.2% | 99.7% | 100% | 98.6% | 88% |
+
+With hands held high (20 to 80 mm below the ring), the default height guess is wrong. There the wand alone gives 96.0%, and adding the hand profile lifts it to **99.6%** (limit 99.7%).
+
+What this showed:
+1. **Calibration is essential.** Without it, the back row fails.
+2. **The original reference check (a drink can at 3 to 5 points on the basin floor) could not work.** Too few points at one height cannot separate a sensor's position from its distance offset. The basin floor is curved, and a can reflects from its near surface, not its centre. It is replaced by the wand and template (C7). With the tape-measured positions as a soft guide, the fit finds each sensor to within about 12 mm (median).
+3. **The planned position-correction map made things worse.** It learned from human hand placement, which is off by about as much as the errors it was meant to fix. It is removed.
+4. **The hand profile matters most when hands sit at an unusual height.** It is kept, but it measures the working hand height, a real hand's echo strength and a still hand's small movements, not a map.
+5. **Calibration cannot fix hand-height ambiguity.** The back-row limit of about 96% is physics with two sensors (R6).
+
+**Check on the real rig:** the C7 fit error must be below 12 mm RMS (T29), and the accuracy test (T5) must land near these figures. A big gap means the sensor model is wrong, and it must be found before any demo.
 
 ## Product-level: not needed for the dry demo, but investors may ask
 
@@ -239,6 +251,7 @@ The first target ("inner 70% of each zone") could not be controlled in a natural
 | Q6 | UI look | Fresh build to the Ring Studio UI design canvas (spec 8b) |
 | Q7 | Soap | Single dose; the latch releases after the dose |
 | Q8 | Spare XM125s | Ordering 2 to 3 spares |
+| Q9 | Objects left in the sink | Anything perfectly still for 10 s is not a hand: water off, session ends (replaces the 2-minute max-run timer) |
 
 ## Open actions before build
 

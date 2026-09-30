@@ -8,13 +8,13 @@ Every rule in spec section 4 has a bench test here and a unit-test twin in `firm
 |---|---|---|---|
 | T1 | 0 | Both XM125s answer on their own bus, report the distance detector firmware and calibrate. Also try the ADDR pad on one spare board: does the address change? (R3) | Both OK, no I2C errors in 10 min; ADDR result recorded |
 | T2 | 0 | Frame rate with A and B measured one after the other | ≥ 20 Hz per sensor |
-| T3 | 0 | Drink can at 60, 150, 300, 600 and 800 mm from each sensor (tape measure) | Reported distance within ±15 mm |
+| T3 | 0 | Calibration ball (C7 wand) at 60, 150, 300, 600 and 800 mm from each sensor (tape measure) | Reported distance within ±15 mm of the ball's near surface |
 | T4 | 0 | Empty sink for 10 min after the background is recorded (C6) | No echoes reported inside the sensing area |
 | T5 | 1 | Accuracy test (F16): 20 trials per zone, Nathan's hand, Kitchen layout | ≥ 95%, middle row reported separately (R6) |
 | T6 | 1 | 30 entries straight to a zone. Measure entry-to-on and last-seen-to-off | ≤ 300 ms on, 1.0 s ± 0.1 s off, 0 false-off |
 | T7 | 1 | **Body:** stand at the sink, lean over the front edge, reach across, arms crossed on the edge | No function starts without a hand in the sink |
 | T8 | 1 | **Behind the sink:** walk behind the rig at 0.3, 0.6 and 1 m | No trigger (backboard and shields fitted) |
-| T9 | 1 | **Objects:** pot, cup and plate put in the sink while idle; hand held perfectly still under Cup fill | Objects ignored after 5 s; the still hand is not cut off |
+| T9 | 1 | **Objects:** pot, cup and plate put in the sink while idle; an object set down in a zone as the hand leaves | Idle objects never start water; a set-down object that latches a zone stops within 10 s |
 | T10 | 1 | **Reach path:** reach for Soap and Cup fill from the front, fast and slow | Latches the back zone, never Hot/Warm/Cold on the way |
 | T11 | 1 | Two hands at once, hand plus forearm, watch and rings | No wrong latch; worst case, no latch |
 | T12 | 2 | Accuracy test, 5+ people, all three layouts | ≥ 97% overall, no zone below 93% |
@@ -23,16 +23,18 @@ Every rule in spec section 4 has a bench test here and a unit-test twin in `firm
 | T15 | 2 | Cold boot on the wall adapter, no laptop; tablet joins the Wi-Fi | Ready in ≤ 10 s; UI loads on the tablet |
 | T16 | 1 | **Disposal:** 1 s hold starts it; runs 15 s; a hand settling in Neutral stops it; a hand settling in Hot stops it and starts Hot; keeping the hand over Disposal after 15 s does not restart it; it keeps running after hands leave | All as spec 4.3 |
 | T17 | 1 | **Soap:** one dose; then settle in Warm without leaving, and Warm starts; Soap zone blocked; the block clears after the exit countdown, including when the disposal is still running | All as spec 4.3 |
-| T18 | 1 | **Max run:** a drink can left in the sink while Warm runs → Warm stops at 120 s (TIMED_OUT). A hand moving slowly keeps Warm on past 120 s | Both correct |
+| T18 | 1 | **Stillness rule:** a drink can left in the sink while Warm runs; a hand held as still as possible under Warm for 30 s (5 people) | Can: water off within 10 s. Hands: never cut off |
 | T19 | 1 | **Hands out, person stays:** withdraw hands but keep standing at the sink | Off 1.0 s after the hands leave (R25) |
 | T20 | 1 | **Returning hand:** out for 0.5 s, then back | The same function continues, no chime or restart |
-| T21 | 1 | **Background:** leave the sink empty 30 s (refresh runs), then add a pot while idle; fill a 2 L pot under Cup fill holding it still; set a cup down under Cup fill and walk away | Pot ignored; the 21 s fill is not cut off; after the cup is full the session ends about 6 s later and the sink is usable again |
+| T21 | 1 | **Background:** leave the sink empty 30 s (refresh runs); fill a 2 L pot under Cup fill holding it still; set a cup down under Cup fill and walk away | The 21 s fill is not cut off; the set-down cup ends the session within 10 s and the sink is usable again |
 | T22 | 2 | **Clean mode:** start from the UI, from the BOOT button, and by 3 s still in Neutral | Water off, nothing latches for 60 s, disposal stopped |
 | T23 | 2 | **Layout change** while Warm is running | All off, IDLE, new layout active |
 | T24 | 2 | **OTA update** from Ring Studio | Update installs, device reboots, calibration kept |
 | T25 | 2 | **Security:** join with a wrong Wi-Fi password; open the studio without the PIN | Both refused |
 | T26 | 2 | **Power:** switch the power strip off and on 10 times | Clean boot each time; no stray LEDs while booting |
 | T27 | 2 | **Demo loop:** leave it idle 8 s in each layout, then take over with a real hand | Ghost runs a sequence that fits the layout; no ghost activity in any metric or recording |
+| T28 | 1 | **Stillness gap:** record the movement signal (distance and echo strength) for 5 people holding a hand as still as they can, and for the still calibration ball and a pot | A clear gap between the stillest hand and the objects; the threshold is set inside it. No gap = the stillness rule is not used until solved |
+| T29 | 1 | **Wand calibration quality:** run C7 three times, remounting the sensors between runs | Fit error below 12 mm RMS every time; fitted positions agree within 15 mm between runs |
 
 ## Accuracy test protocol (F16)
 1. Calibrate (studio C1 → C8).
@@ -48,7 +50,7 @@ The quick on-site check (C11) is 5 trials per zone, all of which must pass. It c
 - [ ] Sensors vertical, module face in, nothing metal in front (R17)
 - [ ] ESP32 wall adapter and LED supply on one switched power strip (R23)
 - [ ] Power on; tablet joined to the ArtesianRing Wi-Fi with the password
-- [ ] Full calibration on site: plane, sensor positions, empty-sink background, reference target, the 16-point walkthrough (R20, about 15 min)
+- [ ] Full calibration on site: plane, sensor positions, empty-sink background, wand with template (C7), hand profile (C8) (R20, about 15 min)
 - [ ] Quick accuracy check: 5 trials per zone, all pass (about 5 min)
 - [ ] Showcase screen on, studio PIN-locked, sound on (first tap)
 - [ ] Laptop copy of Ring Studio open with a recorded good session imported from its exported file, ready to replay if the hardware fails (R29)

@@ -22,6 +22,6 @@
 | 18 | 3D-printed sensor mounts: vertical, 45° yaw, adjustable tilt | 2 (+1 for C) | print | |
 | 19 | Backboard panel behind the rig (plywood or foam board) | 1 | make | review R16 |
 | 20 | Foil tape or a small metal plate behind each sensor | 2 | have? | kills rear sensitivity (R16) |
-| 21 | Reference target: drink can + printed mat with marked points | 1 | make | calibration C7 |
+| 21 | Calibration kit (C7): card template the size of the sink opening with 16 holes (4 × 4 grid at 1/8, 3/8, 5/8, 7/8), a 40 mm ball wrapped in foil on a thin wooden rod, with depth stops at 60 mm and 160 mm | 1 | make | printed hole positions from Ring Studio; see R32 |
 | 22 | SparkFun XM125 spares (demo insurance) | 2 to 3 | ordering | reflash each with the distance detector on arrival |
 | 23 | Tablet (optional) | 1 | have? | investor view over the ESP32 Wi-Fi |

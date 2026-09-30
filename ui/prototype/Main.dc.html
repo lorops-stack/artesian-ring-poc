@@ -182,7 +182,7 @@ button{font-family:inherit}
     </div>
   </div>
 
-  <div style="position: absolute; left: 944px; top: 822px; width: 452px; font-size: 12px; line-height: 1.5; color: #66707B;">Flow 1.5 gpm. Savings compare a 2.2 gpm faucet running whenever hands are in the sink, split into time the ring is off and the lower flow rate. Soap is a single dose. Everything turns off 1 second after hands leave, except the disposal's fixed 15 s run. Prototype: the cursor stands in for the hand; max-run and clean mode are not modelled.</div>
+  <div style="position: absolute; left: 944px; top: 822px; width: 452px; font-size: 12px; line-height: 1.5; color: #66707B;">Flow 1.5 gpm. Savings compare a 2.2 gpm faucet running whenever hands are in the sink, split into time the ring is off and the lower flow rate. Soap is a single dose. Everything turns off 1 second after hands leave, except the disposal's fixed 15 s run. Anything perfectly still for 10 s is treated as an object and the water stops. Prototype: the cursor stands in for the hand; clean mode is not modelled.</div>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
@@ -232,6 +232,8 @@ class Component extends DCLogic {
     var now = Date.now(), dt = Math.min(0.2, (now - this.prevTick) / 1000); this.prevTick = now;
     if (now - this.lastMoveT > 90) this.speed = this.speed * 0.4;
     var s = Object.assign({}, this.state); s.now = now;
+    if (s.hand && !this.stillObj && now - this.lastMoveT > 10000) { this.stillObj = true; s.stillMsgUntil = now + 4000; s.lastSeen = now - 1000; }
+    if (this.stillObj) s.hand = null;
     if (s.disposalUntil && now >= s.disposalUntil) { s.disposalUntil = 0; if (s.active === 'disposal') { s.active = null; s.activeZone = null; } }
     if (s.hand) {
       if (!s.session) { s.session = true; s.entryT = now; }
@@ -316,6 +318,7 @@ class Component extends DCLogic {
     if (soapFlash) { for (var i = 0; i < zs.length; i++) if (zs[i].id === s.flashZone) { foam = { left: Math.round(((zs[i].x0 + zs[i].x1) / 2) * BW - 45), top: Math.round(((zs[i].y0 + zs[i].y1) / 2) * BH - 40) }; } }
 
     var now2 = { title: 'Ready', sub: 'Move a hand over the sink to begin.', detail: '' };
+    if (now < (s.stillMsgUntil || 0) && !s.hand) now2 = { title: 'Object, not a hand', sub: 'Nothing moved for 10 seconds, so the water stopped. Move to start again.', detail: 'Stillness rule (spec 4.4)' };
     var ring = { frac: 0, value: '–', label: 'idle' };
     if (soapFlash && !s.active) { now2 = { title: 'Soap dispensed', sub: 'One 0.8 ml dose. Move to a water zone to rinse.', detail: 'Soap zone locked until hands leave' }; ring = { frac: 1, value: '0.8', label: 'ml' }; }
     else if (s.phase === 'exit') {
@@ -386,7 +389,7 @@ class Component extends DCLogic {
         var xn = Math.max(0, Math.min(0.9999, (e.clientX - r.left) / r.width)), yn = Math.max(0, Math.min(0.9999, (e.clientY - r.top) / r.height));
         var t = Date.now();
         if (self.lastPos) { var ddt = Math.max(1, t - self.lastMoveT) / 1000, dx = (xn - self.lastPos.xn) * W_MM, dy = (yn - self.lastPos.yn) * D_MM; self.speed = 0.5 * self.speed + 0.5 * (Math.sqrt(dx * dx + dy * dy) / ddt); }
-        self.lastPos = { xn: xn, yn: yn }; self.lastMoveT = t;
+        self.lastPos = { xn: xn, yn: yn }; self.lastMoveT = t; self.stillObj = false;
         self.setState({ hand: { xn: xn, yn: yn } });
       },
       onLeave: function () { self.lastPos = null; self.setState({ hand: null }); },

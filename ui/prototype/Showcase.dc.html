@@ -319,7 +319,8 @@ class Component extends DCLogic {
   step(now, dt) {
     var s = this.sim, st = this.state;
     var attract = now - this.lastUserT > 8000 && !this.userHand && (this.wasAttract || !this.sim.disposalUntil);
-    var h = attract ? this.scriptHand((now - (this.attractStart || now)) / 1000) : this.userHand;
+    if (!attract && this.userHand && !this.stillObj && now - this.lastUserT > 10000) { this.stillObj = true; this.stillMsgUntil = now + 4000; this.sim.lastSeen = now - 1000; }
+    var h = attract ? this.scriptHand((now - (this.attractStart || now)) / 1000) : (this.stillObj ? null : this.userHand);
     if (attract && !this.attractStart) this.attractStart = now;
     if (!attract) this.attractStart = 0;
     if (h && this.prevH) { var dx = (h.xn - this.prevH.xn) * W_MM, dy = (h.yn - this.prevH.yn) * D_MM, v = Math.sqrt(dx * dx + dy * dy) / Math.max(dt, 0.001); this.speed = 0.7 * this.speed + 0.3 * v; }
@@ -509,6 +510,7 @@ class Component extends DCLogic {
     if (fn === 'hotcap') return f ? '120°F' : '49°C'; if (fn === 'warm' || fn === 'waterfall') return f ? '100°F' : '38°C'; return 'mains'; }
   pushHud(now, col) {
     var s = this.sim, h = { eyebrow: 'READY', title: 'Wave in', sub: 'No faucet. No buttons. No camera. Radar in the ring sees your hands.', meter: '' };
+    if (now < (this.stillMsgUntil || 0) && !s.hand) h = { eyebrow: 'STILL FOR 10 S', title: 'Object', sub: 'Nothing moved for 10 seconds, so it is not a hand. The water stopped.', meter: '' };
     if (now < s.soapFlashUntil && !s.active) h = { eyebrow: 'SOAP', title: 'Soap', sub: 'One measured dose. Move to a water zone to rinse.', meter: '0.8 ml' };
     else if (s.phase === 'exit') h = { eyebrow: 'HANDS OUT', title: 'Off in', sub: 'Everything stops one second after your hands leave.', meter: Math.max(0, 1 - (now - s.exitStart) / 1000).toFixed(1) + ' s' };
     else if (s.active) {
@@ -540,7 +542,7 @@ class Component extends DCLogic {
     function toHand(e) { var r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * CW, y = (e.clientY - r.top) / r.height * CH; if (x < BX || x > BX + BW || y < BY || y > BY + BH) return null; return { xn: Math.min(0.9999, (x - BX) / BW), yn: Math.min(0.9999, (y - BY) / BH) }; }
     return {
       setCanvas: function (el) { self.canvas = el; },
-      onMove: function (e) { self.userHand = toHand(e); self.lastUserT = performance.now(); },
+      onMove: function (e) { self.userHand = toHand(e); self.lastUserT = performance.now(); self.stillObj = false; },
       onLeave: function () { self.userHand = null; self.lastUserT = performance.now(); },
       onUp: function (e) { if (e.pointerType !== 'mouse') { self.userHand = null; self.lastUserT = performance.now(); } },
       layouts: layouts, units: units, hud: st.hud, accent: st.accent, stats: st.stats,

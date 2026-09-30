@@ -204,7 +204,7 @@ class Component extends DCLogic {
       { fill: 'rgba(242,180,75,0.75)', label: '≤ 50 mm' }, { fill: 'rgba(255,107,74,0.85)', label: '> 50 mm' },
       { fill: '#C2410C', label: 'Mirror ambiguity' }, { fill: '#1C2128', label: 'Outside a beam' }, { fill: '#0B0D10', label: 'Too close (< 60 mm)' }
     ];
-    var stepDefs = [['Sensing plane', 'Width and depth'], ['Sensor placement', 'Position and aim'], ['Hand depth', 'Expected band'], ['Coverage check', 'Predicted accuracy'], ['Empty-sink background', 'Record static echoes'], ['Reference target', 'Check range offsets'], ['Zone walkthrough', '9 zones, guided'], ['Validate', 'Accuracy test'], ['Save', 'Name and store']];
+    var stepDefs = [['Sensing plane', 'Width and depth'], ['Sensor placement', 'Position and aim'], ['Hand depth', 'Expected band'], ['Coverage check', 'Predicted accuracy'], ['Empty-sink background', 'Record static echoes'], ['Wand calibration', 'Sensor positions and offsets'], ['Hand profile', 'Hand height, strength, stillness'], ['Validate', 'Accuracy test'], ['Save', 'Name and store']];
     var steps = stepDefs.map(function (d, i) {
       var st = i === 0 ? 'done' : (i === 1 ? 'active' : 'todo');
       return { label: d[0], hint: d[1], mark: st === 'done' ? '✓' : String(i + 1), bg: st === 'active' ? 'rgba(255,255,255,0.06)' : 'transparent',
