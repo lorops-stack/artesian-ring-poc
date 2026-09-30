@@ -79,7 +79,7 @@ Rules:
    - **Disposal:** needs a 1.0 s hold in its zone to start, runs a fixed 15 s, stops instantly if a hand settles in any other zone, and never restarts without a fresh hold.
    - **Max run timers** per function (hot/warm/cold 120 s, waterfall 120 s). A timer is reset by hand movement, not by a static object. This protects against a pot left in the sink (review R2).
    - **Cup fill** stops at the set volume even if the hand stays.
-   - **Soap** gives one dose per latch. Pending decision Q7: the latch releases after the dose so a rinse zone can be picked without leaving the sink.
+   - **Soap** is a single dose, never a held function. After the dose the latch releases, so the next settled zone starts the rinse without leaving the sink. The soap zone stays blocked until hands fully exit, so it cannot dose twice.
 
 ## 5. Smart functions (simulated)
 
@@ -113,6 +113,11 @@ Design flow rate for the simulation: **1.5 gpm (5.7 L/min)** (confirmed 30 Sep 2
   - **Calibration fingerprint** (nearest calibrated zone centroid in rA/rB space, with a confidence margin) decides the zone.
 
   If the two estimates disagree, or a sensor reports no peak, the frame is flagged, and a flagged frame can never latch.
+- **Tracking:** an alpha-beta filter per sensor range smooths the readings and gives a hand speed, which the settle rule uses. Zones have 20 mm hysteresis: while arming, the hand must be 20 mm inside a zone to count as in it, so the edges don't flicker.
+- **Multi-peak association:** each sensor reports up to 10 echoes. The firmware picks the pair (one echo from A, one from B) that forms a hand-sized target inside the plane, instead of blindly taking the nearest. This rejects torso, forearm and ghost echoes (review R8, R15).
+- **Firmware structure:** sensing, fusion and the state machine run on core 1; Wi-Fi, the web server and LEDs on core 0. Wi-Fi traffic then cannot delay a latch. Hardware watchdog on both.
+- **Tests without hardware:** the fusion and state machine code builds natively on a PC (`pio test -e native`). Unit tests cover every rule in section 4. Recorded real sessions (F11) replay through the same code as regression tests, so a change that breaks a known case fails before it reaches the rig.
+- **Config:** the calibration JSON carries a schema version (migrated on firmware updates) and has a factory reset.
 - **Firmware:** C++ on Arduino-ESP32 via PlatformIO. Ring Studio is served from the ESP32's flash, so no laptop or venue Wi-Fi is needed. The same JSON stream is mirrored over USB serial as a fallback.
 - **UI:** a single-page web app (vanilla JS, Canvas). It installs to a tablet home screen, so it works as the "app".
 
@@ -139,6 +144,11 @@ Design flow rate for the simulation: **1.5 gpm (5.7 L/min)** (confirmed 30 Sep 2
 | F17 | Cloud sync of the usage dashboard: **Phase 3, optional** (see review R14) | later |
 | F18 | Over-the-air firmware update from Ring Studio | FW + UI |
 | F19 | Plane boundary gating: targets outside the sensing plane (the user's torso, anything behind the sink) never count as presence (review R15, R16) | FW |
+| F20 | **Hover preview:** while arming, the ring glows faintly in the colour of the zone under the hand and the screen outlines it; it goes solid on latch. Users see what they are about to pick | FW + UI |
+| F21 | **Clean mode:** pauses all functions for 60 s so the sink and ring can be wiped without triggering water. Started from the UI or by holding a hand still in Neutral for 3 s | FW + UI |
+| F22 | **Audio cues:** soft tones on latch, soap dose, cup full and off. Supports low-vision users in the Accessible layout. Played by the UI device | UI |
+| F23 | **Fill presets:** Cup fill volumes switchable per profile: cup 350 ml, bottle 750 ml, pot 2 L | FW + UI |
+| F24 | **Hand heatmap:** where hands actually go, per layout. R&D evidence for zone sizing in the production ring | UI |
 
 F16 is new from the review. It produces the accuracy numbers that back up the investor pitch.
 
@@ -171,4 +181,4 @@ Calibration order the studio walks you through: C1 → C2/C3/C4 → C5 check →
 | 0 | Reflash XM125s, wire bench rig, raw distance stream from A and B on USB serial | Both sensors stream at ≥ 20 Hz with a hand visible 60 to 800 mm |
 | 1 | Fusion, state machine, calibration studio core (C1 to C8, C11), minimal UI over Wi-Fi | Accuracy test ≥ 95% with Nathan's hand |
 | 2 | Full Ring Studio UI, remaining studio features (C9, C10, C12, C13), LEDs, smart functions, profiles, record/replay, dashboard | Full demo run-through with 5 people, targets in section 1 met |
-| 3 | Optional: cloud sync, polish | n/a |
+| 3 | Optional: cloud sync; a small learned zone classifier trained on the recorded sessions from F11/F16, compared head to head against the rule-based fusion | n/a |

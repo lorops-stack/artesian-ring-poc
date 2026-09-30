@@ -167,5 +167,5 @@ With the LED supply on and the ESP32 unpowered, the strip's data line can back-f
 | Q4 | Simulated flow rate | 1.5 gpm |
 | Q5 | Temperature units | °F default with a °C toggle |
 | Q6 | Reuse styling from `lorops-stack/ring-prototype` | Open: fresh build to match the screenshot unless access is shared |
-| Q7 | Release the latch after the soap dose so rinse starts without leaving the sink (R18) | **Open:** recommended yes |
-| Q8 | Buy a spare XM125 as demo insurance (R19) | **Open:** recommended yes |
+| Q7 | Soap behaviour (R18) | Single dose only, never held on; latch releases after the dose |
+| Q8 | Spare XM125s (R19) | Ordering several spares |

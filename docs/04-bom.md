@@ -17,7 +17,7 @@
 | 13 | 3D-printed sensor wedge mounts (45° yaw, adjustable tilt) | 2 (3) | print | |
 | 14 | Reference target: drink can + printed floor mat with marked points | 1 | make | calibration C7 |
 | 15 | Tablet (optional) | 1 | have? | investor view over the ESP32 Wi-Fi |
-| 16 | SparkFun XM125, spare (demo insurance) | 1 | recommended (Q8) | separate from item 3 |
+| 16 | SparkFun XM125, spares (demo insurance) | 2 to 3 | ordering | separate from item 3; flash each with the distance detector on arrival |
 | 17 | Backboard panel behind the rig (plywood or foam board) | 1 | make | review R16 |
 | 18 | Foil tape or small metal plate behind each sensor | 2 | have? | kills rear sensitivity (R16) |
 | 19 | 1N4001 or 1N5819 diode | 1 | buy/have | sacrificial-pixel stopgap |
