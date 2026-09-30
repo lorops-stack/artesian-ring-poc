@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hand marker options</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@200..700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#050607;font-family:'Geist',system-ui,sans-serif;color:#F2F4F6;-webkit-font-smoothing:antialiased}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #07080A; box-sizing: border-box; padding: 72px 56px; display: flex; flex-direction: column; gap: 48px;">
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.22em; color: #8FE3F2;">HAND MARKER OPTIONS</div>
+    <div style="font-size: 44px; font-weight: 300; letter-spacing: -0.035em;">How the screen shows a hand</div>
+    <div style="font-size: 16px; color: #8C96A1; width: 760px; line-height: 1.5;">Each tile loops the same sequence: the hand arrives, settles, the function latches, then the hand leaves. The settle is slowed down here so you can see it (the real settle is 150 ms). All five are live in the Showcase from the Marker switch.</div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px;">
+    <sc-for list="{{tiles}}" as="t" hint-placeholder-count="5">
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="position: relative; width: 244px; height: 300px; border-radius: 28px; overflow: hidden; background: #0F1114; border: 1px solid {{t.border}};">
+          <canvas ref="{{t.ref}}" style="width: 244px; height: 300px; display: block;"></canvas>
+          <sc-if value="{{t.rec}}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; left: 14px; bottom: 14px; height: 26px; display: flex; align-items: center; padding: 0 11px; border-radius: 999px; background: rgba(143,227,242,0.14); border: 1px solid rgba(143,227,242,0.35); font-size: 11.5px; font-weight: 500; color: #CFF4FA;">Recommended</div>
+          </sc-if>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: baseline; gap: 10px;"><span style="font-size: 13px; color: #5E6873;">{{t.n}}</span><span style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">{{t.name}}</span></div>
+          <div style="font-size: 14px; line-height: 1.5; color: #8C96A1;">{{t.why}}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+function hexRgb(h) { var n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function rgba(h, a) { var c = hexRgb(h); return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+var COLS = ['#FFB27A', '#6FB6FF', '#B69CFF', '#4FD1E8', '#FF6B4A'];
+var TARGETS = [[0.5, 0.78], [0.8, 0.8], [0.2, 0.2], [0.8, 0.2], [0.22, 0.78]];
+var MARKERS = [
+  { id: 'focus', name: 'Focus lock', why: 'Camera-style corner brackets close in as the hand settles and snap on latch. Familiar from every phone camera.' },
+  { id: 'reticle', name: 'Precision reticle', why: 'A fine targeting ring with guide lines and a live millimetre readout. Says measurement, not guesswork.' },
+  { id: 'droplet', name: 'Glass droplet', why: 'A lit water droplet that grows as it locks and ripples while water runs. On-brand for a water product.' },
+  { id: 'bloom', name: 'Presence bloom', why: 'A soft radar return with contour rings, like a heat signature. Organic and calm, no hard edges.' },
+  { id: 'range', name: 'Radar range', why: 'An arc from each sensor at its measured distance, crossing at the hand. Shows how the position is actually found.' }
+];
+function drawMarker(ctx, st, o) {
+  var x = o.x, y = o.y, c = o.col, s = o.settle, a = o.active, t = o.time, k = o.k || 1, i, I;
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (st === 'reticle') {
+    if (o.bounds) { ctx.setLineDash([2, 6]); ctx.strokeStyle = rgba(c, 0.2); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(o.bounds.x0, y); ctx.lineTo(x - 48 * k, y); ctx.moveTo(x + 48 * k, y); ctx.lineTo(o.bounds.x1, y); ctx.moveTo(x, o.bounds.y0); ctx.lineTo(x, y - 48 * k); ctx.moveTo(x, y + 48 * k); ctx.lineTo(x, o.bounds.y1); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.shadowColor = rgba(c, 0.8); ctx.shadowBlur = a ? 18 : 8;
+    ctx.strokeStyle = rgba(c, 0.95); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 28 * k, 0, 7); ctx.stroke();
+    if (a) { ctx.fillStyle = rgba(c, 0.12); ctx.fill(); }
+    for (i = 0; i < 4; i++) { var an = i * Math.PI / 2 + (a ? 0 : Math.PI / 4 * (1 - s)); ctx.beginPath(); ctx.moveTo(x + Math.cos(an) * (28 * k + 4), y + Math.sin(an) * (28 * k + 4)); ctx.lineTo(x + Math.cos(an) * (28 * k + 12), y + Math.sin(an) * (28 * k + 12)); ctx.stroke(); }
+    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 7); ctx.fill();
+    if (!a && s > 0) { ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 38 * k, -Math.PI / 2, -Math.PI / 2 + 6.283 * s); ctx.stroke(); }
+    if (o.label) { ctx.shadowBlur = 0; ctx.font = '500 11px "Geist Mono", ui-monospace, monospace'; ctx.fillStyle = 'rgba(255,255,255,0.62)'; ctx.fillText(o.label, x + 46 * k, y - 34 * k); }
+  } else if (st === 'droplet') {
+    I = a ? 1 : 0.3 + 0.7 * s;
+    var r = 22 * k * (a ? 1 + 0.04 * Math.sin(t * 3) : 0.82 + 0.18 * s);
+    ctx.globalCompositeOperation = 'lighter';
+    var hg = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 3); hg.addColorStop(0, rgba(c, 0.3 * I)); hg.addColorStop(1, rgba(c, 0)); ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(x, y, r * 3, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    if (a) for (i = 0; i < 3; i++) { var ph = ((t * 36 + i * 22) % 66) / 66; ctx.strokeStyle = rgba(c, 0.35 * (1 - ph)); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(x, y, r + ph * 60 * k, (r + ph * 60 * k) * 0.86, 0, 0, 7); ctx.stroke(); }
+    var bg = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r); bg.addColorStop(0, 'rgba(255,255,255,0.42)'); bg.addColorStop(0.55, rgba(c, 0.32)); bg.addColorStop(1, rgba(c, 0.85));
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.ellipse(x - r * 0.36, y - r * 0.42, r * 0.34, r * 0.18, -0.6, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(x, y, r * 0.72, 0.3, 1.2); ctx.stroke();
+  } else if (st === 'bloom') {
+    I = a ? 1 : 0.35 + 0.65 * s;
+    ctx.globalCompositeOperation = 'lighter';
+    [[70, 0.10], [46, 0.2], [22, 0.5]].forEach(function (L, j) { var ox = Math.sin(t * 1.3 + j * 2) * 4 * k, oy = Math.cos(t * 1.1 + j) * 4 * k, g = ctx.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, L[0] * k); g.addColorStop(0, rgba(c, L[1] * I)); g.addColorStop(1, rgba(c, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x + ox, y + oy, L[0] * k, 0, 7); ctx.fill(); });
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * I) + ')'; ctx.beginPath(); ctx.arc(x, y, 4 * k, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    for (var j2 = 0; j2 < 3; j2++) { var R = (30 + 16 * j2) * k; ctx.strokeStyle = rgba(c, 0.2 * I); ctx.lineWidth = 1; ctx.beginPath(); for (i = 0; i <= 60; i++) { var ang = i / 60 * 6.2832, rr2 = R * (1 + 0.05 * Math.sin(ang * 3 + t * 2 + j2)); if (i === 0) ctx.moveTo(x + Math.cos(ang) * rr2, y + Math.sin(ang) * rr2); else ctx.lineTo(x + Math.cos(ang) * rr2, y + Math.sin(ang) * rr2); } ctx.stroke(); }
+  } else if (st === 'focus') {
+    var half;
+    if (a) { var age = o.latchAge || 1; half = 22 * k * (1 + 0.16 * Math.exp(-age * 8) * Math.cos(age * 30)); } else half = (34 - 12 * s) * k;
+    var L2 = 12 * k, cr = 6 * k;
+    if (a) { ctx.fillStyle = rgba(c, 0.09); ctx.beginPath(); ctx.moveTo(x - half + cr, y - half); ctx.arcTo(x + half, y - half, x + half, y + half, cr); ctx.arcTo(x + half, y + half, x - half, y + half, cr); ctx.arcTo(x - half, y + half, x - half, y - half, cr); ctx.arcTo(x - half, y - half, x + half, y - half, cr); ctx.fill(); }
+    ctx.shadowColor = rgba(c, 0.9); ctx.shadowBlur = a ? 16 : 6; ctx.strokeStyle = a ? c : rgba(c, 0.6 + 0.4 * s); ctx.lineWidth = 2.2;
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (q) {
+      var cx = x + q[0] * half, cy = y + q[1] * half;
+      ctx.beginPath(); ctx.moveTo(cx, cy - q[1] * L2); ctx.lineTo(cx, cy - q[1] * cr); ctx.arcTo(cx, cy, cx - q[0] * cr, cy, cr); ctx.lineTo(cx - q[0] * L2, cy); ctx.stroke();
+    });
+    ctx.shadowBlur = 0; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.fill();
+  } else if (st === 'range' && o.A && o.B) {
+    [o.A, o.B].forEach(function (S) {
+      var d = Math.hypot(x - S.x, y - S.y), ang = Math.atan2(y - S.y, x - S.x);
+      ctx.setLineDash([2, 6]); ctx.strokeStyle = rgba(S.c, 0.18); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(S.x, S.y, d, ang - 0.55, ang + 0.55); ctx.stroke(); ctx.setLineDash([]);
+      ctx.shadowColor = rgba(S.c, 0.9); ctx.shadowBlur = 12; ctx.strokeStyle = rgba(S.c, 0.9); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(S.x, S.y, d, ang - 0.16, ang + 0.16); ctx.stroke(); ctx.shadowBlur = 0;
+      if (o.mm) { var lx = S.x + Math.cos(ang + 0.2) * d, ly = S.y + Math.sin(ang + 0.2) * d; ctx.font = '500 11px "Geist Mono", ui-monospace, monospace'; ctx.fillStyle = rgba(S.c, 0.85); ctx.fillText(Math.round(d / o.mm) + ' mm', lx + 6, ly); }
+    });
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.shadowColor = rgba(c, 0.9); ctx.shadowBlur = a ? 16 : 6;
+    if (a) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-5 * k, -5 * k, 10 * k, 10 * k); } else { ctx.strokeStyle = c; ctx.lineWidth = 1.8; ctx.strokeRect(-5 * k, -5 * k, 10 * k, 10 * k); }
+    ctx.restore();
+    if (!a && s > 0) { ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(x, y, 18 * k, -Math.PI / 2, -Math.PI / 2 + 6.283 * s); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+
+class Component extends DCLogic {
+  constructor(props) { super(props); this.cv = []; }
+  componentDidMount() { var self = this; var loop = function (t) { self.draw(t); self.raf = requestAnimationFrame(loop); }; this.raf = requestAnimationFrame(loop); }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  draw(t) {
+    var time = t / 1000, P = 4.2, cyc = Math.floor(time / P), u = time % P;
+    var col = COLS[cyc % COLS.length], tg = TARGETS[cyc % TARGETS.length], dpr = Math.min(2, window.devicePixelRatio || 1);
+    var W = 244, H = 300, bx = 14, by = 14, bw = 216, bh = 272;
+    var hx, hy, on = true, settle = 0, active = false, latchAge = 0;
+    var sx = bx + bw * 0.5, sy = by + bh * 0.98, tx = bx + bw * tg[0], ty = by + bh * tg[1];
+    if (u < 1.1) { var f = u / 1.1; hx = sx + (tx - sx) * f; hy = sy + (ty - sy) * f; }
+    else if (u < 1.7) { hx = tx; hy = ty; settle = (u - 1.1) / 0.6; }
+    else if (u < 3.6) { hx = tx; hy = ty; active = true; latchAge = u - 1.7; }
+    else on = false;
+    for (var i = 0; i < this.cv.length; i++) {
+      var c = this.cv[i]; if (!c) continue;
+      if (c.width !== W * dpr) { c.width = W * dpr; c.height = H * dpr; }
+      var ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#15181B'; ctx.fillRect(0, 0, W, H);
+      var g = ctx.createRadialGradient(W * 0.45, H * 0.38, 10, W * 0.5, H * 0.5, W * 0.8); g.addColorStop(0, '#343B43'); g.addColorStop(1, '#101316');
+      rr(ctx, bx, by, bw, bh, 22); ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = active ? rgba(col, 0.9) : 'rgba(255,255,255,0.08)'; ctx.lineWidth = 2; ctx.shadowColor = rgba(col, 0.8); ctx.shadowBlur = active ? 16 : 0; rr(ctx, bx - 5, by - 5, bw + 10, bh + 10, 26); ctx.stroke(); ctx.shadowBlur = 0;
+      var A = { x: bx + 4, y: by + 4, c: '#4FD1E8' }, B = { x: bx + bw - 4, y: by + 4, c: '#FFB27A' };
+      [A, B].forEach(function (S) { ctx.fillStyle = '#0B0D0F'; ctx.beginPath(); ctx.arc(S.x, S.y, 6, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(S.c, 0.8); ctx.lineWidth = 1.2; ctx.stroke(); });
+      if (on) {
+        ctx.save(); rr(ctx, bx, by, bw, bh, 22); ctx.clip();
+        drawMarker(ctx, MARKERS[i].id, { x: hx, y: hy, col: active ? col : (settle > 0 ? col : '#8FE3F2'), settle: settle, active: active, time: time, k: 0.8,
+          bounds: { x0: bx, x1: bx + bw, y0: by, y1: by + bh }, label: Math.round((hx - bx) / bw * 584) + ', ' + Math.round((hy - by) / bh * 533) + ' mm', A: A, B: B, mm: bw / 584.2, latchAge: latchAge });
+        ctx.restore();
+      }
+    }
+  }
+  renderVals() {
+    var self = this;
+    return { tiles: MARKERS.map(function (m, i) { return { n: '0' + (i + 1), name: m.name, why: m.why, rec: m.id === 'focus', border: m.id === 'focus' ? 'rgba(143,227,242,0.35)' : 'rgba(255,255,255,0.07)', ref: function (el) { self.cv[i] = el; } }; }) };
+  }
+}
+</script>
+</body>
+</html>

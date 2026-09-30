@@ -5,7 +5,8 @@ x to the right, y toward the user (front), z up. Sensors at z = 0 (ring level).
 Hand sits at depth h below ring level (unknown to a 2-sensor system).
 Prints: per-zone distances, trilateration depth-error gain, and a Monte Carlo
 of zone accuracy for (a) pure trilateration with an assumed hand depth and
-(b) calibration fingerprinting (nearest calibrated centroid in rA/rB space).
+(b) calibrated: nearest calibrated reference point in rA/rB space (a simple stand-in
+    for the calibrated position map in spec section 6).
 """
 import numpy as np
 

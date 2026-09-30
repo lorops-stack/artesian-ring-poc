@@ -218,7 +218,7 @@ Calibration order: C1 → C2/C3/C4 → C5 → C6 → C7 → C8 → C11 → save.
 
 ## 8b. UI design language (Ring Studio)
 
-Reference: the "Ring Studio UI" design canvas (Showcase, Operator view, Calibration studio, Hand marker options), 30 Sep 2026. The canvas screens are prototypes; they model the behaviour rules but not the sensor maths.
+Reference: the "Ring Studio UI" design canvas (Showcase, Operator view, Calibration studio, Hand marker options), 30 Sep 2026. The canvas screens are prototypes. They model the section 4 rules except max-run and clean mode, use the cursor as the hand, and do not model the sensor maths. Copies are kept in `ui/prototype/`.
 
 - **Showcase screen** (presentation mode, F13): a full-screen rendered top-down scene. It shows a speckled stone countertop, a lit resin ring bezel, and a brushed stainless basin with a drain. It is drawn live on an HTML canvas at 60 fps with no libraries.
   - **Ring LEDs** are drawn as 132 individual pixels with bloom, matching the real strip. They chase slowly when idle, fill outward from the manifold as a hand settles, shimmer while active, and retract around the ring during the off countdown.

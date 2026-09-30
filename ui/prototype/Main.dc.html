@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ring Studio live view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#07090C;font-family:'Geist',system-ui,sans-serif;color:#EEF1F4;-webkit-font-smoothing:antialiased}
+a{color:#EEF1F4;text-decoration:none}a:hover{color:#ffffff}
+button{font-family:inherit}
+.num{font-variant-numeric:tabular-nums}
+.flow{background-image:repeating-linear-gradient(180deg,rgba(255,255,255,0.55) 0px,rgba(255,255,255,0.0) 6px,rgba(255,255,255,0.0) 18px);background-size:100% 24px;animation:flow .45s linear infinite}
+@keyframes flow{from{background-position:0 0}to{background-position:0 24px}}
+.pulse{animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.55);opacity:.8}100%{transform:scale(1.9);opacity:0}}
+.spin{animation:spin 1.1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.breathe{animation:breathe .5s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.35}}
+.pop{animation:pop 1.1s ease-out forwards}
+@keyframes pop{0%{transform:translateY(0) scale(.4);opacity:0}25%{opacity:1}100%{transform:translateY(-36px) scale(1.15);opacity:0}}
+.livedot{animation:live 1.8s ease-in-out infinite}
+@keyframes live{50%{opacity:.3}}
+.ease{transition:background-color .25s ease,border-color .25s ease,box-shadow .35s ease,color .25s ease,opacity .25s ease}
+@media (prefers-reduced-motion:reduce){.flow,.pulse,.spin,.breathe,.pop,.livedot{animation:none}}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #07090C;">
+
+  <div style="position: absolute; left: 0; top: 0; width: 1440px; height: 76px; box-sizing: border-box; padding: 0 40px; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 14px; width: 360px;">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="3" y="4" width="24" height="22" rx="7" fill="none" stroke="#4FD1E8" stroke-width="2.4"></rect><rect x="8.5" y="9.5" width="13" height="11" rx="3.5" fill="none" stroke="#EEF1F4" stroke-opacity="0.35" stroke-width="1.4"></rect></svg>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">Ring Studio</div>
+        <div style="font-size: 12px; color: #8A94A0;">Artesian Streams · touch-free sink</div>
+      </div>
+    </div>
+    <div role="group" aria-label="Layout" style="display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);">
+      <sc-for list="{{layouts}}" as="l" hint-placeholder-count="3">
+        <button type="button" onClick="{{l.pick}}" aria-pressed="{{l.pressed}}" class="ease" style="height: 38px; min-width: 112px; padding: 0 18px; border-radius: 999px; border: 0; cursor: pointer; font-size: 14px; font-weight: 500; background: {{l.bg}}; color: {{l.fg}};">{{l.name}}</button>
+      </sc-for>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 520px;">
+      <div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 999px; background: rgba(79,209,232,0.08); border: 1px solid rgba(79,209,232,0.22); font-size: 12.5px; color: #BFEFF7;">
+        <span class="livedot" style="width: 7px; height: 7px; border-radius: 4px; background: #4FD1E8;"></span>
+        <span>Simulation · your cursor is the hand</span>
+      </div>
+      <div role="group" aria-label="Temperature units" style="display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);">
+        <sc-for list="{{units}}" as="u" hint-placeholder-count="2">
+          <button type="button" onClick="{{u.pick}}" aria-pressed="{{u.pressed}}" class="ease" style="height: 32px; width: 46px; border-radius: 999px; border: 0; cursor: pointer; font-size: 13px; font-weight: 500; background: {{u.bg}}; color: {{u.fg}};">{{u.name}}</button>
+        </sc-for>
+      </div>
+      <button type="button" onClick="{{toggleEng}}" aria-pressed="{{engPressed}}" class="ease" style="height: 38px; padding: 0 16px; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); background: {{engBg}}; color: {{engFg}};">Engineering</button>
+      <a href="Studio.dc.html" style="height: 38px; display: flex; align-items: center; padding: 0 16px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #EEF1F4; color: #07090C;">Calibrate</a>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 40px; top: 96px; width: 860px; height: 764px; border-radius: 36px; background: #0C0F13; border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 30px 80px rgba(0,0,0,0.45);">
+    <div style="position: absolute; left: 32px; top: 26px; font-size: 13px; color: #8A94A0;">{{layoutCaption}}</div>
+    <div style="position: absolute; right: 32px; top: 22px; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 12.5px; color: #C9D0D8;">
+      <span class="ease" style="width: 8px; height: 8px; border-radius: 4px; background: {{nowColor}};"></span>
+      <span>{{phaseLabel}}</span>
+    </div>
+
+    <div class="{{ringClass}}" style="position: absolute; left: 80px; top: 74px; width: 700px; height: 644px; box-sizing: border-box; border-radius: 62px; background: #151A20; border: 3px solid {{ringColor}}; box-shadow: {{ringGlow}}; transition: border-color .3s ease, box-shadow .4s ease;">
+      <div style="position: absolute; left: 317px; top: 9px; width: 60px; height: 9px; border-radius: 5px; background: #2B323B; box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);"></div>
+      <div style="position: absolute; left: 8px; top: 8px; width: 18px; height: 18px; border-radius: 9px; background: #0C0F13; border: 2px solid #3A424C; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #8A94A0;">A</div>
+      <div style="position: absolute; left: 668px; top: 8px; width: 18px; height: 18px; border-radius: 9px; background: #0C0F13; border: 2px solid #3A424C; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #8A94A0;">B</div>
+
+      <div onPointerMove="{{onMove}}" onPointerLeave="{{onLeave}}" onPointerUp="{{onUp}}" style="position: absolute; left: 24px; top: 24px; width: 640px; height: 584px; border-radius: 44px; overflow: hidden; cursor: none; touch-action: none; background: radial-gradient(ellipse at 50% 42%, #1C222A 0%, #11151A 58%, #0B0E12 100%); box-shadow: inset 0 2px 18px rgba(0,0,0,0.6);">
+
+        <sc-for list="{{zones}}" as="z" hint-placeholder-count="9">
+          <div class="ease" style="position: absolute; left: {{z.left}}px; top: {{z.top}}px; width: {{z.w}}px; height: {{z.h}}px; box-sizing: border-box; border-radius: 24px; background: {{z.bg}}; border: 1px solid {{z.border}}; box-shadow: {{z.glow}}; padding: 18px 20px; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; opacity: {{z.opacity}};">
+            <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 20px; top: 18px;"><path d="{{z.icon}}" fill="none" stroke="{{z.iconColor}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <div class="ease" style="font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: {{z.labelColor}};">{{z.label}}</div>
+            <div style="font-size: 12px; color: #7C8691;">{{z.sub}}</div>
+          </div>
+        </sc-for>
+
+        <div style="position: absolute; left: 294px; top: 266px; width: 52px; height: 52px; box-sizing: border-box; border-radius: 26px; background: #080A0D; border: 2px solid rgba(255,255,255,0.1);"></div>
+        <sc-if value="{{disposalOn}}" hint-placeholder-val="{{ false }}">
+          <div class="spin" style="position: absolute; left: 284px; top: 256px; width: 72px; height: 72px; box-sizing: border-box; border-radius: 36px; border: 3px dashed #F2B44B;"></div>
+        </sc-if>
+
+        <sc-if value="{{flowOn}}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: {{flow.left}}px; top: 0px; width: {{flow.w}}px; height: 292px; border-radius: 0 0 40px 40px; background: {{flow.fill}}; opacity: {{flow.opacity}};">
+            <div class="flow" style="width: 100%; height: 100%; border-radius: 0 0 40px 40px;"></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{soapFlash}}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: {{foam.left}}px; top: {{foam.top}}px; width: 90px; height: 60px;">
+            <div class="pop" style="position: absolute; left: 10px; top: 30px; width: 18px; height: 18px; border-radius: 9px; background: rgba(182,156,255,0.35); border: 1px solid #B69CFF;"></div>
+            <div class="pop" style="position: absolute; left: 38px; top: 20px; width: 26px; height: 26px; border-radius: 13px; background: rgba(182,156,255,0.3); border: 1px solid #B69CFF; animation-delay: .15s;"></div>
+            <div class="pop" style="position: absolute; left: 66px; top: 34px; width: 14px; height: 14px; border-radius: 7px; background: rgba(182,156,255,0.35); border: 1px solid #B69CFF; animation-delay: .3s;"></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showCircles}}" hint-placeholder-val="{{ false }}">
+          <svg width="640" height="584" viewBox="0 0 640 584" aria-hidden="true" style="position: absolute; left: 0; top: 0; pointer-events: none;">
+            <circle cx="0" cy="0" r="{{eng.rApx}}" fill="none" stroke="#4FD1E8" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="5 6"></circle>
+            <circle cx="640" cy="0" r="{{eng.rBpx}}" fill="none" stroke="#FFB27A" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="5 6"></circle>
+          </svg>
+        </sc-if>
+
+        <sc-if value="{{handOn}}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: {{hand.left}}px; top: {{hand.top}}px; width: 64px; height: 64px; pointer-events: none;">
+            <div class="pulse" style="position: absolute; left: 0; top: 0; width: 64px; height: 64px; box-sizing: border-box; border-radius: 32px; border: 2px solid {{hand.color}};"></div>
+            <div class="ease" style="position: absolute; left: 20px; top: 20px; width: 24px; height: 24px; border-radius: 12px; background: {{hand.color}}; box-shadow: 0 0 24px {{hand.color}};"></div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 940px; top: 96px; width: 460px; height: 300px; box-sizing: border-box; border-radius: 32px; padding: 30px 32px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A94A0;">
+      <span class="ease" style="width: 8px; height: 8px; border-radius: 4px; background: {{nowColor}};"></span>
+      <span>{{phaseLabel}}</span>
+    </div>
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 250px;">
+        <div class="ease" style="font-size: 40px; line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; color: {{nowTitleColor}};">{{now.title}}</div>
+        <div style="font-size: 15.5px; line-height: 1.4; color: #A7B0BA;">{{now.sub}}</div>
+        <div class="num" style="font-size: 13px; color: #6F7984;">{{now.detail}}</div>
+      </div>
+      <div style="position: relative; width: 132px; height: 132px; flex-shrink: 0;">
+        <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+          <circle cx="66" cy="66" r="56" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="9"></circle>
+          <circle cx="66" cy="66" r="56" fill="none" stroke="{{nowColor}}" stroke-width="9" stroke-linecap="round" stroke-dasharray="351.86" stroke-dashoffset="{{ring.offset}}" transform="rotate(-90 66 66)" style="transition: stroke-dashoffset .12s linear, stroke .3s ease;"></circle>
+        </svg>
+        <div style="position: absolute; left: 0; top: 0; width: 132px; height: 132px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;">
+          <div class="num" style="font-size: 28px; font-weight: 600; letter-spacing: -0.02em;">{{ring.value}}</div>
+          <div style="font-size: 11.5px; color: #8A94A0;">{{ring.label}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{notEng}}" hint-placeholder-val="{{ true }}">
+    <div style="position: absolute; left: 940px; top: 412px; width: 460px; height: 248px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+      <sc-for list="{{metrics}}" as="m" hint-placeholder-count="4">
+        <div style="box-sizing: border-box; border-radius: 26px; padding: 20px 22px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #8A94A0;">{{m.label}}</div>
+          <div style="display: flex; align-items: baseline; gap: 6px;">
+            <span class="num" style="font-size: 32px; font-weight: 600; letter-spacing: -0.03em; color: {{m.color}};">{{m.value}}</span>
+            <span style="font-size: 13px; color: #8A94A0;">{{m.unit}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isEng}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: 940px; top: 412px; width: 460px; height: 248px; box-sizing: border-box; border-radius: 26px; padding: 22px 24px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #8A94A0;">Sensors · simulated from cursor</div>
+      <sc-for list="{{eng.rows}}" as="r" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: #C9D0D8;">{{r.label}}</span><span class="num" style="color: #EEF1F4;">{{r.value}}</span></div>
+          <div style="height: 6px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden;"><div style="height: 6px; border-radius: 3px; width: {{r.pct}}%; background: {{r.color}}; transition: width .1s linear;"></div></div>
+        </div>
+      </sc-for>
+      <div class="num" style="display: flex; justify-content: space-between; font-size: 12.5px; color: #8A94A0;"><span>{{eng.pos}}</span><span>{{eng.speed}}</span></div>
+    </div>
+  </sc-if>
+
+  <div style="position: absolute; left: 940px; top: 676px; width: 460px; height: 128px; box-sizing: border-box; border-radius: 26px; padding: 20px 24px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; gap: 16px;">
+    <div style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #8A94A0;">Latch logic</div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+      <sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="ease" style="height: 4px; border-radius: 2px; background: {{s.bar}};"></div>
+          <div class="ease" style="font-size: 13px; font-weight: 500; color: {{s.fg}};">{{s.label}}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 944px; top: 822px; width: 452px; font-size: 12px; line-height: 1.5; color: #66707B;">Flow 1.5 gpm. Savings compare a 2.2 gpm faucet running whenever hands are in the sink, split into time the ring is off and the lower flow rate. Soap is a single dose. Everything turns off 1 second after hands leave, except the disposal's fixed 15 s run. Prototype: the cursor stands in for the hand; max-run and clean mode are not modelled.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+var W_MM = 584.2, D_MM = 533.4, BW = 640, BH = 584;
+var FN = {
+  soap: { label: 'Foaming soap', color: '#B69CFF', icon: 'M12 3.5c3 4 5 6.4 5 9.3a5 5 0 0 1-10 0c0-2.9 2-5.3 5-9.3z M17 5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M19.2 9.6a1 1 0 1 0 2 0a1 1 0 1 0-2 0' },
+  disposal: { label: 'Disposal', color: '#F2B44B', icon: 'M19.5 12a7.5 7.5 0 1 1-2.2-5.3 M19.5 4.5v4h-4 M12 9.5v5 M9.5 12h5' },
+  cup: { label: 'Cup fill', color: '#4FD1E8', icon: 'M6 5h12l-1.4 13.4a2 2 0 0 1-2 1.8H9.4a2 2 0 0 1-2-1.8L6 5z M6.6 10h10.8' },
+  waterfall: { label: 'Waterfall', color: '#3FC7A6', icon: 'M4 7c2.6 0 2.6 2 5.3 2s2.6-2 5.3-2 2.6 2 5.4 2 M4 12c2.6 0 2.6 2 5.3 2s2.6-2 5.3-2 2.6 2 5.4 2 M4 17c2.6 0 2.6 2 5.3 2s2.6-2 5.3-2 2.6 2 5.4 2' },
+  neutral: { label: 'Neutral', color: '#AEB7C2', icon: 'M5 12a7 7 0 1 0 14 0a7 7 0 1 0-14 0 M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0' },
+  hot: { label: 'Hot', color: '#FF6B4A', icon: 'M12 3c.8 3 5 5 5 10a5 5 0 0 1-10 0c0-2.8 1.6-4 2.2-5.8 1.3 1 1.8 2.4 1.8 3.8 1.1-2 1.4-4.6 1-8z' },
+  warm: { label: 'Warm', color: '#FFB27A', icon: 'M10 4.5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0z M12 9v6.5' },
+  cold: { label: 'Cold', color: '#6FB6FF', icon: 'M12 3v18 M4.2 7.5l15.6 9 M4.2 16.5l15.6-9 M9.6 4.6 12 7l2.4-2.4 M9.6 19.4 12 17l2.4 2.4' }
+};
+var LAYOUTS = {
+  kitchen: { name: 'Kitchen', rows: [ { h: 1/3, fns: ['soap','disposal','cup'] }, { h: 1/3, fns: ['waterfall','neutral','waterfall'] }, { h: 1/3, fns: ['hot','warm','cold'] } ] },
+  bathroom: { name: 'Bathroom', rows: [ { h: 0.5, fns: ['soap','waterfall','cup'] }, { h: 0.5, fns: ['hot','warm','cold'] } ] },
+  accessible: { name: 'Accessible', rows: [ { h: 0.4, fns: ['soap','cup'] }, { h: 0.6, fns: ['hot','warm','cold'] } ] }
+};
+var FLOW_MLS = 94.6, BASE_MLS = 138.8, CUP_ML = 350, CIRC = 351.86;
+function hexA(h, a) { var n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
+function buildZones(key) {
+  var out = [], y = 0, rows = LAYOUTS[key].rows;
+  for (var r = 0; r < rows.length; r++) {
+    var n = rows[r].fns.length;
+    for (var c = 0; c < n; c++) out.push({ id: key + r + '-' + c, fn: rows[r].fns[c], x0: c / n, x1: (c + 1) / n, y0: y, y1: y + rows[r].h });
+    y += rows[r].h;
+  }
+  return out;
+}
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { layout: 'kitchen', unit: 'F', eng: false, hand: null, phase: 'idle', armZone: null, armSince: 0, active: null, activeZone: null,
+      soapBlocked: false, soapFlashUntil: 0, flashZone: null, soapDoses: 0, cupMl: 0, cupFull: false, disposalUntil: 0, disposalUsed: false, exitStart: 0,
+      session: false, entryT: 0, lastSeen: 0, usedMl: 0, savedOffMl: 0, savedFlowMl: 0, lastLatchMs: null, now: Date.now() };
+    this.speed = 0; this.lastPos = null; this.lastMoveT = 0; this.prevTick = Date.now();
+  }
+  componentDidMount() { var self = this; this.timer = setInterval(function () { self.tick(); }, 50); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  zoneAt(h) {
+    var zs = buildZones(this.state.layout);
+    for (var i = 0; i < zs.length; i++) { var z = zs[i]; if (h.xn >= z.x0 && h.xn < z.x1 && h.yn >= z.y0 && h.yn < z.y1) return z; }
+    return zs[zs.length - 1];
+  }
+  tick() {
+    var now = Date.now(), dt = Math.min(0.2, (now - this.prevTick) / 1000); this.prevTick = now;
+    if (now - this.lastMoveT > 90) this.speed = this.speed * 0.4;
+    var s = Object.assign({}, this.state); s.now = now;
+    if (s.disposalUntil && now >= s.disposalUntil) { s.disposalUntil = 0; if (s.active === 'disposal') { s.active = null; s.activeZone = null; } }
+    if (s.hand) {
+      if (!s.session) { s.session = true; s.entryT = now; }
+      s.lastSeen = now; s.exitStart = 0;
+      var z = this.zoneAt(s.hand);
+      if (s.armZone !== z.id || this.speed >= 250) { s.armZone = z.id; s.armSince = now; }
+      var settled = now - s.armSince;
+      if (!s.active) {
+        var need = z.fn === 'disposal' ? 1000 : 150;
+        var allowed = z.fn !== 'neutral' && !(z.fn === 'soap' && s.soapBlocked) && !(z.fn === 'disposal' && s.disposalUsed);
+        if (allowed && settled >= need) {
+          s.lastLatchMs = now - s.entryT;
+          if (z.fn === 'soap') { s.soapDoses += 1; s.soapFlashUntil = now + 1400; s.soapBlocked = true; s.flashZone = z.id; s.entryT = now; }
+          else { s.active = z.fn; s.activeZone = z.id; if (z.fn === 'cup') { s.cupMl = 0; s.cupFull = false; } if (z.fn === 'disposal') { s.disposalUntil = now + 15000; s.disposalUsed = true; s.entryT = now; } }
+        }
+      } else if (s.active === 'disposal' && z.fn !== 'disposal' && settled >= 150) {
+        s.disposalUntil = 0; s.active = null; s.activeZone = null; s.entryT = now - settled;
+      }
+      s.phase = s.active ? 'active' : 'arming';
+    } else if (s.session) {
+      if (!s.exitStart) s.exitStart = s.lastSeen || now;
+      if (now - s.exitStart >= 1000) {
+        if (s.active !== 'disposal') { s.active = null; s.activeZone = null; }
+        s.session = false; s.exitStart = 0; s.soapBlocked = false; s.disposalUsed = false; s.armZone = null; s.cupFull = false; s.cupMl = 0;
+        s.phase = s.active ? 'active' : 'idle';
+      } else s.phase = 'exit';
+    } else s.phase = s.active ? 'active' : 'idle';
+    var flowing = (s.active && ['hot', 'warm', 'cold', 'waterfall'].indexOf(s.active) >= 0) || (s.active === 'cup' && !s.cupFull);
+    if (flowing) {
+      s.usedMl += FLOW_MLS * dt; s.savedFlowMl += (BASE_MLS - FLOW_MLS) * dt;
+      if (s.active === 'cup') { s.cupMl += FLOW_MLS * dt; if (s.cupMl >= CUP_ML) { s.cupMl = CUP_ML; s.cupFull = true; } }
+    } else if (s.hand) s.savedOffMl += BASE_MLS * dt;
+    this.setState(s);
+  }
+  temp(fn) {
+    var f = this.state.unit === 'F';
+    if (fn === 'hot') return f ? '110°F' : '43°C';
+    if (fn === 'hotcap') return f ? '120°F' : '49°C';
+    if (fn === 'warm' || fn === 'waterfall') return f ? '100°F' : '38°C';
+    return 'Mains';
+  }
+  renderVals() {
+    var self = this, s = this.state, now = s.now;
+    var zs = buildZones(s.layout);
+    var hoverZ = null;
+    if (s.hand) hoverZ = this.zoneAt(s.hand);
+    var soapFlash = now < s.soapFlashUntil;
+    var hoverFn = hoverZ ? hoverZ.fn : null;
+    var need = hoverFn === 'disposal' ? 1000 : 150;
+    var settleFrac = s.hand && !s.active ? Math.min(1, (now - s.armSince) / need) : 0;
+    var blockedHover = (hoverFn === 'soap' && s.soapBlocked) || (hoverFn === 'disposal' && s.disposalUsed);
+
+    var colorFn = s.active || (soapFlash ? 'soap' : null) || (s.phase === 'arming' && hoverFn && hoverFn !== 'neutral' && !blockedHover ? hoverFn : null);
+    var nowColor = colorFn ? FN[colorFn].color : (s.hand ? '#AEB7C2' : '#3A424C');
+
+    var ringColor = 'rgba(255,255,255,0.14)', ringGlow = 'none', ringClass = '';
+    if (s.active || soapFlash) { var c1 = FN[s.active || 'soap'].color; ringColor = c1; ringGlow = '0 0 0 1px ' + hexA(c1, 0.6) + ', 0 0 46px ' + hexA(c1, 0.5) + ', inset 0 0 34px ' + hexA(c1, 0.22); }
+    else if (colorFn) { var c2 = FN[colorFn].color; ringColor = hexA(c2, 0.35 + 0.4 * settleFrac); ringGlow = '0 0 28px ' + hexA(c2, 0.12 + 0.2 * settleFrac); }
+    if (s.phase === 'exit') ringClass = 'breathe';
+
+    var zones = zs.map(function (z) {
+      var f = FN[z.fn], active = s.active && s.activeZone === z.id, hover = !s.active && hoverZ && hoverZ.id === z.id;
+      var flash = soapFlash && s.flashZone === z.id, blocked = (z.fn === 'soap' && s.soapBlocked) || (z.fn === 'disposal' && s.disposalUsed && s.active !== 'disposal');
+      var sub = { soap: '0.8 ml dose', disposal: 'Hold 1 s', cup: CUP_ML + ' ml', waterfall: 'Sheet flow', neutral: 'No change', hot: self.temp('hot'), warm: self.temp('warm'), cold: 'Mains' }[z.fn];
+      if (blocked) sub = 'Dispensed';
+      if (z.fn === 'disposal' && s.disposalUsed && s.active !== 'disposal') sub = 'Used this session';
+      var lit = active || flash || (hover && z.fn !== 'neutral' && !blocked);
+      var bg = 'rgba(255,255,255,0.025)', border = 'rgba(255,255,255,0.06)', glow = 'none';
+      if (active || flash) { bg = hexA(f.color, 0.2); border = hexA(f.color, 0.85); glow = '0 0 30px ' + hexA(f.color, 0.25); }
+      else if (hover) { bg = hexA(f.color, 0.06 + 0.12 * settleFrac); border = hexA(f.color, 0.3 + 0.4 * settleFrac); }
+      return { left: Math.round(z.x0 * BW + 6), top: Math.round(z.y0 * BH + 6), w: Math.round((z.x1 - z.x0) * BW - 12), h: Math.round((z.y1 - z.y0) * BH - 12),
+        bg: bg, border: border, glow: glow, icon: f.icon, iconColor: lit ? f.color : '#6F7984', label: f.label, labelColor: lit ? '#FFFFFF' : '#C9D0D8', sub: sub, opacity: blocked ? 0.45 : 1 };
+    });
+
+    var flowOn = false, flow = { left: 0, w: 0, fill: 'none', opacity: 1 };
+    var flowing = (s.active && ['hot', 'warm', 'cold', 'waterfall'].indexOf(s.active) >= 0) || (s.active === 'cup' && !s.cupFull);
+    if (flowing) {
+      flowOn = true; var fc = FN[s.active].color, w = s.active === 'waterfall' ? 250 : (s.active === 'cup' ? 10 : 18);
+      flow = { left: 320 - w / 2, w: w, fill: 'linear-gradient(180deg,' + hexA(fc, 0.95) + ' 0%,' + hexA(fc, 0.55) + ' 70%,' + hexA(fc, 0) + ' 100%)', opacity: s.active === 'waterfall' ? 0.5 : 0.95 };
+    }
+    var foam = { left: 0, top: 0 };
+    if (soapFlash) { for (var i = 0; i < zs.length; i++) if (zs[i].id === s.flashZone) { foam = { left: Math.round(((zs[i].x0 + zs[i].x1) / 2) * BW - 45), top: Math.round(((zs[i].y0 + zs[i].y1) / 2) * BH - 40) }; } }
+
+    var now2 = { title: 'Ready', sub: 'Move a hand over the sink to begin.', detail: '' };
+    var ring = { frac: 0, value: '–', label: 'idle' };
+    if (soapFlash && !s.active) { now2 = { title: 'Soap dispensed', sub: 'One 0.8 ml dose. Move to a water zone to rinse.', detail: 'Soap zone locked until hands leave' }; ring = { frac: 1, value: '0.8', label: 'ml' }; }
+    else if (s.phase === 'exit') {
+      var left = Math.max(0, 1000 - (now - s.exitStart)) / 1000;
+      now2 = { title: 'Turning off', sub: 'Hands are out. Everything stops in one second unless they return.', detail: s.active ? FN[s.active].label + ' still running' : '' };
+      ring = { frac: left, value: left.toFixed(1), label: 'seconds' };
+    } else if (s.active) {
+      var fnA = s.active;
+      if (fnA === 'cup') { now2 = { title: 'Cup fill', sub: s.cupFull ? 'Cup full. Flow stopped.' : 'Filling to ' + CUP_ML + ' ml, then stops by itself.', detail: '1.5 gpm · cold (mains)' }; ring = { frac: s.cupMl / CUP_ML, value: String(Math.round(s.cupMl)), label: 'of ' + CUP_ML + ' ml' }; }
+      else if (fnA === 'disposal') { var rem = Math.max(0, (s.disposalUntil - now) / 1000); now2 = { title: 'Disposal', sub: 'Runs 15 seconds, even after hands leave. Stops at once if a hand settles in any other zone.', detail: 'Hold 1 s to start · once per session' }; ring = { frac: rem / 15, value: String(Math.ceil(rem)), label: 'seconds left' }; }
+      else if (fnA === 'waterfall') { now2 = { title: 'Waterfall', sub: 'Wide sheet flow from the back manifold.', detail: '1.5 gpm · ' + self.temp('waterfall') }; ring = { frac: 1, value: self.temp('waterfall').replace(/[°FC]/g, ''), label: s.unit === 'F' ? '°F' : '°C' }; }
+      else { var t = self.temp(fnA); now2 = { title: FN[fnA].label + ' water', sub: fnA === 'hot' ? 'Set to ' + t + ', never above ' + self.temp('hotcap') + '.' : (fnA === 'cold' ? 'Straight from the mains.' : 'Comfortable hand-washing temperature.'), detail: '1.5 gpm · stays on until hands leave' }; ring = fnA === 'cold' ? { frac: 1, value: 'Cold', label: 'mains' } : { frac: 1, value: t.replace(/[°FC]/g, ''), label: s.unit === 'F' ? '°F' : '°C' }; }
+    } else if (s.hand) {
+      if (hoverFn === 'neutral') now2 = { title: 'Neutral', sub: 'Nothing starts here. Settle in a zone to choose.', detail: '' };
+      else if (blockedHover) now2 = hoverFn === 'soap' ? { title: 'Soap done', sub: 'Pick a water zone to rinse.', detail: '' } : { title: 'Disposal used', sub: 'It runs once per session. Hands out to reset.', detail: '' };
+      else { now2 = { title: FN[hoverFn].label, sub: hoverFn === 'disposal' ? 'Hold still for 1 second to start.' : 'Hold steady to start.', detail: '' }; ring = { frac: settleFrac, value: String(Math.round(settleFrac * 100)), label: '% locked' }; }
+    }
+
+    var phaseLabel = { idle: 'Idle', arming: 'Tracking hand', active: 'Active', exit: 'Turning off' }[s.phase];
+    var stepsK = ['idle', 'arming', 'active', 'exit'], stepsL = ['Idle', 'Tracking', 'Active', 'Off in 1 s'];
+    var steps = stepsK.map(function (k, i) { var on = s.phase === k; return { label: stepsL[i], bar: on ? nowColor : 'rgba(255,255,255,0.08)', fg: on ? '#FFFFFF' : '#6F7984' }; });
+
+    var gal = function (ml) { return (ml / 3785.41).toFixed(2); };
+    var metrics = [
+      { label: 'Water used', value: gal(s.usedMl), unit: 'gal', color: '#EEF1F4' },
+      { label: 'Response', value: s.lastLatchMs == null ? '–' : String(s.lastLatchMs), unit: 'ms', color: '#EEF1F4' },
+      { label: 'Saved: off when out', value: gal(s.savedOffMl), unit: 'gal', color: '#3FC7A6' },
+      { label: 'Saved: flow rate', value: gal(s.savedFlowMl), unit: 'gal', color: '#3FC7A6' }
+    ];
+
+    var eng = { rApx: 0, rBpx: 0, rows: [], pos: 'No hand', speed: '' };
+    if (s.hand) {
+      var x = s.hand.xn * W_MM, y = s.hand.yn * D_MM, d = 80;
+      var rA = Math.sqrt(x * x + y * y + d * d), rB = Math.sqrt((W_MM - x) * (W_MM - x) + y * y + d * d);
+      eng = { rApx: Math.sqrt(x * x + y * y) * BW / W_MM, rBpx: Math.sqrt((W_MM - x) * (W_MM - x) + y * y) * BW / W_MM,
+        rows: [ { label: 'Sensor A range', value: Math.round(rA) + ' mm', pct: Math.min(100, rA / 8.5), color: '#4FD1E8' },
+                { label: 'Sensor B range', value: Math.round(rB) + ' mm', pct: Math.min(100, rB / 8.5), color: '#FFB27A' },
+                { label: 'Settle', value: s.active ? 'locked' : Math.round(settleFrac * 100) + '%', pct: s.active ? 100 : settleFrac * 100, color: nowColor } ],
+        pos: 'x ' + Math.round(x) + ' mm · y ' + Math.round(y) + ' mm', speed: Math.round(this.speed) + ' mm/s' };
+    } else {
+      eng.rows = [ { label: 'Sensor A range', value: 'no target', pct: 0, color: '#4FD1E8' }, { label: 'Sensor B range', value: 'no target', pct: 0, color: '#FFB27A' }, { label: 'Settle', value: '–', pct: 0, color: '#3A424C' } ];
+    }
+
+    var hand = { left: 0, top: 0, color: nowColor };
+    if (s.hand) hand = { left: s.hand.xn * BW - 32, top: s.hand.yn * BH - 32, color: colorFn ? FN[colorFn].color : '#E6EBF0' };
+
+    var layouts = ['kitchen', 'bathroom', 'accessible'].map(function (k) {
+      var on = s.layout === k;
+      return { name: LAYOUTS[k].name, pressed: on ? 'true' : 'false', bg: on ? 'rgba(255,255,255,0.12)' : 'transparent', fg: on ? '#FFFFFF' : '#9AA4B0',
+        pick: function () { self.setState({ layout: k, active: null, activeZone: null, armZone: null, soapBlocked: false, disposalUsed: false, disposalUntil: 0, exitStart: 0, session: false, phase: 'idle' }); } };
+    });
+    var units = ['F', 'C'].map(function (u) {
+      var on = s.unit === u;
+      return { name: '°' + u, pressed: on ? 'true' : 'false', bg: on ? 'rgba(255,255,255,0.12)' : 'transparent', fg: on ? '#FFFFFF' : '#9AA4B0', pick: function () { self.setState({ unit: u }); } };
+    });
+    var caption = { kitchen: 'Kitchen layout · 3 × 3', bathroom: 'Bathroom layout · 3 × 2 · no disposal', accessible: 'Accessible layout · large zones, water nearest the user' }[s.layout] + ' · 23 × 21 in';
+
+    return {
+      layouts: layouts, units: units, zones: zones, flow: flow, flowOn: flowOn, foam: foam, soapFlash: soapFlash,
+      disposalOn: s.active === 'disposal', handOn: !!s.hand, hand: hand, showCircles: s.eng && !!s.hand, eng: eng,
+      isEng: s.eng, notEng: !s.eng, engPressed: s.eng ? 'true' : 'false', engBg: s.eng ? 'rgba(79,209,232,0.16)' : 'rgba(255,255,255,0.04)', engFg: s.eng ? '#BFEFF7' : '#C9D0D8',
+      toggleEng: function () { self.setState({ eng: !self.state.eng }); },
+      ringColor: ringColor, ringGlow: ringGlow, ringClass: ringClass, nowColor: nowColor, nowTitleColor: colorFn ? '#FFFFFF' : '#C9D0D8',
+      now: now2, ring: { offset: (CIRC * (1 - Math.max(0, Math.min(1, ring.frac)))).toFixed(1), value: ring.value, label: ring.label },
+      phaseLabel: phaseLabel, steps: steps, metrics: metrics, layoutCaption: caption,
+      onMove: function (e) {
+        var r = e.currentTarget.getBoundingClientRect();
+        var xn = Math.max(0, Math.min(0.9999, (e.clientX - r.left) / r.width)), yn = Math.max(0, Math.min(0.9999, (e.clientY - r.top) / r.height));
+        var t = Date.now();
+        if (self.lastPos) { var ddt = Math.max(1, t - self.lastMoveT) / 1000, dx = (xn - self.lastPos.xn) * W_MM, dy = (yn - self.lastPos.yn) * D_MM; self.speed = 0.5 * self.speed + 0.5 * (Math.sqrt(dx * dx + dy * dy) / ddt); }
+        self.lastPos = { xn: xn, yn: yn }; self.lastMoveT = t;
+        self.setState({ hand: { xn: xn, yn: yn } });
+      },
+      onLeave: function () { self.lastPos = null; self.setState({ hand: null }); },
+      onUp: function (e) { if (e.pointerType !== 'mouse') { self.lastPos = null; self.setState({ hand: null }); } }
+    };
+  }
+}
+</script>
+</body>
+</html>
