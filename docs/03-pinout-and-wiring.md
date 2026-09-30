@@ -21,7 +21,7 @@ Both XM125 boards answer at I2C address **0x52**. SparkFun documents the ADDR ju
 
 ## Connection table
 
-The ESP32 pins used are on the **left header** (the side labelled 3V3, 3V3, RST, 4, 5, 6, 7 ...), except one GND on the right header. The wire numbers W1 to W10 match the stage 1 diagram.
+The stage 1 ESP32 pins are on the **left header** (the side labelled 3V3, 3V3, RST, 4, 5, 6, 7 ...), except one GND on the right header. The wire numbers W1 to W10 match the stage 1 diagram.
 
 | ESP32-S3 pin | Goes to | Wire colour | Notes |
 |---|---|---|---|
@@ -38,6 +38,7 @@ The ESP32 pins used are on the **left header** (the side labelled 3V3, 3V3, RST,
 | GPIO4 (left, pin 4) | 74AHCT125 **1A** (chip pin 2) → **1Y** → 330 Ω → strip **DIN** | green | LED ring data |
 | GPIO15 / GPIO16 | Sensor A / B **INT** | n/a | optional, not wired for now |
 | GPIO10 / 11 / 12 | reserved: Sensor C SDA / SCL / RST | n/a | future third sensor, read by switching I2C controller 1 between pin pairs (review R6) |
+| GND (right, pin 21) | Stage 2: the breadboard GND rail (LED supply ground) | black | the LED ground must join the ESP32 ground |
 | GPIO48 | onboard RGB LED | n/a | status light, no wiring |
 | GPIO0 | onboard BOOT button | n/a | short press = clean mode, long press (3 s) = start calibration |
 

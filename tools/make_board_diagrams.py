@@ -236,8 +236,8 @@ def stage2():
     s.text(40, 80, "Every orange 5V tag connects together, and every black GND tag connects together: use the breadboard's two long power rails.", 15, "#444")
     led = PINS["PIN_LED_RING_DATA"]
     ex, ey = 1520, 170
-    gi = esp_index("L", "GND")
-    esp_used = {("L", esp_index("L", str(led))): C["led"], ("L", gi): C["gnd"]}
+    gi = esp_index("R", "GND", 1)   # right header pin 21: left pin 22 already carries W3
+    esp_used = {("L", esp_index("L", str(led))): C["led"], ("R", gi): C["gnd"]}
     esp = draw_esp32(s, ex, ey, esp_used)
 
     def tag(x, y, t):
@@ -285,9 +285,10 @@ def stage2():
     s.rect(380, 868, 80, 24, "#FFFFFF", C["led"], rx=4, sw=2.5); s.text(420, 860, "330 Ω", 13, C["led"], "middle", 800)
     s.text(630, 872, "D2: chip pin 3 (1Y) → 330 Ω → strip DIN", 13.5, C["led"], "start", 800, halo=True)
     # ESP32 GND -> GND
-    gdx, gdy = esp[("L", "GND", gi)]
-    s.wire([(gdx, gdy), (1420, gdy)], C["gnd"], w=3); tag(1360, gdy, "GND")
-    s.text(1510, gdy - 26, "ESP32 GND (left header, bottom pin) joins the GND rail", 12.5, "#333", "end", 700)
+    gdx, gdy = esp[("R", "GND", gi)]
+    s.wire([(gdx, gdy), (gdx + 60, gdy)], C["gnd"], w=3); tag(gdx + 60, gdy, "GND")
+    s.text(gdx + 124, gdy - 22, "ESP32 GND (right header, pin 21)", 12.5, "#111", "end", 700, halo=True)
+    s.text(gdx + 124, gdy + 34, "joins the GND rail", 12.5, "#111", "end", 700, halo=True)
 
     # strip
     s.rect(sx, sy - 40, sw, 80, "#F1F3F5", "#9AA0A6", rx=10)

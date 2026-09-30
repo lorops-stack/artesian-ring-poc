@@ -205,6 +205,7 @@ This section is the specification for the firmware state machine and its unit te
 | F23 | Fill presets: cup, bottle, pot | FW + UI | 2 |
 | F24 | Hand heatmap per layout, as R&D evidence for zone sizing | UI | 2 |
 | F25 | Demo loop: a ghost hand runs a scripted sequence after 8 s idle; excluded from every metric | UI | 2 |
+| F26 | Test runner: walks through the bench tests in doc 07 one by one, records pass, fail and notes, and exports the results | UI | 1 |
 
 ## 8. Setup and calibration studio (inside Ring Studio)
 
@@ -262,6 +263,6 @@ Reference: the "Ring Studio UI" design canvas (Showcase, Operator view, Calibrat
 | Phase | Output | Exit test |
 |---|---|---|
 | 0 | Reflash XM125s, wire the bench rig, echo lists from A and B printed on USB serial | T1 to T4 |
-| 1 | Fusion (association, calibrated geometry, plane gating, stillness rule), the full state machine with unit tests, calibration studio core (C1 to C8, C11), minimal UI over Wi-Fi: F1 to F5, F12, F16, F19. Soap doses, cup fills and the disposal run fire as state-machine events using the defaults; their F8 settings come in Phase 2 | T5 to T11, T16 to T21, T28, T29; accuracy ≥ 95% with Nathan's hand |
+| 1 | Fusion (association, calibrated geometry, plane gating, stillness rule), the full state machine with unit tests, calibration studio core (C1 to C8, C11), minimal UI over Wi-Fi: F1 to F5, F12, F16, F19, F26. Soap doses, cup fills and the disposal run fire as state-machine events using the defaults; their F8 settings come in Phase 2 | T5 to T11, T16 to T21, T28, T29; accuracy ≥ 95% with Nathan's hand |
 | 2 | Full Ring Studio (Showcase and Operator view), remaining studio features (C9, C10, C12, C13), and F6 to F11, F13 to F15, F18, F20 to F25 | T12 to T15, T22 to T27; section 1 targets met with 5 people |
 | 3 | Optional: F17 cloud sync; a learned zone classifier trained on recorded sessions, compared head to head against the rule-based fusion | n/a |

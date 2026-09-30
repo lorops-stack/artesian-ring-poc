@@ -26,40 +26,23 @@ Install **STM32CubeProgrammer** from st.com and create a free Acconeer developer
 
 ## 4. Get the code
 
-The repo is private, so the first `git clone` opens a GitHub sign-in window. Sign in as **NathanTaylorOps**.
+The repo is private, so the first `git clone` opens a GitHub sign-in window. Sign in as **lorops-stack**.
 
 ```powershell
 New-Item -ItemType Directory -Force "$HOME\code" | Out-Null
 cd "$HOME\code"
-git clone https://github.com/NathanTaylorOps/artesian-ring-poc.git
+git clone https://github.com/lorops-stack/artesian-ring-poc.git
 cd artesian-ring-poc
 code .
 ```
 
-## 5. Build and flash the ESP32 (once Phase 0 code is in the repo)
+## 5. Build and flash the ESP32
 
-In VS Code: **Terminal → New Terminal**. The terminal opens in the repo folder. Then:
-
-```powershell
-python tools\build_ui.py
-cd firmware
-pio run -t upload
-pio run -t uploadfs
-pio device monitor
-cd ..
-```
-
-- `build_ui.py` packs Ring Studio (including the Geist font files) into `ui\dist`, which `uploadfs` copies to the ESP32. It arrives in Phase 1; skip that line until then.
-- If `pio` is not recognised, use the PlatformIO toolbar (alien-head icon on the left) → **Upload**, then **Upload Filesystem Image**.
-- Press **Ctrl+C** to leave the monitor before running `cd ..`.
+Follow `08-build-guide.md` Steps 21 and 29. In short: in VS Code, use **File → Open Folder** to open the `firmware` folder. Then click the PlatformIO (alien-head) icon and go to **esp32s3 → General → Upload**, then **Platform → Upload Filesystem Image**. Run `python tools\build_ui.py` from the repo folder first once the UI exists (Phase 1).
 
 ## 6. Run the tests without hardware (from Phase 1)
 
-```powershell
-cd firmware
-pio test -e native
-cd ..
-```
+In VS Code with the `firmware` folder open, click the PlatformIO icon and go to **native → Advanced → Test**.
 
 ## 7. Laptop copy of Ring Studio (backup, R29)
 

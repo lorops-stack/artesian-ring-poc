@@ -260,5 +260,6 @@ What this showed:
 | A1 | Read the pad labels on both LED strips (`03-pinout-and-wiring.md`). If neither is a 5 V addressable strip, add one to the buy list | Nathan |
 | A2 | Confirm the LED supply's label says 5 V and at least 4 A | Nathan |
 | A3 | Pick the standard hand marker style (default: Focus lock) | Nathan |
-| A4 | Create the empty private repo `artesian-ring-poc` on GitHub (no README, no .gitignore), then tell Claude, who pushes the existing history to it. Only clone it (doc 06) after that push | Nathan, then Claude |
+| A4 | Create the private repo and push the history | **Done 30 Sep 2026** (`lorops-stack/artesian-ring-poc`, private) |
 | A5 | Order the parts marked "buy" in `04-bom.md` | Nathan |
+| A6 | Follow `08-build-guide.md` from Step 1 | Nathan |

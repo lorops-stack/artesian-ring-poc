@@ -25,6 +25,7 @@ This repo holds the live proof-of-concept demo: sensor firmware for an ESP32-S3,
 | [05 · Reflash the XM125s](docs/05-flash-xm125.md) | Switch the sensors to the distance detector firmware |
 | [06 · Setup on Windows](docs/06-setup-windows.md) | Tools, drivers, clone, build (copy-paste) |
 | [07 · Test and demo plan](docs/07-test-and-demo-plan.md) | Bench tests, accuracy protocol, pre-demo checklist, run sheet |
+| [08 · Build guide](docs/08-build-guide.md) | **Start here.** Every step from parts to demo day, marked YOU or CLAUDE, with checkpoints |
 
 ## Layout
 
