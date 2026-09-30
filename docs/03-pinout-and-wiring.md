@@ -39,8 +39,8 @@ The stage 1 ESP32 pins are on the **left header** (the side labelled 3V3, 3V3, R
 | GPIO15 / GPIO16 | Sensor A / B **INT** | n/a | optional, not wired for now |
 | GPIO10 / 11 / 12 | reserved: Sensor C SDA / SCL / RST | n/a | future third sensor, read by switching I2C controller 1 between pin pairs (review R6) |
 | GND (right, pin 21) | Stage 2: the breadboard GND rail (LED supply ground) | black | the LED ground must join the ESP32 ground |
-| GPIO48 | onboard RGB LED | n/a | status light, no wiring |
-| GPIO0 | onboard BOOT button | n/a | short press = clean mode, long press (3 s) = start calibration |
+| GPIO48 | onboard RGB LED | n/a | status light: green OK, blue a device connected, red a check failing, amber BOOT held, white ×3 password reset |
+| GPIO0 | onboard BOOT button | n/a | while running: short press = clean mode, 3 to 8 s = start calibration, 10 s = reset Wi-Fi password and PIN (troubleshooting U4). Never hold it while plugging in: that enters download mode |
 
 **Sensor pins NOT to connect:**
 - **WU:** you soldered a header pin here on one board. Leave it unconnected. The WU jumper on the board already ties it to 3V3 so the sensor stays awake. Wiring it to a GPIO would fight the jumper.

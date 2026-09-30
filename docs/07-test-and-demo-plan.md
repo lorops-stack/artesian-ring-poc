@@ -35,6 +35,7 @@ Every rule in spec section 4 has a bench test here and a unit-test twin in `firm
 | T27 | 2 | **Demo loop:** leave it idle 8 s in each layout, then take over with a real hand | Ghost runs a sequence that fits the layout; no ghost activity in any metric or recording |
 | T28 | 1 | **Stillness gap:** record the movement signal (distance and echo strength) for 5 people holding a hand as still as they can, and for the still calibration ball and a pot | A clear gap between the stillest hand and the objects; the threshold is set inside it. No gap = the stillness rule is not used until solved |
 | T29 | 1 | **Wand calibration quality:** run C7 three times, remounting the sensors between runs | Fit error below 12 mm RMS every time; fitted positions agree within 15 mm between runs |
+| T30 | 1 | **Diagnostics prove themselves:** cause each fault on purpose, one at a time, then undo it. (1) Swap sensor A's SDA and SCL. (2) Pull W9 off. (3) Put foil in front of sensor B. (4) Turn sensor A 30° outward. (5) Leave a cup in the sink during C6. (6) Swap the A and B bus wires | The studio shows W1, W4, S1, P4, B1 and W3 respectively, and each goes away after its fix |
 
 ## Accuracy test protocol (F16)
 1. Calibrate (studio C1 → C8).

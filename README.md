@@ -26,6 +26,7 @@ This repo holds the live proof-of-concept demo: sensor firmware for an ESP32-S3,
 | [06 · Setup on Windows](docs/06-setup-windows.md) | Tools, drivers, clone, build (copy-paste) |
 | [07 · Test and demo plan](docs/07-test-and-demo-plan.md) | Bench tests, accuracy protocol, pre-demo checklist, run sheet |
 | [08 · Build guide](docs/08-build-guide.md) | **Start here.** Every step from parts to demo day, marked YOU or CLAUDE, with checkpoints |
+| [09 · Troubleshooting](docs/09-troubleshooting.md) | Every fault code, from wiring to calibration to LEDs, with step-by-step fixes. Ring Studio shows the same codes |
 
 ## Layout
 

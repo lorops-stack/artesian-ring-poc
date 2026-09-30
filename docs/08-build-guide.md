@@ -1,6 +1,8 @@
 # 08 · Build Guide: every step, start to finish
 
-Follow the steps in order. Each step says **who** does it:
+Follow the steps in order. If anything goes wrong at any step, open `09-troubleshooting.md`: its symptom finder (section 1) takes you to the fix. Ring Studio shows the same fix codes on screen.
+
+Each step says **who** does it:
 
 - **YOU**: you do it, exactly as written.
 - **CLAUDE**: I do it (code, docs, fixes). You wait for my message, then carry on.
@@ -162,7 +164,7 @@ The sensors ship with the wrong program. This replaces it (review R4).
    2. **Port**: pick the COM number sensor A had in Step 9. If the list is empty, click the small refresh icon next to it.
    3. **Baudrate**: 115200.
    4. Click the green **Connect** button. The log at the bottom should say "Data read successfully" or show the device, and the button turns into **Disconnect**.
-   5. If it fails, redo the button sequence in step 2, then click Connect again.
+   5. If it fails, redo the button sequence in step 2, then click Connect again. Still failing: troubleshooting **F4**.
 5. On the far left, click the second icon down (a down arrow into a chip: **Erasing & Programming**).
 6. Next to **File path**, click **Browse** and pick `i2c_distance_detector.bin`.
 7. **Start address**: type `0x08000000` (zero, x, zero, eight, then six zeros).
@@ -225,7 +227,7 @@ On the sensors, the right side counts down from BOOT (pin 1): BOOT, IO1, IO0, TX
 ### Step 19 (YOU): First power-up
 1. Plug the ESP32's **COM** port (the one that showed CH343 in Step 9) into the PC.
 2. Look at each sensor: the small **PWR** light (top left) should be on.
-3. Touch each board lightly after 10 seconds. Warm is fine. **Hot, or any smell: unplug immediately** and send me a photo.
+3. Touch each board lightly after 10 seconds. Warm is fine. **Hot, or any smell: unplug immediately** and follow troubleshooting **W7**. A PWR light that stays off: troubleshooting **W6**.
 4. In Device Manager, the CH343 COM port should appear as before.
 5. Leave it plugged in.
 
@@ -248,7 +250,7 @@ I write the sensor driver and a test program that prints both sensors' echoes 20
 4. Click the **alien-head icon** in the left bar (PlatformIO).
 5. Under **PROJECT TASKS**, open **esp32s3**, then **General**.
 6. Click **Upload**. A terminal opens at the bottom. Wait for `SUCCESS`.
-   - If it says it can't find the port: hold **BOOT** on the ESP32, press and release **RST**, release BOOT, then click Upload again.
+   - If it fails, see troubleshooting **F5**. The usual fix: hold **BOOT** on the ESP32, press and release **RST**, release BOOT, then click Upload again.
 7. Click **Monitor** (same list). Text scrolls in the terminal.
 
 ### Step 22 (YOU): Read the output
@@ -267,6 +269,8 @@ A: 1 echo  412 mm (str 1840)   B: 1 echo  388 mm (str 1520)   21.6 Hz
 3. **T3:** stand a ping-pong ball wrapped in foil on a book at 60, 150, 300, 600 and 800 mm from sensor A (tape measure from the front of the sensor module to the near side of the ball). Note each reading. Repeat for B.
 4. **T4:** clear the area in front of the sensors and let it run for 10 minutes. Note any echoes that appear.
 5. To copy the output: click in the terminal, press **Ctrl+A**, then **Ctrl+C**, paste into a text file and save it.
+
+If a sensor shows nothing, jumpy numbers or "I2C" errors, see troubleshooting **S1**, **S4** or **W2**.
 
 ### CHECKPOINT 5
 Send me the saved output and your T3 readings. I check the sensors are healthy before any mounting.
@@ -317,7 +321,7 @@ I build:
 1. On your laptop, tablet or phone, open Wi-Fi settings and join **ArtesianRing**.
 2. The first time, it has a temporary password that the Monitor prints (Step 21, item 7).
 3. Open a browser and go to `http://192.168.4.1`
-4. Ring Studio asks you to set a new Wi-Fi password and a studio PIN. Choose them, write them down and keep them private.
+4. Ring Studio asks you to set a new Wi-Fi password and a studio PIN. Choose them, write them down and keep them private. Forgotten later: troubleshooting **U4**.
 5. On a tablet: browser menu, then **Add to Home Screen**.
 
 ---
@@ -339,9 +343,11 @@ I build:
 3. Measure from the **centre of the ball** up the dowel. Mark it clearly at **60 mm** (mark 1) and at **160 mm** (mark 2).
 
 ### Step 33 (YOU): Run the calibration in Ring Studio
-Ring Studio walks you through each screen:
+Ring Studio walks you through each screen. If a check fails, the screen shows a fix code (for example **P2**) with step-by-step instructions and a **Test again** button. Work through it before moving on; the same fixes are in `09-troubleshooting.md`.
+
+0. **Warm-up and hardware check (C0):** power on and wait 10 minutes (the sensors settle as they warm). Then run C0 and follow its prompts: the wand wave test, holding the wand still, and the LED tests once the LEDs are fitted.
 1. **Plane (C1):** check 23 × 21 in.
-2. **Sensors (C2 to C4):** type your tape-measured positions and angles.
+2. **Sensors (C2 to C4):** type your tape-measured positions (to the **centre of each blue module**) and angles. Check the units switch shows the units you measured in. Then do **Identify**: hold your hand in front of the back-left sensor when asked.
 3. **Coverage (C5):** look at the heatmap. Tell me if large red areas show.
 4. **Background (C6):** empty the sink, step back, click **Capture**.
 5. **Wand (C7):** lay the template on top of the ring, back edge to the sensors. For each hole it asks for: push the wand down until **mark 1** is level with the card, hold still until it beeps, then down to **mark 2**, hold, beep. After 32 readings it shows a **fit error**: it must be **below 12 mm**. Remove the template.
@@ -357,7 +363,7 @@ Send me screenshots of the C5 heatmap, the C7 fit error and the C11 result.
 ## Part 9: Phase 1 tests (about 2 hours)
 
 ### Step 34 (YOU): Run the tests
-`docs/07-test-and-demo-plan.md` lists them. Ring Studio has a **Tests** screen that walks through each one and records the results. Run T5 to T11, T16 to T21, T28 and T29 in order. For each, follow the on-screen instruction, then press **Pass** or **Fail** and add a note.
+`docs/07-test-and-demo-plan.md` lists them. Ring Studio has a **Tests** screen that walks through each one and records the results. Run T5 to T11, T16 to T21 and T28 to T30 in order. T30 deliberately causes faults, to prove the studio diagnoses them correctly. For each, follow the on-screen instruction, then press **Pass** or **Fail** and add a note.
 
 ### Step 35 (YOU): Export the results
 In Ring Studio, go to **Tests**, then **Export**. Save the file.
@@ -417,6 +423,8 @@ Use short jumper wires from each pin's breadboard row to the rail named:
 1. Check every connection against the stage 2 diagram.
 2. Turn the power strip on. The LEDs should stay dark or show a soft idle chase, not full white.
 3. After 1 minute, feel the supply, the wires and the strip. Warm is fine; hot is not. **Hot: switch off** and send me a photo.
+
+If the LEDs stay dark, flicker or show the wrong colours: troubleshooting **L1** to **L6**.
 
 ### CHECKPOINT 8
 Send a short video of the ring lighting up.

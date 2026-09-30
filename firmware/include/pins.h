@@ -4,7 +4,8 @@
 // and LED wiring leaves from one side. See docs/03-pinout-and-wiring.md.
 //
 // Pins deliberately NOT used:
-//   GPIO0            BOOT button (read only as a button: short press clean mode, 3 s press calibration)
+//   GPIO0            BOOT button, read only while running (held at power-up it enters ROM download mode):
+//                    release <1 s = clean mode, 3-8 s = start calibration, >=10 s = reset Wi-Fi password + PIN
 //   GPIO3, 45, 46    strapping pins, affect boot
 //   GPIO19, 20       native USB D-/D+
 //   GPIO43, 44       UART0 TX/RX (USB serial via the CH343 port)
@@ -40,5 +41,5 @@ constexpr uint32_t I2C_FREQ_HZ    = 400000;   // drop to 100000 if a cable run e
 
 // ---- Outputs -------------------------------------------------------------------
 constexpr int PIN_LED_RING_DATA = 4;   // WS2812B data, via 74AHCT125 level shifter + 330R
-constexpr int PIN_STATUS_RGB    = 48;  // onboard WS2812, status colour
-constexpr int PIN_CAL_BUTTON    = 0;   // onboard BOOT button: short press = clean mode, 3 s press = calibration
+constexpr int PIN_STATUS_RGB    = 48;  // onboard WS2812: green OK, blue device connected, red check failing, amber button held, white x3 reset
+constexpr int PIN_CAL_BUTTON    = 0;   // onboard BOOT button, see top of file for press lengths
