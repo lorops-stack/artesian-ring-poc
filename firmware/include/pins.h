@@ -11,6 +11,7 @@
 //   GPIO35, 36, 37   reserved by PSRAM on octal-PSRAM variants; kept free for safety
 //   GPIO48           onboard RGB LED (used as the status LED)
 #pragma once
+#include <stdint.h>
 
 // ---- Sensor A: XM125, back-left corner, hardware I2C bus 0 ----------------
 constexpr int PIN_A_SDA = 8;
