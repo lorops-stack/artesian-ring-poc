@@ -178,6 +178,12 @@ Calibration order the studio walks you through: C1 → C2/C3/C4 → C5 check →
 
 Reference design: the "Ring Studio UI" design canvas (live view + calibration studio), 30 Sep 2026.
 
+- **Showcase screen (presentation mode, F13):** a full-screen rendered top-down scene: speckled stone countertop, lit resin ring bezel, brushed stainless basin with drain. It is drawn live on an HTML canvas at 60 fps with no libraries.
+  - **Ring LEDs** are drawn as individual pixels with bloom, matching the WS2812 strip. They chase slowly when idle, fill outward from the manifold as a hand settles, shimmer while active, and retract around the ring as the 1-second off countdown.
+  - **Water** is a particle stream from the back manifold with splash droplets and ripples. The waterfall is a wide sheet. Hot shows steam wisps, cold shows glints, cup fill draws a filling cup, soap bursts into foam and the disposal spins a vortex into the drain.
+  - **Radar pulses** ripple from sensors A and B and "ping" the hand where they meet. A soft hand silhouette casts a shadow on the basin.
+  - **Demo loop:** after 8 s with nobody using it, a ghost hand runs the full sequence (soap, warm rinse, cup fill, waterfall, hot), so the booth screen is always alive. Any real hand takes over instantly.
+  - **Floating text:** the function name and one-line explanation float on the left, and water saved, latch delay and session count sit on the right. Controls are in one glass pill at the bottom.
 - **Look:** dark, calm, premium consumer-device feel. Near-black ground (#07090C), frosted translucent cards with hairline borders, large rounded corners (24 to 36 px), generous spacing, one big number or word per card.
 - **Type:** Geist (display and UI) with tabular numerals. The font files are bundled into the ESP32 flash so the UI never depends on the internet.
 - **The sink is the hero:** a top-down ring whose glow mirrors the physical LED ring. The ring and zone tiles fade in the zone colour while a hand settles (hover preview, F20) and go solid on latch. Water is animated from the back manifold; the disposal spins at the drain; soap shows a foam burst.
