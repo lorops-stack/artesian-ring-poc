@@ -229,7 +229,8 @@ On the sensors, the right side counts down from BOOT (pin 1): BOOT, IO1, IO0, TX
 2. Look at each sensor: the small **PWR** light (top left) should be on.
 3. Touch each board lightly after 10 seconds. Warm is fine. **Hot, or any smell: unplug immediately** and follow troubleshooting **W7**. A PWR light that stays off: troubleshooting **W6**.
 4. In Device Manager, the CH343 COM port should appear as before.
-5. Leave it plugged in.
+5. Look at the small RGB light near the ESP32's USB ports. It may stay dark with no firmware yet; that is fine for now. On YD boards it only works if the tiny solder pads marked **RGB** (next to the light) are bridged. If they are open, add a small blob of solder across them now, with the board unplugged (troubleshooting **U1**).
+6. Leave it plugged in.
 
 ### CHECKPOINT 4
 Send me:
@@ -319,9 +320,9 @@ I build:
 
 ### Step 30 (YOU): Connect a laptop or tablet to the ring
 1. On your laptop, tablet or phone, open Wi-Fi settings and join **ArtesianRing**.
-2. The first time, it has a temporary password that the Monitor prints (Step 21, item 7).
+2. The first time, it has a temporary password that the Monitor prints at boot (Step 21, item 7). If the text has scrolled away, keep the Monitor open and press **RST** on the ESP32 to reprint it.
 3. Open a browser and go to `http://192.168.4.1`
-4. Ring Studio asks you to set a new Wi-Fi password and a studio PIN. Choose them, write them down and keep them private. Forgotten later: troubleshooting **U4**.
+4. Ring Studio asks you to set a new Wi-Fi password and a studio PIN. The Wi-Fi password must be **8 to 63 characters**. Choose them, write them down and keep them private. Forgotten later: troubleshooting **U4**.
 5. On a tablet: browser menu, then **Add to Home Screen**.
 
 ---
@@ -410,7 +411,8 @@ Use short jumper wires from each pin's breadboard row to the rail named:
 ### Step 39 (YOU): Make the data connections
 1. **D1:** ESP32 **left header pin 4 (GPIO4)** to chip **pin 2**.
 2. **D2:** chip **pin 3** to one leg of the **330 Ω** resistor. The other resistor leg goes to the strip's **green DIN** wire. Put the resistor as close to the strip as you can.
-3. ESP32 **right header pin 21 (GND)**, the second pin from the bottom on the right, to the **GND rail**. W3 and W4 already use the other two GND pins; all GND pins are connected inside the board.
+3. **Pull-down:** one leg of the **10 kΩ** resistor to chip **pin 2**, the other leg to the **GND rail**.
+4. ESP32 **right header pin 21 (GND)**, the second pin from the bottom on the right, to the **GND rail**. The board has four GND pins, all connected inside it: W3 uses left pin 22 and W4 uses right pin 1, so this one is free.
 
 ### Step 40 (YOU): Make the power connections
 1. Supply **+** (5 V) → **fuse holder** → the **5V rail**.

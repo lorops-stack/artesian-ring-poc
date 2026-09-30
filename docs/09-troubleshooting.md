@@ -5,7 +5,7 @@ This guide covers everything that can stop the ring working correctly, from a lo
 - **Auto** checks run by themselves during setup and calibration. The studio measures the problem and tells you.
 - **Symptom** entries are for things only you can see (a light off, a smell, the wrong zone). Find what you see in the symptom finder (section 1) and go to that entry.
 
-Always fix problems **in the order of the sections below**: power, then wiring, firmware, sensor health, placement, background, calibration, accuracy. A problem early in the chain causes false failures further down, so fixing the first failure often clears the rest.
+Always fix problems **in this order**: power and wiring (W), firmware (F), sensor health (S), placement (P), background (B), noise (N), hand profile (H), then accuracy (A). A problem early in the chain causes false failures further down, so fixing the first failure often clears the rest. Once the LEDs are fitted, LED power faults (L6, N4) can cause W and N faults, so check those two early as well.
 
 ---
 
@@ -15,6 +15,7 @@ Always fix problems **in the order of the sections below**: power, then wiring, 
 |---|---|
 | A sensor's PWR light is off | W6 |
 | Something is hot, or smells of burning | **Unplug everything now**, then W7 |
+| The ESP32's COM port keeps disappearing from Device Manager | W8 |
 | ESP32 doesn't appear in Device Manager | W8 |
 | Studio says a sensor is "not found" | W1 |
 | Readings stop and start, or "I2C error" lines appear | W2 |
@@ -44,6 +45,15 @@ Always fix problems **in the order of the sections below**: power, then wiring, 
 | CubeProgrammer won't connect to a sensor, or programming fails | F4 |
 | VS Code Upload fails | F5 |
 | `git pull` refuses to update | U7 |
+| Status says "configuration error" or "calibration error" | F2 |
+| Ring Studio and firmware versions don't match | F3 |
+| An echo keeps showing at a spot where nothing is | N2 |
+| Wi-Fi keeps dropping | N5 |
+| Screen is slow or jerky | U3 |
+| Laptop backup can't connect over USB | U6 |
+| Hand-profile (C8) problems | H1 to H5 |
+| LEDs flash or show white while the ESP32 starts up | L7 |
+| The ESP32 status light never lights | U1 |
 
 ---
 
@@ -51,10 +61,7 @@ Always fix problems **in the order of the sections below**: power, then wiring, 
 
 ### The swap test (is it the sensor, or the wiring?)
 1. Unplug the ESP32's USB.
-2. At the **ESP32 end only**, swap sensor A's four bus wires with sensor B's:
-   - W1 swaps with W2;
-   - W5 and W6 swap with W7 and W8;
-   - W9 swaps with W10.
+2. At the **ESP32 end only**, swap sensor A's signal wires with sensor B's: **W5 with W7, W6 with W8, W9 with W10** (SDA, SCL and RST). The power wires (3V3, GND) can stay, because both sensors' power pins are the same.
 3. Plug back in and run the check again.
 4. **If the fault moves to the other sensor name,** it follows the ESP32 side: the ESP32 pins or the wires at that end.
 5. **If the fault stays with the same physical board,** that board, or its end of the wires, is the problem. Try a spare board in its place.
@@ -62,6 +69,13 @@ Always fix problems **in the order of the sections below**: power, then wiring, 
 
 ### The known-good target
 A foil-wrapped ping-pong ball on a rod (the calibration wand, build guide Step 32). It gives the same echo every time, so when a hand gives odd results the wand tells you whether the sensor or the hand is the issue.
+
+### Reflashing a sensor that is already wired in
+The sensor's own USB must never be plugged in while it is wired to the ESP32 (two power supplies fighting). So:
+1. Unplug the ESP32's USB.
+2. Pull all five of that sensor's wires off **at the sensor end** (3V3, G, SDA, SCL, RST), and note which is which.
+3. Reflash it (build guide Step 13).
+4. Unplug its USB, put the five wires back and check them against build guide Step 17.
 
 ### Re-seat
 Pull a jumper wire fully off its pin, look at the pin (straight, clean), push the wire back on firmly until it stops. Loose jumper wires cause more faults than anything else on a bench build.
@@ -80,7 +94,8 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 4. No power to the sensor (3V3 or G wire off; PWR light out).
 5. The sensor is stuck in loading mode (BOOT held down, or BOOT pressed when it powered up).
 6. The sensor was never reflashed, or the reflash failed (see F1 if it answers but wrongly).
-7. Damaged sensor.
+7. The foil shield touching the header pins.
+8. Damaged sensor.
 
 **Fix, step by step:**
 1. Look at the sensor's **PWR** light. If it's off, go to W6 first.
@@ -91,12 +106,13 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 4. Press the sensor's **RST** button once. Do not touch BOOT.
 5. Plug in and click **Test again**.
 6. Still failing: swap that sensor's SDA and SCL wires at the sensor end only, then **Test again**. If it now works, the labels were read the wrong way round. Leave it working and note which way.
-7. Still failing: do the swap test (section 2).
+7. Check that ESP32 left-header pins 13 and 14 (GPIO3 and GPIO46, between W5 and W6) have **no** wires on them. A wire one pin off lands there.
+8. Still failing: do the swap test (section 2).
    - If the fault moves, recheck the ESP32-side pins.
-   - If it stays with the board, reflash it (build guide Step 13). If the reflash won't connect either, replace it with a spare.
+   - If it stays with the board, reflash it the safe way (section 2, "Reflashing a sensor that is already wired in"). If the reflash won't connect either, replace it with a spare.
 
 ### W2 · Intermittent bus errors  (Auto: counted all the time, shown in C12)
-**You see:** "I2C errors: A 14/min". Readings freeze for a moment, or the studio shows a warning. More than 1 error per minute fails.
+**You see:** "I2C errors: A 14/min". Readings freeze for a moment, or the studio shows a warning. Any error shows a warning; more than 1 per minute fails. On the bench (T1) the target is zero errors in 10 minutes.
 
 **Likely causes:**
 1. A loose or worn jumper wire.
@@ -110,7 +126,7 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 2. Measure the cable. Over 50 cm: shorten it, or go to step 5.
 3. Move the sensor cable away from the LED power wires (at least 5 cm apart), and cross them at right angles if they must cross.
 4. Twist the SDA wire together with the GND wire, and the SCL wire with the 3V3 wire, for the whole run.
-5. Lower the bus speed: studio **Tuning (C10) → I2C speed → 100 kHz**, then **Test again**. The frame rate drops slightly, which is fine.
+5. Lower the bus speed: studio **Tuning (C10) → I2C speed → 100 kHz**, then **Test again**. This slows every reading, so check the frame rate straight after (N1). If it falls under 20 per second, go back to 400 kHz and fix the cable instead (shorter, twisted pairs).
 6. Still failing: swap test (section 2), then a spare sensor.
 
 ### W3 · Sensors A and B swapped  (Auto: C2 sensor identify)
@@ -120,7 +136,7 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 
 **Fix (pick one):**
 1. **Quick:** in C2, click **Swap A and B**. The studio treats them the other way round. Done.
-2. **Tidy:** unplug, and swap the two boards' mounting positions (or all four bus wires and the RST wire at the ESP32 end), so the wiring matches the diagram. Then **Test again**.
+2. **Tidy:** unplug, and swap the two boards' mounting positions (or, at the ESP32 end, swap W5 with W7, W6 with W8 and W9 with W10), so the wiring matches the diagram. Then **Test again**.
 
 ### W4 · Reset line not working  (Auto: C0 hardware check)
 **You see:** "Sensor A did not restart when reset", or "Resetting A restarted B".
@@ -154,12 +170,15 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 1. Unplug. Check that sensor's 3V3 wire (W1 for A, W2 for B) runs from an ESP32 **3V3** pin (left pins 1 and 2) to the sensor's **3V3** (right-side pin 8).
 2. Check its ground wire (W3 for A, W4 for B) runs from an ESP32 **GND** to the sensor's **G** (right-side pin 7).
 3. Re-seat both. Plug in.
-4. Still off: move that sensor's 3V3 and G wires onto the other sensor's board, the one that works. If the good board's light then goes off, the wires or the ESP32 pins are at fault. If it lights, the first board is faulty: use a spare.
+4. Still off: **unplug the ESP32 first**, then move that sensor's 3V3 and G wires onto the other sensor's board, the one that works, and plug back in. If the good board's light then goes off, the wires or the ESP32 pins are at fault. If it lights, the first board is faulty: use a spare.
 
 ### W7 · Heat or a burning smell  (Symptom)
 1. **Unplug the USB and switch off the LED supply now.**
 2. Wait 5 minutes. Don't touch hot parts.
 3. Look for:
+   - the 74AHCT125 chip in backwards (its notch must point up, as in the diagram);
+   - the 1000 µF capacitor in backwards (the striped leg must go to GND);
+   - the foil shield touching header pins;
    - a 3V3 or 5V wire landing on a GND pin;
    - LED 5 V wired to a sensor or ESP32 pin;
    - a solder bridge between two pins.
@@ -170,16 +189,16 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 2. Try another cable. Many USB-C cables charge only.
 3. Try another USB port on the PC.
 4. If it shows with a yellow triangle, install the CH343 driver (build guide Step 9).
-5. If it shows up then vanishes every few seconds, the board is resetting: go to W5.
+5. If it shows up then vanishes every few seconds, the USB power is being cut: a bad cable, or the PC shutting its port off because something is shorting. Unplug, pull all sensor wires off the ESP32 and try again. If it now stays, a wiring short is the cause: check W7's list before reconnecting.
 
 ---
 
 ## 4. Firmware (F)
 
 ### F1 · Wrong sensor firmware  (Auto: C0 reads the sensor's firmware identity)
-**You see:** "Sensor B is running the presence detector" (or "unknown firmware").
+**You see:** "Sensor B is running the presence detector" (or "unknown firmware"). The check reads the sensor's version and status registers; the exact registers are confirmed in Phase 0.
 
-**Fix:** reflash that sensor with `i2c_distance_detector.bin` (build guide Step 13), then **Test again**. Every spare needs this when it arrives.
+**Fix:** reflash that sensor the safe way (section 2, "Reflashing a sensor that is already wired in") with `i2c_distance_detector.bin`, then **Test again**. Every spare needs this when it arrives.
 
 ### F2 · Sensor reports a setup error  (Auto: the sensor's status register error flags)
 **You see:** "Sensor A: configuration error" or "calibration error".
@@ -187,13 +206,12 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 **Causes:**
 1. Something was in front of the sensor, very close, while it calibrated (a hand, a cable, the foil shield on the wrong side).
 2. A setting outside its limits.
-3. The firmware update was interrupted.
 
 **Fix:**
 1. Clear everything within 30 cm of the sensor's front. Check the foil shield is **behind** the board, not in front of it.
 2. Studio: **Tuning (C10) → Reset to defaults**.
 3. Press the sensor's RST button, then **Test again**.
-4. Still failing: reflash (Step 13). Then try a spare.
+4. Still failing: reflash it the safe way (section 2). Then try a spare.
 
 ### F3 · ESP32 firmware and Ring Studio versions don't match  (Auto: on connect)
 **You see:** "Ring Studio is newer than the ring's firmware" (or older).
@@ -225,6 +243,8 @@ Pull a jumper wire fully off its pin, look at the pin (straight, clean), push th
 4. Click Upload again.
 5. After the upload finishes, press RST once to start the new program.
 
+**Still "Failed to connect" after the BOOT/RST sequence:** unplug, pull all the sensor wires off the ESP32, and try again. A wire one pin off, on left-header pin 13 or 14 (GPIO3 or GPIO46), can stop the ESP32 entering upload mode. Put the wires back carefully afterwards.
+
 **"No serial port found":** use the COM/UART USB-C port and a data cable (W8).
 
 **Build errors (red text before uploading):** run `git pull` (you may have half an update), then click **Clean** and **Upload** again. If it still fails, copy the red text and send it to me.
@@ -250,15 +270,16 @@ Run these checks with the **wand**, not a hand.
 4. Swap test (section 2).
 5. Try the board on a clear desk with nothing near it. Still nothing: replace it with a spare.
 
-### S2 · Distance offset against the tape measure  (Auto: bench test T3; and C7 reports each sensor's offset)
-**You see:** every reading is about the same amount off, for example 25 mm long at every distance.
+### S2 · Distance offset against the tape measure  (Studio-guided: bench test T3; C7 also reports each sensor's offset)
+**You see:** every reading is off by about the same amount, for example 20 mm long at every distance. (This check is studio-guided: you type the tape-measure distances.)
 
-**What's normal:** up to about 40 mm of offset is expected. The resin cover and the mounting add delay, and C7 measures and removes it. You only need to act if the offset is bigger, or different between runs.
+**What's normal:** the sensor measures from its own internal reference point, so a small fixed offset against a tape measure is expected. T3 passes within ±15 mm, and C7 measures and removes any remaining offset. A thin resin cover adds only about a millimetre.
 
 **Fix:**
-1. Measure from the front face of the blue module to the **near surface** of the ball, not its centre.
+1. Measure from the front face of the blue module to the **near surface** of the ball, not its centre, along a straight line.
 2. Remove anything between the sensor and the wand.
-3. If the offset is over 60 mm, or changes by more than 10 mm between runs: check the mount is rigid, then go to S4.
+3. Rest the wand on a support (a stack of books), not in your hand.
+4. If the offset is over 15 mm and the same every time, note it and carry on: C7 removes it. If it is over 30 mm, or changes by more than 10 mm between runs: check the mount is rigid, then go to S4.
 
 ### S3 · Error grows with distance  (Auto: T3; C7 per-hole errors grow with distance)
 **You see:** close readings are right, but the far readings are wrong by more and more.
@@ -271,11 +292,11 @@ Run these checks with the **wand**, not a hand.
 **Fix:**
 1. Re-measure in a straight line from the module face.
 2. Place the wand straight in front of the sensor for this test.
-3. Reset settings (C10), then reflash (Step 13) if it persists.
+3. Reset settings (C10), then reflash it the safe way (section 2) if it persists.
 4. Swap in a spare to compare.
 
 ### S4 · Noisy readings  (Auto: C0/C7 hold the wand still 3 s; the spread must be under 5 mm)
-**You see:** "Sensor A noise 11 mm (limit 5 mm)", or numbers jumping with nothing moving.
+**You see:** "Sensor A noise 11 mm (limit 5 mm)", or numbers jumping with nothing moving. For this check, **rest the wand on a support** (a stack of books or a clamp): a hand-held wand wobbles enough to fail it.
 
 **Likely causes:**
 1. The mount or the board wobbles (loose screw, board resting on wires).
@@ -347,12 +368,12 @@ Run these checks with the **wand**, not a hand.
 2. If it's right over the drain or a metal edge, that's expected. Click **Skip this hole**. Up to 2 holes can be skipped.
 
 ### P4 · Sensor aimed the wrong way (yaw)  (Auto: C7 maps each sensor's echo strength across the template and works out where the beam actually points)
-**You see:** "Sensor A is aimed about 20° too far right. Rotate it left." The coverage map (C5) shows weak or red areas in the far corners.
+**You see:** "Sensor A looks aimed too far right: rotate it left a little." This is a rough direction from the echo strengths, not an exact angle. The coverage map (C5) shows weak or red areas in the far corners.
 
 **Fix:**
-1. Loosen the mount and turn the sensor by the amount shown, in the direction shown. Viewed from above, sensor A should point at the sink centre (45° from the back edge) and so should sensor B (45° the other way).
+1. Loosen the mount and turn the sensor about 10° in the direction shown. Viewed from above, sensor A should point at the sink centre (45° from the back edge) and so should sensor B (45° the other way).
 2. Update the yaw in C3.
-3. Re-run C7 and check the message has cleared.
+3. Re-run C7. Repeat in 10° steps until the message clears.
 
 ### P5 · Sensor tilted too far down or too flat  (Auto: C7 compares echo strength at the 60 mm and 160 mm wand depths)
 **You see:** "Sensor B is tilted too far down" (it sees the deep stop much better than the shallow one). Or "tilted too flat" (the other way round).
@@ -432,7 +453,7 @@ Metal near or in front of the sensor blocks or bends the radar: a metal table, t
 3. If the rig stands on a metal table, put a wooden board under it.
 4. Re-run C6 and C7.
 
-### B5 · Movement behind the sink shows as a hand  (Auto: C12 counts triggers with no hand confirmed; Symptom: water starts when someone walks behind)
+### B5 · Movement behind the sink shows as a hand  (Symptom: water starts when someone walks behind. It can't be detected automatically, because it looks exactly like a hand in the sink. C12's trigger log helps: repeated triggers near the back edge with nobody there point here)
 **Cause:** two back-edge sensors can't tell "behind the sink" from "in it" (R16).
 
 **Fix:**
@@ -451,7 +472,7 @@ Metal near or in front of the sensor blocks or bends the radar: a metal table, t
 4. If it persists, move the front row back in the zone editor (C9).
 
 ### B7 · Water or wet surfaces  (Symptom, wet rig only)
-Water changes the echoes. Dry the basin and the sensor windows, then recapture the background (C6). On the wet product, keep water from running over the sensor windows (review P1).
+Water changes the echoes. Dry the basin and the sensor windows, then recapture the background (C6). On the wet product, keep water from running over the sensor windows (design review, product risk P1).
 
 ### B8 · Temperature drift  (Auto: the sensor raises CALIBRATION_NEEDED)
 **You see:** "Sensor A needs to recalibrate", often in the first 10 minutes, or in sun or near a heater.
@@ -467,27 +488,29 @@ Water changes the echoes. Dry the basin and the sensor windows, then recapture t
 
 ### N1 · Frame rate too low  (Auto: always measured; under 20 per second per sensor fails)
 **Causes:**
-1. The bus speed was lowered to 100 kHz (W2): expect about 15% slower, still fine above 20.
+1. The bus speed was lowered to 100 kHz (W2). This can take the rate under 20.
 2. Bus errors forcing retries (W2).
-3. Too many screens connected over Wi-Fi.
-4. Debug logging switched on.
+3. Debug logging switched on.
+
+(An old tablet can make the *screen* look slow even when the sensors are fine. The sensor rate shown in C12 is the one that counts; for a slow screen see U3.)
 
 **Fix:**
 1. Fix any W2 errors first.
-2. Close Ring Studio on every device except one.
+2. Set I2C speed back to 400 kHz if a better cable allows it.
 3. **Settings → Logging → Off.**
 4. **Test again.**
 
-### N2 · Repeating ghost echoes at fixed distances  (Auto: C0/C12 look for echoes that repeat at the same place with nothing there)
-**Causes:**
-1. The two sensors transmitting at the same time. The firmware prevents this; if it happens, it's a bug for me.
-2. Another radar nearby (N3).
-3. A strong reflection bouncing between the basin walls.
+### N2 · An echo keeps showing where nothing is  (Symptom: visible on the Operator view's echo traces)
+**Likely causes:**
+1. A reflection bouncing between the steel basin walls (multipath) that was not in the background capture. This gives an echo at a fixed distance.
+2. Another 60 GHz device nearby (N3). This tends to give irregular, jumping echoes.
+3. Something small and still in the sink that you can't see well (a clip, a bottle cap).
 
 **Fix:**
-1. Switch other radar gadgets off.
-2. Recapture C6.
-3. If it persists, export the C12 log (**Export**) and send it to me.
+1. Check the sink is completely empty, then recapture C6.
+2. Switch off other radar gadgets nearby (N3).
+3. Tilt the sensor up about 5° (P5) and recapture C6.
+4. If irregular jumping echoes stay with no other devices around, export the C12 log (**Export**) and send it to me: it may be a firmware timing bug.
 
 ### N3 · Another 60 GHz device nearby  (Symptom)
 Some presence sensors, smart-home radars and other demos use 60 GHz.
@@ -536,7 +559,7 @@ Some presence sensors, smart-home radars and other demos use 60 GHz.
 2. Recapture C6.
 3. Redo C8.
 
-### H3 · Working hand depth looks wrong  (Auto: C8 result outside 20 to 200 mm)
+### H3 · Working hand depth looks wrong  (Auto: C8 result outside the C4 band, default 30 to 200 mm)
 **Fix:**
 1. Redo C8, holding your hand the way you would really use the sink: "high" is just below the ring, "low" is about halfway down.
 2. If it's still out of range, check the sensor heights in C2 (sign: above the ring top is +).
@@ -600,9 +623,12 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 2. **"Frame flagged: strength":** the hand's echo is outside the learned window. Redo C8.
 3. **"Frame flagged: jump":** noisy readings (S4).
 4. **"Not settled":** the hand never slows enough. Noise makes it look fast (S4), or the settle speed is too strict (C10, back to 250 mm/s).
-5. **Zone blocked:** Soap already used this session, the Disposal already run, or Neutral. Take your hands out and try again.
+5. **"Frame flagged: outside":** the ring thinks the hand is outside the sink area. Check C1 and C2, and see A4.
+6. **Zone blocked:** Soap already used this session, the Disposal already run, or Neutral. Take your hands out and try again.
+7. **A function is already on:** once a zone has started, other zones are ignored until hands leave (the latch rule). Take your hands out, wait for off, and go in again.
+8. **Clean mode is on** (the ring breathes white): it lasts 60 s, or end it from the Operator view. A short press of the ESP32 BOOT button starts it, so check nobody pressed it.
 
-### A7 · Water cuts off with a hand in the sink  (Auto: counted as a false-off, F4)
+### A7 · Water cuts off with a hand in the sink  (Auto: counted by the false-off counter)
 **Causes:**
 1. The hand dropped out of view at one spot (H1).
 2. The hand was held unusually still for 10 s (H4).
@@ -612,7 +638,6 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 1. Note where the hand was. Redo C8 points near there.
 2. Check the false-off log in C12 for the reason shown.
 3. If the stillness rule fired, redo T28.
-4. C10 → raise **Gone frames** from 3 to 4 as a last resort (adds 50 ms before the off countdown).
 
 ### A8 · Water won't turn off  (Auto: C12 shows what the ring thinks is still there)
 **Causes:**
@@ -636,7 +661,7 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 - Mid-sink: B3.
 - Stop moving things near the sink.
 
-### A10 · Slow to respond  (Auto: F3 shows the response time; over 300 ms fails)
+### A10 · Slow to respond  (Auto: the response-time readout; over 300 ms fails)
 **Fix:**
 1. N1 (frame rate).
 2. S4 (noise stretches the settle).
@@ -646,7 +671,7 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 
 ## 11. LED ring (L)
 
-### L1 · LEDs stay dark  (Symptom; Auto: C0 lights the ring white at low brightness for 2 s)
+### L1 · LEDs stay dark  (Studio-guided: C0 lights the ring white at low brightness for 2 s and asks what you see)
 **Causes, most likely first:**
 1. Wired to the strip's **far** end. Data only goes in at the input end (the arrows point away from it).
 2. No common ground between the LED supply and the ESP32 (build guide Step 39.3).
@@ -673,13 +698,13 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 
 **Fix:** fit the 74AHCT125 and the resistor, keep the data wire short, check the ground, and fit the capacitor. **Test again.**
 
-### L3 · Wrong colours (red shows as green)  (Auto: C0 shows red, green and blue in turn, and asks what you see)
+### L3 · Wrong colours (red shows as green)  (Studio-guided: C0 shows red, green and blue in turn, and asks what you see)
 **Fix:** answer the colour test, and the studio sets the strip's colour order automatically.
 
 ### L4 · Far end dim or yellowish  (Symptom)
 **Fix:** feed 5V and GND at **both** ends with 18 AWG wire (build guide Step 40). **Test again** at full brightness.
 
-### L5 · Only part of the ring lights  (Auto: C0 lights LEDs one at a time and you count)
+### L5 · Only part of the ring lights  (Studio-guided: C0 lights LEDs one at a time and you count)
 **Causes:**
 1. The LED count is set too low.
 2. A bad solder joint or cut at a join.
@@ -696,15 +721,20 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 3. **Settings → LED brightness cap**: lower it.
 4. Check the LED supply is at least 4 A.
 
+### L7 · LEDs flash or show white while the ESP32 starts  (Symptom)
+**Cause:** while the ESP32 boots, its LED data pin floats for a moment, and the level shifter passes the noise to the strip.
+
+**Fix:** fit a **10 kΩ resistor from chip pin 2 (1A) to the GND rail** (build guide Step 39). That holds the data line low until the firmware takes over.
+
 ---
 
 ## 12. Wi-Fi and Ring Studio (U)
 
 ### U1 · Can't see or join ArtesianRing  (Symptom)
 **Fix:**
-1. Check the ESP32 is powered, and that its status LED shows green or blue (not red).
+1. Check the ESP32 is powered, and that its status LED shows green or blue (not red). If the status LED never lights at all, the board's **RGB** solder jumper (next to the LED) may be open: the board still works, the light just can't show. Bridge the jumper with a blob of solder to enable it (build guide Step 19).
 2. Stand within 5 m.
-3. Use the password you set in build guide Step 30. The first-time temporary password is shown in the Monitor.
+3. Use the password you set in build guide Step 30 (8 to 63 characters). The first-time temporary password is printed only while the ESP32 starts: open the Monitor (build guide Step 21, item 7), then press the ESP32's **RST** button to see it.
 4. Unplug the ESP32 and plug it back in, then wait 20 seconds.
 5. Still missing: open the Monitor (build guide Step 21, item 7) and send me the first 30 lines.
 
@@ -713,7 +743,8 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 1. Type exactly `http://192.168.4.1` (http, not https).
 2. If the phone or tablet says "no internet", choose **Stay connected** or **Use this network anyway**.
 3. Turn off mobile data while using the ring.
-4. Try another browser.
+4. If the browser warns that the site is "not secure", click **Continue to site** (or Advanced, then Proceed). Ring Studio uses plain http on its own private network.
+5. Try another browser.
 
 ### U3 · Screen laggy  (Symptom)
 **Fix:** use one device at a time, close other browser tabs, and turn off Engineering view when you don't need it.
@@ -721,8 +752,8 @@ Check with the quick check (C11) or the accuracy test (F16). The studio shows wh
 ### U4 · Forgotten Wi-Fi password or studio PIN  (Symptom)
 **Fix (resets the password and PIN only; calibration is kept):**
 1. Make sure the ESP32 is powered and has been running for at least 20 seconds. **Do not hold BOOT while plugging in**: that puts the chip into its built-in download mode and nothing runs (unplug and replug to get out of it).
-2. Press and hold the ESP32's **BOOT** button for **10 seconds**. The status LED turns amber at 3 seconds (keep holding) and then flashes white 3 times at 10 seconds.
-3. Release. The ring is back to the temporary password, which is shown in the Monitor (build guide Step 21, item 7).
+2. Press and hold the ESP32's **BOOT** button for **10 seconds**. The status LED turns amber as soon as you press, purple at 3 seconds (keep holding) and flashes white 3 times at 10 seconds.
+3. Release. The ring is back to the temporary password. To see it, open the Monitor (build guide Step 21, item 7) and press the ESP32's RST button.
 4. Set a new password and PIN (build guide Step 30).
 
 ### U5 · No sound  (Symptom)
@@ -748,6 +779,8 @@ git stash
 git pull
 ```
 Your changes are kept in the stash if you need them; tell me before using them.
+
+If instead it says **"untracked working tree files would be overwritten"**, or anything else, copy the whole message and send it to me. Don't delete files to get past it.
 
 ---
 

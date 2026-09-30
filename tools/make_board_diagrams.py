@@ -277,6 +277,13 @@ def stage2():
     p2x, p2y = pp[2]
     s.wire([(gx, gy), (1330, gy), (1330, 230), (560, 230), (560, p2y), (p2x - 14, p2y)], C["led"])
     s.badge(gx - 44, gy - 20, "D1", C["led"])
+    # 10k pull-down from 1A to GND (keeps the ring dark while the ESP32 boots)
+    s.wire([(560, p2y), (470, p2y), (470, p2y + 12)], C["gnd"], w=3)
+    s.add(f'<circle cx="560" cy="{p2y}" r="6" fill="{C["led"]}"/>')
+    s.rect(458, p2y + 12, 24, 56, "#FFFFFF", C["gnd"], rx=4, sw=2.5)
+    s.wire([(470, p2y + 68), (470, p2y + 96)], C["gnd"], w=3); tag(440, p2y + 108, "GND")
+    s.text(456, p2y + 36, "10 kΩ", 13, "#111", "end", 800, halo=True)
+    s.text(456, p2y + 54, "pull-down", 12, "#444", "end", 700, halo=True)
     s.text(570, 220, f"D1: ESP32 GPIO{led} (left header, pin {esp_index('L', str(led)) + 1}) → chip pin 2 (1A)", 13.5, C["led"], "start", 800, halo=True)
     # D2: pin 3 (1Y) -> 330R -> strip DIN
     p3x, p3y = pp[3]

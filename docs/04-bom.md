@@ -14,6 +14,7 @@
 | 10 | 18 AWG two-core wire | 3 m | buy/have | LED power to both ends of the strip |
 | 11 | 74AHCT125 quad buffer (DIP-14) | 1 | buy before demo | 3.3 V → 5 V LED data |
 | 12 | 330 Ω resistor | 1 | buy | LED data line |
+| 12a | 10 kΩ resistor | 1 | buy | pull-down on the level shifter input (1A to GND) |
 | 13 | 1000 µF 10 V electrolytic capacitor | 1 | buy | across the strip's 5V/GND at the input |
 | 14 | 1N4001 or 1N4148 silicon diode | 1 | buy/have | bench stopgap only (sacrificial pixel). Not a Schottky |
 | 15 | Small breadboard or perfboard | 1 | have? | for the level shifter |

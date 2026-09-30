@@ -184,6 +184,16 @@
 <path d="M1544,546 L1330,546 L1330,230 L560,230 L560,401 L792,401" fill="none" stroke="#1A9B4B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
 <rect x="1483" y="515" width="34" height="22" rx="11" fill="#1A9B4B" stroke="#fff" stroke-width="2"/>
 <text x="1500" y="531" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">D1</text>
+<path d="M560,401 L470,401 L470,413" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M560,401 L470,401 L470,413" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="560" cy="401" r="6" fill="#1A9B4B"/>
+<rect x="458" y="413" width="24" height="56" rx="4" fill="#FFFFFF" stroke="#1F1F1F" stroke-width="2.5" />
+<path d="M470,469 L470,497" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M470,469 L470,497" fill="none" stroke="#1F1F1F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="440" y="497" width="60" height="24" rx="12" fill="#1F1F1F" stroke="none" stroke-width="1.5" />
+<text x="470" y="514" font-size="12.5" fill="#FFF" text-anchor="middle" font-weight="800">GND</text>
+<text x="456" y="437" font-size="13" fill="#111" text-anchor="end" font-weight="800" stroke="#fff" stroke-width="4" paint-order="stroke">10 kΩ</text>
+<text x="456" y="455" font-size="12" fill="#444" text-anchor="end" font-weight="700" stroke="#fff" stroke-width="4" paint-order="stroke">pull-down</text>
 <text x="570" y="220" font-size="13.5" fill="#1A9B4B" text-anchor="start" font-weight="800" stroke="#fff" stroke-width="4" paint-order="stroke">D1: ESP32 GPIO4 (left header, pin 4) → chip pin 2 (1A)</text>
 <path d="M792,457 L620,457 L620,880 L230,880 L230,1040 L310,1040" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
 <path d="M792,457 L620,457 L620,880 L230,880 L230,1040 L310,1040" fill="none" stroke="#1A9B4B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>

@@ -75,6 +75,7 @@ add(f'<rect x="{lx}" y="{ly}" width="230" height="176" rx="12" fill="#3a3f47"/>'
 add(f'<text x="{lx+115}" y="{ly+24}" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">74AHCT125</text>')
 add(f'<text x="{lx+115}" y="{ly-26}" font-size="13" fill="#444" text-anchor="middle">3.3 V → 5 V data level shifter</text>')
 add(f'<text x="{lx+115}" y="{ly-10}" font-size="12" fill="#666" text-anchor="middle">unused: 2OE–4OE → 5 V, 2A–4A → GND</text>')
+add(f'<text x="{lx+115}" y="{ly+196}" font-size="12" fill="#666" text-anchor="middle">10 kΩ from 1A (pin 2) to GND: ring stays dark at boot</text>')
 ls = {}
 for i, p in enumerate(["GND", "1OE", "1A (in)", "1Y (out)", "VCC 5V"]):
     py = ly + 50 + 30 * i

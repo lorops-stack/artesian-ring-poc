@@ -206,7 +206,7 @@ The first target ("inner 70% of each zone") could not be controlled in a natural
 ---
 
 ### R32. Does the calibration actually correct what we intend? (simulation check)
-`tools/calibration_sim.py` simulates 40 installations. Each one has sensors mounted up to about 15 mm off their measured positions (in x, y and z), a 10 to 35 mm distance offset per sensor from the resin cover and mounting, 8 mm reading noise, and real hands at varying heights. Zone accuracy (Kitchen layout):
+`tools/calibration_sim.py` simulates 40 installations. Each one has sensors mounted up to about 15 mm off their measured positions (in x, y and z), a 10 to 35 mm distance offset per sensor (deliberately generous; a bare sensor or thin cover will usually be smaller), 8 mm reading noise, and real hands at varying heights. Zone accuracy (Kitchen layout):
 
 | Calibration applied | Back row | Middle | Front | Overall | Worst zone in any install |
 |---|---|---|---|---|---|

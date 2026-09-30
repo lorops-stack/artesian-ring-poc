@@ -41,5 +41,5 @@ constexpr uint32_t I2C_FREQ_HZ    = 400000;   // drop to 100000 if a cable run e
 
 // ---- Outputs -------------------------------------------------------------------
 constexpr int PIN_LED_RING_DATA = 4;   // WS2812B data, via 74AHCT125 level shifter + 330R
-constexpr int PIN_STATUS_RGB    = 48;  // onboard WS2812: green OK, blue device connected, red check failing, amber button held, white x3 reset
+constexpr int PIN_STATUS_RGB    = 48;  // onboard WS2812: green OK, blue device connected, red check failing, amber BOOT held <3 s, purple 3-8 s (calibrate), white x3 at 10 s (reset)
 constexpr int PIN_CAL_BUTTON    = 0;   // onboard BOOT button, see top of file for press lengths

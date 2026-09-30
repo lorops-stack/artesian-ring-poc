@@ -9,7 +9,7 @@ The boards ship with the **presence detector** firmware. This project needs the 
 
 ## Flash each board
 
-1. Label the boards **A** and **B** with a marker (spares: **S1**, **S2**, **S3**).
+1. Label the boards **A** and **B** with a marker (spares: **SP1**, **SP2**, **SP3**, so they are not confused with the S fault codes).
 2. Plug the XM125's own USB-C port into the PC.
 3. Enter bootloader mode: **hold BOOT, press and release RST, then release BOOT.**
 4. Open STM32CubeProgrammer. In the connection panel on the right:

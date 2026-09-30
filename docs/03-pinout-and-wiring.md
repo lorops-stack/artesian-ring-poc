@@ -27,7 +27,7 @@ The stage 1 ESP32 pins are on the **left header** (the side labelled 3V3, 3V3, R
 |---|---|---|---|
 | 3V3 (left, pin 1) | Sensor A **3V3** (right header, pin 8) | red | W1 |
 | 3V3 (left, pin 2) | Sensor B **3V3** (right header, pin 8) | red | W2 |
-| GND (left, pin 22 = bottom) | Sensor A **G** (right header, pin 7) | black | W3. In stage 2 this pin also joins the GND rail |
+| GND (left, pin 22 = bottom) | Sensor A **G** (right header, pin 7) | black | W3 |
 | GND (right, pin 1 = top) | Sensor B **G** (right header, pin 7) | black | W4. All ESP32 GND pins are connected together, so any GND works |
 | GPIO8 (left, pin 12) | Sensor A **SDA** (right header, pin 9) | blue | W5, I2C bus 0 |
 | GPIO9 (left, pin 15) | Sensor A **SCL** (right header, pin 10) | yellow | W6, I2C bus 0 |
@@ -39,7 +39,7 @@ The stage 1 ESP32 pins are on the **left header** (the side labelled 3V3, 3V3, R
 | GPIO15 / GPIO16 | Sensor A / B **INT** | n/a | optional, not wired for now |
 | GPIO10 / 11 / 12 | reserved: Sensor C SDA / SCL / RST | n/a | future third sensor, read by switching I2C controller 1 between pin pairs (review R6) |
 | GND (right, pin 21) | Stage 2: the breadboard GND rail (LED supply ground) | black | the LED ground must join the ESP32 ground |
-| GPIO48 | onboard RGB LED | n/a | status light: green OK, blue a device connected, red a check failing, amber BOOT held, white ×3 password reset |
+| GPIO48 | onboard RGB LED | n/a | status light: green OK, blue a device connected, red a check failing, amber BOOT held (under 3 s), purple held 3 to 8 s (calibration), white ×3 at 10 s (password reset) |
 | GPIO0 | onboard BOOT button | n/a | while running: short press = clean mode, 3 to 8 s = start calibration, 10 s = reset Wi-Fi password and PIN (troubleshooting U4). Never hold it while plugging in: that enters download mode |
 
 **Sensor pins NOT to connect:**
@@ -47,7 +47,7 @@ The stage 1 ESP32 pins are on the **left header** (the side labelled 3V3, 3V3, R
 - **ADDR, INT, IO0, IO1, TX, RX, BOOT, VU, 1V8, SIO, CLK:** leave unconnected.
 - **RST** is on the XM125's *other* header strip (left side, bottom). Solder one header pin there on each board.
 
-**Level shifter (74AHCT125, DIP-14):** VCC (pin 14) to 5 V, GND (pin 7) to common ground. **1OE (pin 1) to GND** enables the channel used. Unused channels: tie **2OE, 3OE, 4OE (pins 4, 10, 13) to 5 V** (disabled) and **2A, 3A, 4A (pins 5, 9, 12) to GND**. No input is ever left floating. Channel 1: 1A (pin 2) from GPIO4, 1Y (pin 3) to the 330 Ω resistor.
+**Level shifter (74AHCT125, DIP-14):** VCC (pin 14) to 5 V, GND (pin 7) to common ground. **1OE (pin 1) to GND** enables the channel used. Unused channels: tie **2OE, 3OE, 4OE (pins 4, 10, 13) to 5 V** (disabled) and **2A, 3A, 4A (pins 5, 9, 12) to GND**. No input is ever left floating. Channel 1: 1A (pin 2) from GPIO4, 1Y (pin 3) to the 330 Ω resistor. A **10 kΩ resistor from 1A (pin 2) to GND** holds the data line low while the ESP32 boots, so the ring cannot flash random colours at power-up (troubleshooting L7).
 
 **No level shifter on hand? Two stopgaps, in order of preference:**
 1. **Sacrificial first pixel.** Cut one LED off the strip and wire it in *before* the strip. Feed its 5V pad through a **silicon** diode (1N4001 or 1N4148), so it runs at about 4.3 V and reliably accepts a 3.3 V data signal. Do not use a Schottky diode (such as a 1N5819): it only drops about 0.3 V, which leaves no margin. Its DOUT then drives the rest of the strip with a clean full-strength signal.

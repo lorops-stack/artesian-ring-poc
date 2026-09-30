@@ -90,6 +90,7 @@
 <text x="1045" y="784" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">74AHCT125</text>
 <text x="1045" y="734" font-size="13" fill="#444" text-anchor="middle">3.3 V → 5 V data level shifter</text>
 <text x="1045" y="750" font-size="12" fill="#666" text-anchor="middle">unused: 2OE–4OE → 5 V, 2A–4A → GND</text>
+<text x="1045" y="956" font-size="12" fill="#666" text-anchor="middle">10 kΩ from 1A (pin 2) to GND: ring stays dark at boot</text>
 <circle cx="930" cy="810" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
 <text x="948" y="815" font-size="13" fill="#fff" text-anchor="start">GND</text>
 <circle cx="930" cy="840" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
