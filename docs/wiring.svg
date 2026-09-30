@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1110" width="1500" height="1110" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="1500" height="1110" fill="#ffffff"/>
+<text x="40" y="48" font-size="26" font-weight="700" fill="#111">Artesian Ring PoC: wiring</text>
+<text x="40" y="76" font-size="15" fill="#444">ESP32-S3-N8R2 (YD-ESP32-S3 layout) · 2 × SparkFun XM125 on separate I2C buses · WS2812B ring</text>
+<rect x="150" y="100" width="200" height="862" rx="14" fill="#1b1f24"/>
+<text x="250" y="128" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">ESP32-S3</text>
+<text x="250" y="952" font-size="12" fill="#bbb" text-anchor="middle">left header · USB-C at bottom</text>
+<circle cx="300" cy="150" r="9" fill="#d62828" stroke="#fff" stroke-width="2"/>
+<text x="282" y="155" font-size="14" fill="#fff" text-anchor="end">3V3</text>
+<circle cx="300" cy="186" r="9" fill="#d62828" stroke="#fff" stroke-width="2"/>
+<text x="282" y="191" font-size="14" fill="#fff" text-anchor="end">3V3</text>
+<circle cx="300" cy="222" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="227" font-size="14" fill="#888" text-anchor="end">RST</text>
+<circle cx="300" cy="258" r="9" fill="#1a9b4b" stroke="#fff" stroke-width="2"/>
+<text x="282" y="263" font-size="14" fill="#fff" text-anchor="end">GPIO4</text>
+<circle cx="300" cy="294" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="299" font-size="14" fill="#888" text-anchor="end">GPIO5</text>
+<circle cx="300" cy="330" r="9" fill="#7a4fd0" stroke="#fff" stroke-width="2"/>
+<text x="282" y="335" font-size="14" fill="#fff" text-anchor="end">GPIO6</text>
+<circle cx="300" cy="366" r="9" fill="#7a4fd0" stroke="#fff" stroke-width="2"/>
+<text x="282" y="371" font-size="14" fill="#fff" text-anchor="end">GPIO7</text>
+<circle cx="300" cy="402" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="407" font-size="14" fill="#888" text-anchor="end">GPIO15</text>
+<circle cx="300" cy="438" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="443" font-size="14" fill="#888" text-anchor="end">GPIO16</text>
+<circle cx="300" cy="474" r="9" fill="#1d6fd8" stroke="#fff" stroke-width="2"/>
+<text x="282" y="479" font-size="14" fill="#fff" text-anchor="end">GPIO17</text>
+<circle cx="300" cy="510" r="9" fill="#e0a100" stroke="#fff" stroke-width="2"/>
+<text x="282" y="515" font-size="14" fill="#fff" text-anchor="end">GPIO18</text>
+<circle cx="300" cy="546" r="9" fill="#1d6fd8" stroke="#fff" stroke-width="2"/>
+<text x="282" y="551" font-size="14" fill="#fff" text-anchor="end">GPIO8</text>
+<circle cx="300" cy="582" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="587" font-size="14" fill="#888" text-anchor="end">GPIO3</text>
+<circle cx="300" cy="618" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="623" font-size="14" fill="#888" text-anchor="end">GPIO46</text>
+<circle cx="300" cy="654" r="9" fill="#e0a100" stroke="#fff" stroke-width="2"/>
+<text x="282" y="659" font-size="14" fill="#fff" text-anchor="end">GPIO9</text>
+<circle cx="300" cy="690" r="9" fill="#9aa0a6" stroke="#fff" stroke-width="2"/>
+<text x="282" y="695" font-size="14" fill="#fff" text-anchor="end">GPIO10</text>
+<circle cx="300" cy="726" r="9" fill="#9aa0a6" stroke="#fff" stroke-width="2"/>
+<text x="282" y="731" font-size="14" fill="#fff" text-anchor="end">GPIO11</text>
+<circle cx="300" cy="762" r="9" fill="#9aa0a6" stroke="#fff" stroke-width="2"/>
+<text x="282" y="767" font-size="14" fill="#fff" text-anchor="end">GPIO12</text>
+<circle cx="300" cy="798" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="803" font-size="14" fill="#888" text-anchor="end">GPIO13</text>
+<circle cx="300" cy="834" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="839" font-size="14" fill="#888" text-anchor="end">GPIO14</text>
+<circle cx="300" cy="870" r="9" fill="#555" stroke="#fff" stroke-width="2"/>
+<text x="282" y="875" font-size="14" fill="#888" text-anchor="end">5Vin</text>
+<circle cx="300" cy="906" r="9" fill="#222222" stroke="#fff" stroke-width="2"/>
+<text x="282" y="911" font-size="14" fill="#fff" text-anchor="end">GND</text>
+<rect x="930" y="110" width="230" height="244" rx="12" fill="#e03131"/>
+<text x="1045" y="134" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">XM125  ·  SENSOR A</text>
+<text x="1045" y="374" font-size="13" fill="#444" text-anchor="middle">back-left corner</text>
+<circle cx="930" cy="162" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="167" font-size="14" fill="#fff">G</text>
+<circle cx="930" cy="196" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="201" font-size="14" fill="#fff">3V3</text>
+<circle cx="930" cy="230" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="235" font-size="14" fill="#fff">SDA</text>
+<circle cx="930" cy="264" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="269" font-size="14" fill="#fff">SCL</text>
+<circle cx="930" cy="298" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="303" font-size="14" fill="#fff">WU</text>
+<text x="1175" y="303" font-size="12.5" fill="#555">leave UNCONNECTED (jumper holds it high)</text>
+<circle cx="930" cy="332" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="337" font-size="14" fill="#fff">RST</text>
+<text x="1175" y="337" font-size="12.5" fill="#555">left-side header, solder 1 pin</text>
+<rect x="930" y="430" width="230" height="244" rx="12" fill="#e03131"/>
+<text x="1045" y="454" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">XM125  ·  SENSOR B</text>
+<text x="1045" y="694" font-size="13" fill="#444" text-anchor="middle">back-right corner</text>
+<circle cx="930" cy="482" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="487" font-size="14" fill="#fff">G</text>
+<circle cx="930" cy="516" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="521" font-size="14" fill="#fff">3V3</text>
+<circle cx="930" cy="550" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="555" font-size="14" fill="#fff">SDA</text>
+<circle cx="930" cy="584" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="589" font-size="14" fill="#fff">SCL</text>
+<circle cx="930" cy="618" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="623" font-size="14" fill="#fff">WU</text>
+<text x="1175" y="623" font-size="12.5" fill="#555">leave UNCONNECTED</text>
+<circle cx="930" cy="652" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="657" font-size="14" fill="#fff">RST</text>
+<text x="1175" y="657" font-size="12.5" fill="#555">left-side header, solder 1 pin</text>
+<rect x="930" y="760" width="230" height="176" rx="12" fill="#3a3f47"/>
+<text x="1045" y="784" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">74AHCT125</text>
+<text x="1045" y="956" font-size="13" fill="#444" text-anchor="middle">3.3 V → 5 V data level shifter</text>
+<circle cx="930" cy="810" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="815" font-size="13" fill="#fff" text-anchor="start">GND</text>
+<circle cx="930" cy="840" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="845" font-size="13" fill="#fff" text-anchor="start">1OE</text>
+<circle cx="930" cy="870" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="948" y="875" font-size="13" fill="#fff" text-anchor="start">1A (in)</text>
+<circle cx="1160" cy="900" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="1142" y="905" font-size="13" fill="#fff" text-anchor="end">1Y (out)</text>
+<circle cx="1160" cy="930" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="1142" y="935" font-size="13" fill="#fff" text-anchor="end">VCC 5V</text>
+<rect x="1260" y="770" width="200" height="120" rx="10" fill="#f1f3f5" stroke="#999"/>
+<text x="1360" y="794" font-size="14" font-weight="700" fill="#111" text-anchor="middle">WS2812B ring strip</text>
+<circle cx="1260" cy="820" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="1274" y="825" font-size="13" fill="#111">DIN</text>
+<circle cx="1260" cy="850" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="1274" y="855" font-size="13" fill="#111">5V</text>
+<circle cx="1260" cy="875" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
+<text x="1274" y="880" font-size="13" fill="#111">GND</text>
+<rect x="1195" y="960" width="265" height="60" rx="10" fill="#fff4e6" stroke="#f07c00"/>
+<text x="1325" y="985" font-size="14" font-weight="700" fill="#111" text-anchor="middle">5 V 4 A supply</text>
+<text x="1325" y="1005" font-size="12" fill="#444" text-anchor="middle">+ 1000 µF cap at strip</text>
+<path d="M309,546 H370 V230 H930" fill="none" stroke="#1d6fd8" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="370" cy="546" r="0" />
+<path d="M309,654 H420 V264 H930" fill="none" stroke="#e0a100" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="420" cy="654" r="0" />
+<path d="M309,366 H470 V652 H930" fill="none" stroke="#7a4fd0" stroke-width="3.2" stroke-linejoin="round" stroke-dasharray="8 6"/>
+<circle cx="470" cy="366" r="0" />
+<path d="M309,510 H520 V584 H930" fill="none" stroke="#e0a100" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="520" cy="510" r="0" />
+<path d="M309,906 H570 V162 H930" fill="none" stroke="#222222" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="570" cy="906" r="0" />
+<path d="M309,906 H570 V482 H930" fill="none" stroke="#222222" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="570" cy="906" r="0" />
+<path d="M309,906 H570 V810 H930" fill="none" stroke="#222222" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="570" cy="906" r="0" />
+<path d="M309,258 H620 V870 H930" fill="none" stroke="#1a9b4b" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="620" cy="258" r="0" />
+<path d="M309,474 H670 V550 H930" fill="none" stroke="#1d6fd8" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="670" cy="474" r="0" />
+<path d="M309,330 H720 V332 H930" fill="none" stroke="#7a4fd0" stroke-width="3.2" stroke-linejoin="round" stroke-dasharray="8 6"/>
+<circle cx="720" cy="330" r="0" />
+<path d="M309,186 H770 V516 H930" fill="none" stroke="#d62828" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="770" cy="186" r="0" />
+<path d="M309,150 H820 V196 H930" fill="none" stroke="#d62828" stroke-width="3.2" stroke-linejoin="round"/>
+<circle cx="820" cy="150" r="0" />
+<path d="M930,810 H916 V840 H930" fill="none" stroke="#222222" stroke-width="3.2"/>
+<path d="M1160,900 H1175 V820 H1260" fill="none" stroke="#1a9b4b" stroke-width="3.2"/>
+<rect x="1208" y="811" width="40" height="18" rx="3" fill="#fff" stroke="#1a9b4b" stroke-width="2"/>
+<text x="1228" y="806" font-size="12" fill="#1a9b4b" text-anchor="middle">330 Ω</text>
+<path d="M1215,960 V850 H1260" fill="none" stroke="#f07c00" stroke-width="3.2"/>
+<path d="M1160,930 H1215" fill="none" stroke="#f07c00" stroke-width="3.2"/>
+<path d="M1240,960 V875 H1260" fill="none" stroke="#222222" stroke-width="3.2"/>
+<path d="M1325,1020 V1040 H570 V906" fill="none" stroke="#222222" stroke-width="3.2"/>
+<circle cx="1215" cy="930" r="5" fill="#f07c00"/>
+<path d="M309,690 H348" stroke="#9aa0a6" stroke-width="3" stroke-dasharray="4 4"/>
+<path d="M309,726 H348" stroke="#9aa0a6" stroke-width="3" stroke-dasharray="4 4"/>
+<path d="M309,762 H348" stroke="#9aa0a6" stroke-width="3" stroke-dasharray="4 4"/>
+<text x="354" y="731" font-size="12.5" fill="#777" stroke="#fff" stroke-width="5" paint-order="stroke">reserved: sensor C (SDA 10, SCL 11, RST 12)</text>
+<line x1="40" y1="1082" x2="74" y2="1082" stroke="#d62828" stroke-width="5"/>
+<text x="82" y="1087" font-size="13" fill="#333">3V3</text>
+<line x1="230" y1="1082" x2="264" y2="1082" stroke="#222222" stroke-width="5"/>
+<text x="272" y="1087" font-size="13" fill="#333">GND</text>
+<line x1="420" y1="1082" x2="454" y2="1082" stroke="#1d6fd8" stroke-width="5"/>
+<text x="462" y="1087" font-size="13" fill="#333">SDA</text>
+<line x1="610" y1="1082" x2="644" y2="1082" stroke="#e0a100" stroke-width="5"/>
+<text x="652" y="1087" font-size="13" fill="#333">SCL</text>
+<line x1="800" y1="1082" x2="834" y2="1082" stroke="#7a4fd0" stroke-width="5" stroke-dasharray="8 6"/>
+<text x="842" y="1087" font-size="13" fill="#333">RST (recommended)</text>
+<line x1="990" y1="1082" x2="1024" y2="1082" stroke="#1a9b4b" stroke-width="5"/>
+<text x="1032" y="1087" font-size="13" fill="#333">LED data</text>
+<line x1="1180" y1="1082" x2="1214" y2="1082" stroke="#f07c00" stroke-width="5"/>
+<text x="1222" y="1087" font-size="13" fill="#333">5 V LED power</text>
+</svg>
