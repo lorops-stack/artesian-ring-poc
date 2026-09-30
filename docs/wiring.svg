@@ -65,7 +65,7 @@
 <text x="1175" y="303" font-size="12.5" fill="#555">leave UNCONNECTED (jumper holds it high)</text>
 <circle cx="930" cy="332" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
 <text x="948" y="337" font-size="14" fill="#fff">RST</text>
-<text x="1175" y="337" font-size="12.5" fill="#555">left-side header, solder 1 pin</text>
+<text x="1175" y="337" font-size="12.5" fill="#555">REQUIRED · left-side header, solder 1 pin</text>
 <rect x="930" y="430" width="230" height="244" rx="12" fill="#e03131"/>
 <text x="1045" y="454" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">XM125  ·  SENSOR B</text>
 <text x="1045" y="694" font-size="13" fill="#444" text-anchor="middle">back-right corner</text>
@@ -82,10 +82,11 @@
 <text x="1175" y="623" font-size="12.5" fill="#555">leave UNCONNECTED</text>
 <circle cx="930" cy="652" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
 <text x="948" y="657" font-size="14" fill="#fff">RST</text>
-<text x="1175" y="657" font-size="12.5" fill="#555">left-side header, solder 1 pin</text>
+<text x="1175" y="657" font-size="12.5" fill="#555">REQUIRED · left-side header, solder 1 pin</text>
 <rect x="930" y="760" width="230" height="176" rx="12" fill="#3a3f47"/>
 <text x="1045" y="784" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">74AHCT125</text>
-<text x="1045" y="956" font-size="13" fill="#444" text-anchor="middle">3.3 V → 5 V data level shifter</text>
+<text x="1045" y="734" font-size="13" fill="#444" text-anchor="middle">3.3 V → 5 V data level shifter</text>
+<text x="1045" y="750" font-size="12" fill="#666" text-anchor="middle">unused: 2OE–4OE → 5 V, 2A–4A → GND</text>
 <circle cx="930" cy="810" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
 <text x="948" y="815" font-size="13" fill="#fff" text-anchor="start">GND</text>
 <circle cx="930" cy="840" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
@@ -105,8 +106,8 @@
 <circle cx="1260" cy="875" r="7" fill="#fff" stroke="#333" stroke-width="2"/>
 <text x="1274" y="880" font-size="13" fill="#111">GND</text>
 <rect x="1195" y="960" width="265" height="60" rx="10" fill="#fff4e6" stroke="#f07c00"/>
-<text x="1325" y="985" font-size="14" font-weight="700" fill="#111" text-anchor="middle">5 V 4 A supply</text>
-<text x="1325" y="1005" font-size="12" fill="#444" text-anchor="middle">+ 1000 µF cap at strip</text>
+<text x="1325" y="985" font-size="14" font-weight="700" fill="#111" text-anchor="middle">5 V ≥ 4 A supply + 5 A fuse</text>
+<text x="1325" y="1005" font-size="12" fill="#444" text-anchor="middle">feed both strip ends · 1000 µF at input</text>
 <path d="M309,546 H370 V230 H930" fill="none" stroke="#1d6fd8" stroke-width="3.2" stroke-linejoin="round"/>
 <circle cx="370" cy="546" r="0" />
 <path d="M309,654 H420 V264 H930" fill="none" stroke="#e0a100" stroke-width="3.2" stroke-linejoin="round"/>
@@ -153,7 +154,7 @@
 <line x1="610" y1="1082" x2="644" y2="1082" stroke="#e0a100" stroke-width="5"/>
 <text x="652" y="1087" font-size="13" fill="#333">SCL</text>
 <line x1="800" y1="1082" x2="834" y2="1082" stroke="#7a4fd0" stroke-width="5" stroke-dasharray="8 6"/>
-<text x="842" y="1087" font-size="13" fill="#333">RST (recommended)</text>
+<text x="842" y="1087" font-size="13" fill="#333">RST (required)</text>
 <line x1="990" y1="1082" x2="1024" y2="1082" stroke="#1a9b4b" stroke-width="5"/>
 <text x="1032" y="1087" font-size="13" fill="#333">LED data</text>
 <line x1="1180" y1="1082" x2="1214" y2="1082" stroke="#f07c00" stroke-width="5"/>

@@ -1,205 +1,255 @@
 # 01 · Design Spec
 
-Status: **DRAFT for review. No build work starts until this and `02-design-review.md` are signed off.**
+Status: **DRAFT for review, revision 2 (30 Sep 2026).** No build work starts until this and `02-design-review.md` are signed off.
 
 ## 1. What we are proving
 
-A faucetless sink ring can tell which of 9 zones a hand is in, using radar only (no camera, no optics), fast and reliably enough that a person uses it without thinking. The ring then runs the matching water function and holds it safely until the hands leave.
+A faucetless sink ring can tell which zone a hand is in, using radar only (no camera, no optics), fast and reliably enough that a person uses it without thinking. The ring then runs the matching water function and holds it safely until the hands leave.
 
 The demo is **dry**: no pump and no water. The screen and the LED ring show what the water would be doing.
 
-Success criteria for the live demo (measured with the built-in accuracy test, section 7):
+Success criteria for the live demo, measured with the accuracy test (F16) and the bench tests in `07-test-and-demo-plan.md`:
 
-| Metric | Target |
-|---|---|
-| Zone accuracy at latch, inner 70% of each zone, 5+ different people | ≥ 97% |
-| Hand entry to function on (includes settle time) | ≤ 300 ms |
-| False-off while a hand is in the sink | 0 in a 10 minute session |
-| Off after hands leave | 1.0 s ± 0.1 s |
-| Cold boot to ready, no laptop | ≤ 10 s |
+| Metric | Target | How it is measured |
+|---|---|---|
+| Zone accuracy at latch | ≥ 97% overall, no single zone below 93% | F16: tester aims at the zone centre (the UI shows a target dot), reaching in naturally from the front; 5+ people |
+| Hand entry to function on | ≤ 300 ms | From the first frame the hand is confirmed in the sink to the function starting, for a hand going straight to its zone and stopping |
+| False-off while a hand is in the sink | 0 in a 10 minute session | T6 |
+| Off after hands leave | 1.0 s ± 0.1 s | From the last frame the hand was seen to all water off |
+| Cold boot to ready, no laptop | ≤ 10 s | T15 |
+
+Known risk against the 97% target: with two sensors, the simulation puts the middle row lowest (about 93 to 95%). See review R6.
 
 ## 2. Physical setup
 
 - Sensing area: sink opening **584 × 533 mm (23 × 21 in)**. Origin = back-left corner, x to the right, y toward the user.
 - **Sensor A:** back-left corner. **Sensor B:** back-right corner. Both sit in the ring at counter level, aimed at the sink centre (45° inward) and tilted down about 20° into the basin (tilt to be tuned on the bench).
-- Two sensors only. The third board was defective. A front-centre third sensor is logged as a future fix (review R6). The pin layout reserves it.
 - Sensor boards mount **vertically, module face toward the sink** (review R17). The back edge of the rig sits against a wall or backboard (review R16).
-- Controller: ESP32-S3-N8R2 dev board (VCC-GND YD-ESP32-S3 layout), in a dry spot under or behind the ring.
-- Ring LEDs: WS2812B strip around the ring perimeter (~2.2 m).
+- Two sensors only. The third board was defective. A front-centre third sensor is logged as a future fix (review R6), and the pin layout reserves it. Spare boards are on order (review R19).
+- Controller: ESP32-S3-N8R2 dev board (VCC-GND YD-ESP32-S3 layout), in a dry spot under or behind the ring. Demo power: a 5 V USB-C wall adapter. The laptop is only for programming.
+- Ring LEDs: addressable 5 V strip (WS2812B type), 60 LEDs/m, about 2.2 m = **132 LEDs**, fed with power at both ends.
 
-## 3. Zone map (facing the sink)
+## 3. Layouts and zones (facing the sink)
+
+Zone boundaries are fractions of the sensing area: x from left (0) to right (1), y from back (0) to front (1). All three layouts are decided (30 Sep 2026) and switch live. Hot, Warm and Cold appear in every layout.
+
+**Kitchen (3 × 3).** Columns and rows are equal thirds.
+
+| | Left (0–⅓) | Centre (⅓–⅔) | Right (⅔–1) |
+|---|---|---|---|
+| **Back (0–⅓)** | Foaming soap | Garbage disposal | Cup fill |
+| **Middle (⅓–⅔)** | Waterfall | Neutral | Waterfall |
+| **Front (⅔–1)** | Hot | Warm | Cold |
+
+**Bathroom (3 × 2): no disposal, no Neutral.** Columns are equal thirds; rows split 50/50.
 
 | | Left | Centre | Right |
 |---|---|---|---|
-| **Back** | Foaming soap | Garbage disposal | Cup fill |
-| **Middle** | Waterfall | Neutral | Waterfall |
-| **Front** | Hot | Warm | Cold |
+| **Back (0–0.5)** | Foaming soap | Waterfall | Cup fill |
+| **Front (0.5–1)** | Hot | Warm | Cold |
 
-That is the **Kitchen** layout. Two more layouts can be switched live (decided 30 Sep 2026). Hot, Warm and Cold appear in every layout.
+**Accessible (2 back + 3 front): no disposal, no waterfall, no Neutral.** The back row is 40% of the depth, split into two equal halves. The front row is 60% of the depth, split into thirds.
 
-**Bathroom (3 × 2): no disposal**
-
-| | Left | Centre | Right |
+| | | | |
 |---|---|---|---|
-| **Back** | Foaming soap | Waterfall | Cup fill |
-| **Front** | Hot | Warm | Cold |
+| **Back (0–0.4)** | Foaming soap (x 0–0.5) | | Cup fill (x 0.5–1) |
+| **Front (0.4–1)** | Hot (0–⅓) | Warm (⅓–⅔) | Cold (⅔–1) |
 
-**Accessible / ADA (2 back + 3 front): no disposal, no waterfall**
-
-| | Left | Centre | Right |
-|---|---|---|---|
-| **Back (40% of depth)** | Foaming soap (wide) | | Cup fill (wide) |
-| **Front (60% of depth)** | Hot | Warm | Cold |
-
-The ADA layout was originally "3 back + 1 front". It changed because 1 front zone cannot hold the five required functions (soap, cup fill, hot, warm, cold). The layout also has to put the most-used functions nearest a seated user. The front row is deeper and every zone is larger, which gives bigger targets and more forgiving accuracy.
+The Accessible layout replaced the first idea of "3 back + 1 front". Four zones cannot hold the five required functions, and the most-used functions need to be nearest a seated user. Every zone is larger, which gives bigger targets.
 
 ## 4. Behaviour: the latch state machine
 
-```
-            hand detected                      settled in a function zone
-  IDLE ─────────────────────▶ ARMING ─────────────────────────────▶ ACTIVE(fn)
-   ▲                           │  ▲                                  │   ▲
-   │                           │  └─ settled in Neutral: keep arming  │   │ hand back
-   │             hand gone     │                                     │   │ within 1.0 s
-   │◀──────────────────────────┘                     hand gone       ▼   │
-   │                                              ┌──────────── EXIT_PENDING
-   │◀──────────────── 1.0 s elapsed, all off ─────┘              (1.0 s countdown)
-```
+This section is the specification for the firmware state machine and its unit tests. The UI shows the states as: **Idle** = IDLE, **Tracking** = ARMING, **Active** = ACTIVE / CUP_FULL / TIMED_OUT, **Off in 1 s** = EXIT_PENDING, **Cleaning** = CLEAN.
 
-Rules:
+### 4.1 Definitions
 
-1. **Latch on settle, not on first touch.** A zone latches when the hand has stayed inside it for `SETTLE_MS` (start at 150 ms) with speed below `SETTLE_SPEED` (start at 250 mm/s). This stops a hand that crosses the front row on its way to the soap from latching Hot. See review R1.
-2. **Once latched, the function holds** while the hand moves anywhere in the sink. Crossing into other zones changes nothing.
-3. **Hand leaves the sink:** a 1.0 s countdown starts, then everything turns off.
-4. **Hand returns inside the 1.0 s:** the same function continues.
-5. **To change function:** hands out, countdown ends, re-enter.
-6. **Neutral zone** never latches. The system keeps arming until the hand settles in a function zone.
-7. **Presence errors bias to "still present"** (fail-on). The countdown only starts when both sensors agree the hand has gone for `GONE_FRAMES` consecutive frames.
-8. **Safety overrides**, which beat rules 2 to 4:
-   - **Disposal:** needs a 1.0 s hold in its zone to start, runs a fixed 15 s, stops instantly if a hand settles in any other zone, and never restarts without a fresh hold.
-   - **Max run timers** per function (hot/warm/cold 120 s, waterfall 120 s). A timer is reset by hand movement, not by a static object. This protects against a pot left in the sink (review R2).
-   - **Cup fill** stops at the set volume even if the hand stays.
-   - **Soap** is a single dose, never a held function. After the dose the latch releases, so the next settled zone starts the rinse without leaving the sink. The soap zone stays blocked until hands fully exit, so it cannot dose twice.
+- **Hand present:** the fused target (section 6: one echo from A and one from B that together form a hand-sized target inside the sensing area) exists. Raw echoes from either sensor on their own never count. So a person standing at the sink with their hands out is "no hand".
+- **Hand gone:** no fused target for `GONE_FRAMES` (3) consecutive frames. The off countdown is timed from the **last frame the hand was seen**, so the off time is not delayed by the confirmation frames.
+- **Settled in a zone:** the hand has been inside the zone (20 mm inside its edges) for `SETTLE_MS` (150 ms), with speed below `SETTLE_SPEED` (250 mm/s) for that whole time. If speed goes above the limit, the settle timer restarts.
+- **Session:** from IDLE → ARMING until the exit countdown completes. Soap block and disposal lockout last for one session.
+
+### 4.2 States
+
+| State | Meaning | Water | LED ring |
+|---|---|---|---|
+| IDLE | No hand | Off | Slow idle chase |
+| ARMING | Hand present, no function latched | Off | Fills outward in the zone colour as the hand settles |
+| ACTIVE(fn) | fn is Hot, Warm, Cold, Waterfall or Cup fill | On | Solid function colour |
+| CUP_FULL | Cup fill reached its volume; still latched | Off | Cup colour, slow pulse |
+| TIMED_OUT | Max-run hit; still latched | Off | Amber pulse |
+| EXIT_PENDING | Hand gone, 1.0 s countdown | As before | Retracts around the ring as the countdown |
+| CLEAN | 60 s pause for wiping the sink | Off | White, slow breathe |
+| DISPOSAL_RUN | Runs **in parallel** with the states above, on its own 15 s timer | n/a | Amber sweep at the back centre |
+
+### 4.3 Transitions
+
+| From | Event | To | Also |
+|---|---|---|---|
+| IDLE | Hand present for 2 frames | ARMING | Session starts; entry time recorded for F3 |
+| ARMING | Settled in Hot, Warm, Cold, Waterfall or Cup fill | ACTIVE(fn) | |
+| ARMING | Settled in Soap, soap not yet used this session | ARMING | One dose; Soap blocked for the rest of the session |
+| ARMING | Hand held still 1.0 s in Disposal, disposal not yet used this session | ARMING | Starts DISPOSAL_RUN; disposal locked for the rest of the session |
+| ARMING | Settled in Neutral (Kitchen only) | ARMING | Nothing. Held still 3 s in Neutral starts CLEAN |
+| ACTIVE(fn) | Hand moves anywhere in the sink | ACTIVE(fn) | The latch holds; other zones are ignored |
+| ACTIVE(cup) | Volume reached | CUP_FULL | |
+| ACTIVE(fn) | `MAX_RUN_WATER_MS` (120 s) with no hand movement | TIMED_OUT | Movement of the target resets the timer; a static object does not |
+| ARMING, ACTIVE, CUP_FULL, TIMED_OUT | Hand gone | EXIT_PENDING | Countdown from the last frame seen |
+| EXIT_PENDING | Hand present again within 1.0 s | Back to the state it left | |
+| EXIT_PENDING | 1.0 s elapsed | IDLE | All water off. Session ends: soap block and disposal lockout clear. A running disposal is **not** stopped |
+| Any except CLEAN | Clean started (UI button, BOOT button short press, or 3 s still in Neutral) | CLEAN | Water off, disposal stopped |
+| CLEAN | 60 s elapsed, or ended from the UI | IDLE | Nothing latches during CLEAN |
+| Any | Layout changed in the UI | IDLE | All water off, disposal stopped, session ends |
+
+**DISPOSAL_RUN rules** (the one function that runs without a hand in the sink; decided 30 Sep 2026, review Q2):
+- Starts only from ARMING. If a water function is already latched, holding over the Disposal zone does nothing.
+- Runs a fixed 15 s, then stops.
+- **Stops immediately** if a hand settles in any zone other than Disposal, Neutral included. The Neutral zone sits over the drain, so a hand resting there must stop it. If that zone is a water function, the same settle then latches it.
+- Never restarts in the same session, even after its 15 s ends. A new run needs the hands to leave the sink and a new 1 s hold.
+
+### 4.4 Presence and background rules
+
+- **Fail-on:** while any function is latched, a missing frame never turns water off. Only "hand gone" as defined above starts the countdown.
+- **Background learning** runs only in IDLE and ARMING. An echo that stays perfectly still for `STATIC_ABSORB_MS` (5 s) with no function latched is treated as an object (a pot, a plate) and ignored. It is **never** applied to the latched target during ACTIVE or CUP_FULL: a hand holding a pot still under Cup fill for 21 s must not be cut off.
+- **Pot left in the sink while water runs:** the target no longer moves, so the max-run timer (120 s) ends the flow (TIMED_OUT). This is the flood protection.
+- **Sensor recalibration** (the detector's CALIBRATION_NEEDED flag, and re-recording the empty-sink background after 30 s idle) only runs in IDLE with no echoes present. It is never run while a hand is in the sink.
 
 ## 5. Smart functions (simulated)
 
 | Function | Demo behaviour | Default (editable per profile) |
 |---|---|---|
-| Foaming soap | One measured dose per latch | 0.8 ml |
-| Cup fill | Fills to set volume, then stops and flashes | 350 ml (12 oz) |
-| Hot | Flow at set temperature, anti-scald cap shown | 120 °F / 49 °C cap (°F default, °C toggle) |
-| Warm | Flow at set temperature | 100 °F / 38 °C |
-| Cold | Flow at mains temperature | shows "mains" |
-| Waterfall | Sheet flow from the back manifold | same temp as last used, default warm |
-| Disposal | 15 s run, safety rules above | 15 s |
+| Foaming soap | One measured dose, then the latch releases (4.3) | 0.8 ml |
+| Cup fill | Fills to the set volume, then CUP_FULL | 350 ml (12 oz); presets 750 ml bottle, 2 L pot (F23). **Cold (mains) water** |
+| Hot | Flow at the set temperature, never above the cap | 110 °F / 43 °C set point, 120 °F / 49 °C cap |
+| Warm | Flow at the set temperature | 100 °F / 38 °C |
+| Cold | Flow at mains temperature | "Mains" |
+| Waterfall | Wide sheet flow from the back manifold | Warm |
+| Disposal | 15 s run, rules in 4.3 | 15 s |
 
-Design flow rate for the simulation: **1.5 gpm (5.7 L/min)** (confirmed 30 Sep 2026). Temperatures show in °F by default with a °C toggle.
+- Design flow rate: **1.5 gpm (5.7 L/min, 94.6 ml/s)** (decided 30 Sep 2026). At that rate, 350 ml takes 3.7 s, 750 ml 7.9 s and 2 L 21 s.
+- Temperatures show in °F by default with a °C toggle.
+- **Water saved (F9)** is shown split into its two sources, so the claim holds up to questions:
+  1. **Off when hands are out:** a conventional faucet is assumed to run for the whole session, including soaping and cup-full time, while the ring flows only while a function is actually running.
+  2. **Flow rate:** 1.5 gpm against the 2.2 gpm US federal maximum for kitchen faucets.
+
+  Both assumptions are printed on screen.
 
 ## 6. System architecture
 
 ```
  XM125 A ──I2C bus 0──┐                                  ┌── WS2812 ring LEDs
                       ├─ ESP32-S3 ── fusion ── state ────┤
- XM125 B ──I2C bus 1──┘   (sequential    (trilat +       ├── onboard RGB (status)
-                           A then B)      calibration)   └── Wi-Fi AP "ArtesianRing"
+ XM125 B ──I2C bus 1──┘   (sequential    (association +  ├── onboard RGB (status)
+                           A then B)      calibrated map) └── Wi-Fi AP "ArtesianRing" (WPA2)
                                                                │ WebSocket JSON
                                                    Ring Studio UI (laptop / tablet / phone)
 ```
 
-- **Sensor firmware:** Acconeer **I2C Distance Detector** on both XM125s. They ship with the presence detector, so they must be reflashed (see `05-flash-xm125.md`).
-- **Sensor config:** start 60 mm, end 850 mm, recorded threshold (empty-sink background), close-range leakage cancellation on. Measurements run A then B so the two radars never transmit at the same time.
-- **Fusion:** nearest valid peak from each sensor gives (rA, rB). Two estimates are computed:
-  - **Trilateration** gives the live dot on screen.
-  - **Calibration fingerprint** (nearest calibrated zone centroid in rA/rB space, with a confidence margin) decides the zone.
+- **Sensor firmware:** Acconeer **I2C Distance Detector** on both XM125s. They ship with the presence detector, so they must be reflashed (`05-flash-xm125.md`). Over I2C this firmware reports **up to 10 echoes per measurement, each as a distance and a strength**. It does not report the raw radar sweep or its internal threshold. Everything below is designed on those echo lists. (Getting the raw sweep would need different sensor firmware. That is a scope change and is not planned.)
+- **Sensor config:** start 60 mm, end 850 mm, recorded threshold (captured during sensor calibration with an empty sink), close-range leakage cancellation on. Measurements run A then B, so the two radars never transmit at the same time.
+- **Echo association (one rule):** from A's and B's echo lists, pick the pair that forms a hand-sized target inside the sensing area. When two pairs qualify, take the nearer one (ghost echoes from the steel basin are always further away than the real hand). This rejects the torso, forearm, basin reflections and objects already learned as background (R7, R8, R15).
+- **Position and zone:**
+  - **Trilateration** of the chosen pair gives a raw position, used for the live dot.
+  - **Calibrated position map:** calibration (C8) records the echo distances at known points across the sink, at high and low hand heights. The firmware builds a correction map from measured distances to true position, which absorbs hand-height error and mounting offsets. Because it corrects *position*, it works for every layout without recalibrating per layout.
+  - The **zone** is the calibrated position looked up in the active layout, with 20 mm hysteresis at the edges.
+  - If trilateration and the calibrated map disagree by more than half a zone, or a sensor has no echo, the frame is flagged, and a flagged frame never latches.
+- **Tracking:** an alpha-beta filter per sensor distance smooths the readings and gives a hand speed for the settle rule.
+- **Plane gating (F19):** a target outside the sensing area never counts as a hand. This handles the user's torso. It **cannot** reject something behind the sink, because two back-edge sensors see that as a mirror image inside the sink; that is handled physically (R16).
+- **Firmware structure:** sensing, fusion and the state machine run on core 1; Wi-Fi, the web server and LEDs on core 0, so Wi-Fi traffic cannot delay a latch. Hardware watchdog on both cores. The fusion and state machine code is plain C++ with no Arduino headers, so it also builds on a PC.
+- **Tests without hardware:** `pio test -e native` runs unit tests covering every transition in 4.3, plus recorded real sessions (F11) replayed as regression tests. Test recordings live in `firmware/test/fixtures/` and are committed.
+- **Config:** calibration, layouts and profiles are stored in the ESP32 flash as JSON with a schema version (migrated on firmware updates) and a factory reset.
+- **UI hosting:** Ring Studio is served by the ESP32 at `http://192.168.4.1` on its own WPA2 network. Two limits follow from plain http:
+  1. It cannot install as an offline app, so tablets use an "Add to Home Screen" bookmark.
+  2. Web Serial is blocked.
 
-  If the two estimates disagree, or a sensor reports no peak, the frame is flagged, and a flagged frame can never latch.
-- **Tracking:** an alpha-beta filter per sensor range smooths the readings and gives a hand speed, which the settle rule uses. Zones have 20 mm hysteresis: while arming, the hand must be 20 mm inside a zone to count as in it, so the edges don't flicker.
-- **Multi-peak association:** each sensor reports up to 10 echoes. The firmware picks the pair (one echo from A, one from B) that forms a hand-sized target inside the plane, instead of blindly taking the nearest. This rejects torso, forearm and ghost echoes (review R8, R15).
-- **Firmware structure:** sensing, fusion and the state machine run on core 1; Wi-Fi, the web server and LEDs on core 0. Wi-Fi traffic then cannot delay a latch. Hardware watchdog on both.
-- **Tests without hardware:** the fusion and state machine code builds natively on a PC (`pio test -e native`). Unit tests cover every rule in section 4. Recorded real sessions (F11) replay through the same code as regression tests, so a change that breaks a known case fails before it reaches the rig.
-- **Config:** the calibration JSON carries a schema version (migrated on firmware updates) and has a factory reset.
-- **Firmware:** C++ on Arduino-ESP32 via PlatformIO. Ring Studio is served from the ESP32's flash, so no laptop or venue Wi-Fi is needed. The same JSON stream is mirrored over USB serial as a fallback.
-- **UI:** a single-page web app (vanilla JS, Canvas). It installs to a tablet home screen, so it works as the "app".
+  So a **laptop copy of Ring Studio** (run locally from `ui/`) is the fallback. It connects over USB (Web Serial) and plays recorded sessions (F11) even if the ESP32 is down.
+- **Data storage:** recordings (F11), dashboard history (F15) and accuracy results (F16) are kept in the viewing browser's storage, with CSV and JSON export. The ESP32 keeps only config and a small running total of sessions and water.
 
-## 7. Feature list (approved 30 Sep 2026)
+## 7. Feature list
 
-| # | Feature | Where |
-|---|---|---|
-| F1 | Live signal traces from A and B (scrolling distance chart, peaks, threshold) | UI |
-| F2 | Visible state machine with a 1-second draining exit ring | UI + LEDs |
-| F3 | Latency readout, entry to function on, in ms | FW + UI |
-| F4 | False-off counter, plus a "held on" flag when a dropout was correctly bridged | FW + UI |
-| F5 | 9-zone calibration walkthrough with a per-zone and overall quality score | UI + FW |
-| F6 | Simulated water animation per function, in the ring's colour | UI |
-| F7 | WS2812 LED ring: function colour, exit countdown flash, calibration guidance | FW |
-| F8 | Smart functions: cup volume stop, soap dose, set temperatures | FW + UI |
-| F9 | Water saved vs a conventional faucet (2.2 gpm US federal maximum), assumptions shown on screen | UI |
-| F10 | Live layout switching: Kitchen 3×3, Bathroom 3×2, Accessible 2+3 | FW + UI |
-| F11 | Record and replay of real sessions (JSON), for demo insurance and analysis | UI |
-| F12 | Tablet or phone view over the ESP32's own Wi-Fi access point | FW + UI |
-| F13 | Presentation mode: clean investor view, engineering panels on a toggle | UI |
-| F14 | User profiles: temperatures, cup size, soap dose, LED colours; switch live | FW + UI |
-| F15 | Usage dashboard: sessions, water used and saved, function mix, accuracy; CSV export | UI |
-| F16 | Accuracy test mode: UI prompts a zone, records the result, builds a confusion matrix | UI |
-| F17 | Cloud sync of the usage dashboard: **Phase 3, optional** (see review R14) | later |
-| F18 | Over-the-air firmware update from Ring Studio | FW + UI |
-| F19 | Plane boundary gating: targets outside the sensing plane (the user's torso, anything behind the sink) never count as presence (review R15, R16) | FW |
-| F20 | **Hover preview:** while arming, the ring glows faintly in the colour of the zone under the hand and the screen outlines it; it goes solid on latch. Users see what they are about to pick | FW + UI |
-| F21 | **Clean mode:** pauses all functions for 60 s so the sink and ring can be wiped without triggering water. Started from the UI or by holding a hand still in Neutral for 3 s | FW + UI |
-| F22 | **Audio cues:** soft tones on latch, soap dose, cup full and off. Supports low-vision users in the Accessible layout. Played by the UI device | UI |
-| F23 | **Fill presets:** Cup fill volumes switchable per profile: cup 350 ml, bottle 750 ml, pot 2 L | FW + UI |
-| F24 | **Hand heatmap:** where hands actually go, per layout. R&D evidence for zone sizing in the production ring | UI |
-
-F16 is new from the review. It produces the accuracy numbers that back up the investor pitch.
+| # | Feature | Where | Phase |
+|---|---|---|---|
+| F1 | Live echo traces from A and B: distance and strength of each echo, with the chosen pair highlighted | UI | 0–1 |
+| F2 | Visible state machine, including the 1 s exit countdown | UI + LEDs | 1 |
+| F3 | Latency readout: hand confirmed in sink → function on, in ms | FW + UI | 1 |
+| F4 | False-off counter, plus a "held on" flag when a dropout was correctly bridged | FW + UI | 1 |
+| F5 | Calibration walkthrough (C8) with a per-point and overall quality score | UI + FW | 1 |
+| F6 | Simulated water animation per function | UI | 2 |
+| F7 | WS2812 LED ring: function colour, countdown, calibration guidance | FW | 2 |
+| F8 | Smart functions: cup volume stop, soap dose, set temperatures | FW + UI | 2 |
+| F9 | Water saved, split into "off when hands out" and "flow rate", assumptions on screen | UI | 2 |
+| F10 | Live layout switching: Kitchen, Bathroom, Accessible | FW + UI | 2 |
+| F11 | Record and replay of real sessions | UI | 2 |
+| F12 | Tablet or phone view over the ESP32's Wi-Fi | FW + UI | 1 |
+| F13 | Presentation mode (the Showcase screen), engineering panels on a toggle | UI | 2 |
+| F14 | User profiles: temperatures, cup size, soap dose, LED colours | FW + UI | 2 |
+| F15 | Usage dashboard: sessions, water, function mix, accuracy; CSV export | UI | 2 |
+| F16 | Accuracy test mode: prompts a zone, records the result, builds a confusion matrix | UI | 1 |
+| F17 | Cloud sync of the dashboard (optional, review R14) | later | 3 |
+| F18 | Over-the-air firmware update from Ring Studio | FW + UI | 2 |
+| F19 | Plane gating (section 6) | FW | 1 |
+| F20 | Hover preview: ring and zone glow in the zone colour while the hand settles | FW + UI | 2 |
+| F21 | Clean mode (4.3) | FW + UI | 2 |
+| F22 | Sound: chimes, water, soap, disposal, cup full, off. Synthesized in the browser | UI | 2 |
+| F23 | Fill presets: cup, bottle, pot | FW + UI | 2 |
+| F24 | Hand heatmap per layout, as R&D evidence for zone sizing | UI | 2 |
+| F25 | Demo loop: a ghost hand runs a scripted sequence after 8 s idle; excluded from every metric | UI | 2 |
 
 ## 8. Setup and calibration studio (inside Ring Studio)
 
-Nothing about the geometry is hard-coded in firmware. Every dimension, position and angle is entered or measured in the UI, saved to the ESP32's flash as a versioned JSON calibration file, and used live. The studio is behind a PIN in presentation mode so visitors can't change it.
+Nothing about the geometry is hard-coded in firmware. Every dimension, position and angle is entered or measured in the UI, saved to the ESP32's flash, and used live. The studio is PIN-locked in presentation mode.
 
 | # | Feature | What it does |
 |---|---|---|
-| C1 | **Plane dimensions** | Width and depth of the sensing area (default 23 × 21 in). Inches or mm. Presets per sink model. |
-| C2 | **Sensor placement** | x, y, height (z) for A, B and a reserved C slot. Type the values or drag the sensors on the plan view. Sensor spacing is calculated and shown. |
-| C3 | **Sensor angles** | Yaw (inward aim) and tilt (down into the basin) per sensor. Angles do not change the distance maths. They drive the coverage overlay and the aim checks in C5. |
-| C4 | **Hand depth band** | Expected hand depth below the ring (default 30 to 200 mm). Feeds the trilateration and the accuracy prediction. |
-| C5 | **Coverage and accuracy heatmap** | Live prediction over the plane: each sensor's beam footprint, near-range blind spot (< 60 mm), and expected zone accuracy per cell (the `geometry_sim` maths running in the browser). Shows whether a placement is good *before* touching hardware. |
-| C6 | **Empty-sink background capture** | One button. Records the static echoes of the basin for each sensor, shows them on the signal traces, and flags anything unusual (a forgotten cup). |
-| C7 | **Reference target check** | Place a reference object (a can on a marked mat) at 3 to 5 known points. The studio fits a range offset per sensor (mounting and resin delay) and back-solves the sensor positions to check your tape-measure numbers. It warns if they disagree by more than 15 mm. |
-| C8 | **Zone fingerprint walkthrough** | The 9-zone guided capture. The ring LEDs and screen show which zone to use, and prompt for a high hand, low hand and moving hand in each zone. Shows sample count and quality per zone. Any single zone can be redone. |
-| C9 | **Zone editor** | Drag the grid lines for unequal zone sizes, assign a function to each zone, save layouts (3×3, 3×2, 3 back + 1 front, custom). |
-| C10 | **Tuning panel** | Settle time and speed, gone frames, exit delay (1.0 s), static-object absorb time, max run timers, sensor start/end range, threshold sensitivity, frame rate. Changes apply live, with reset to defaults. |
-| C11 | **Validation** | The accuracy test (F16): a confusion matrix, a heatmap of misses on the plane, and latency and false-off stats. A calibration is only marked "demo ready" when it passes the targets in section 1. |
-| C12 | **Health and drift monitor** | Per-sensor frame rate, I2C errors, signal strength, noise floor, the sensor's CALIBRATION_NEEDED flag, and background drift since the last capture. Prompts a recalibration when something has moved. |
-| C13 | **Save, load, compare** | Named calibration files with date and notes. Export and import JSON. Side-by-side comparison of two calibrations on the same accuracy test. |
+| C1 | Plane dimensions | Width and depth of the sensing area (default 23 × 21 in). Inches or mm. Presets per sink model |
+| C2 | Sensor placement | x, y and height (z) for A, B and a reserved C slot. Typed, or dragged on the plan view. Sensor spacing shown |
+| C3 | Sensor angles | Yaw and tilt per sensor. Angles do not change the distance maths; they drive the coverage overlay in C5 |
+| C4 | Hand depth band | Expected hand depth below the ring (default 30 to 200 mm) |
+| C5 | Coverage and accuracy heatmap | Live prediction over the plane: beam footprint, near-range blind spot (< 60 mm), mirror ambiguity, and position error from hand depth plus range noise, turned into expected zone accuracy for the active layout |
+| C6 | Empty-sink background capture | Runs the sensor calibration with the sink empty, records the echoes present (basin reflections), and flags anything unusual, such as a forgotten cup |
+| C7 | Reference target check | A drink can placed at 3 to 5 marked points. Fits a distance offset per sensor and back-solves the sensor positions; warns if they disagree with C2 by more than 15 mm |
+| C8 | Calibration walkthrough | The ring LEDs and screen guide the hand to 9 reference points (the Kitchen zone centres), at high and low height, plus one moving pass. Builds the calibrated position map used by **every** layout. Any point can be redone |
+| C9 | Zone editor | Drag zone edges, assign functions, save layouts (Kitchen, Bathroom, Accessible, custom) |
+| C10 | Tuning panel | Settle time and speed, gone frames, exit delay, static absorb time, max run, sensor range, threshold sensitivity. Applies live, with reset to defaults |
+| C11 | Validation | Full: the F16 accuracy test against section 1 (the "demo ready" mark). Quick on-site check: 5 trials per zone, all must pass, about 5 minutes |
+| C12 | Health and drift monitor | Per-sensor frame rate, I2C errors, echo strength, the CALIBRATION_NEEDED flag, and background drift since C6. Prompts recalibration |
+| C13 | Save, load, compare | Named calibrations with date and notes; export and import; compare two on the same accuracy test |
 
-Calibration order the studio walks you through: C1 → C2/C3/C4 → C5 check → C6 → C7 → C8 → C11 → save.
+Calibration order: C1 → C2/C3/C4 → C5 → C6 → C7 → C8 → C11 → save. Realistic time: about 15 minutes for a full calibration, plus about 5 minutes for the quick check. The full F16 validation (180 trials per person) is done on the bench, not at a venue.
 
 ## 8b. UI design language (Ring Studio)
 
-Reference design: the "Ring Studio UI" design canvas (live view + calibration studio), 30 Sep 2026.
+Reference: the "Ring Studio UI" design canvas (Showcase, Operator view, Calibration studio, Hand marker options), 30 Sep 2026. The canvas screens are prototypes; they model the behaviour rules but not the sensor maths.
 
-- **Showcase screen (presentation mode, F13):** a full-screen rendered top-down scene: speckled stone countertop, lit resin ring bezel, brushed stainless basin with drain. It is drawn live on an HTML canvas at 60 fps with no libraries.
-  - **Ring LEDs** are drawn as individual pixels with bloom, matching the WS2812 strip. They chase slowly when idle, fill outward from the manifold as a hand settles, shimmer while active, and retract around the ring as the 1-second off countdown.
-  - **Water** is a particle stream from the back manifold with splash droplets and ripples. The waterfall is a wide sheet. Hot shows steam wisps, cold shows glints, cup fill draws a filling cup, soap bursts into foam and the disposal spins a vortex into the drain.
+- **Showcase screen** (presentation mode, F13): a full-screen rendered top-down scene. It shows a speckled stone countertop, a lit resin ring bezel, and a brushed stainless basin with a drain. It is drawn live on an HTML canvas at 60 fps with no libraries.
+  - **Ring LEDs** are drawn as 132 individual pixels with bloom, matching the real strip. They chase slowly when idle, fill outward from the manifold as a hand settles, shimmer while active, and retract around the ring during the off countdown.
+  - **Water** is a particle stream from the back manifold with splashes and ripples.
+    - Waterfall is a wide sheet.
+    - Hot shows steam, and cold shows glints.
+    - Cup fill draws a filling cup.
+    - Soap bursts into foam, and the disposal spins a vortex into the drain.
   - **Radar pulses** ripple from sensors A and B and "ping" the hand where they meet.
-  - **Hand marker:** no literal hand. Five switchable styles: Focus lock (camera-style brackets, default), Precision reticle, Glass droplet, Presence bloom and Radar range.
-  - **Sound (F22):** synthesized live in the browser, with no audio files, so it works offline from the ESP32. It includes a two-note chime per function pitched to its character, running-water noise shaped per function (the cup fill rises in pitch as it fills), soap bubble pops, a disposal rumble, a "cup full" ding and a soft falling tone at off. Sound starts on the first tap or click, as browsers require.
-  - **Demo loop:** after 8 s with nobody using it, a ghost hand runs the full sequence (soap, warm rinse, cup fill, waterfall, hot), so the booth screen is always alive. Any real hand takes over instantly.
-  - **Floating text:** the function name and one-line explanation float on the left, and water saved, latch delay and session count sit on the right. Controls are in one glass pill at the bottom.
-- **Look:** dark, calm, premium consumer-device feel. Near-black ground (#07090C), frosted translucent cards with hairline borders, large rounded corners (24 to 36 px), generous spacing, one big number or word per card.
-- **Type:** Geist (display and UI) with tabular numerals. The font files are bundled into the ESP32 flash so the UI never depends on the internet.
-- **The sink is the hero:** a top-down ring whose glow mirrors the physical LED ring. The ring and zone tiles fade in the zone colour while a hand settles (hover preview, F20) and go solid on latch. Water is animated from the back manifold; the disposal spins at the drain; soap shows a foam burst.
+  - **Hand marker:** no literal hand. Five switchable styles: Focus lock (default), Precision reticle, Glass droplet, Presence bloom and Radar range.
+  - **Sound (F22):** synthesized in the browser with no audio files, so it works offline. It includes:
+    - a two-note chime per function;
+    - running water shaped per function (cup fill rises in pitch as it fills);
+    - soap pops, a disposal rumble, a cup-full ding and a falling tone at off.
+
+    It starts on the first tap or click, as browsers require.
+  - **Demo loop (F25):** after 8 s idle, a ghost hand runs a sequence matched to the active layout. Ghost activity never counts toward sessions, water saved, latency or any recorded data.
+- **Look:** dark, calm, premium consumer-device feel. Near-black ground (#07090C), frosted translucent cards with hairline borders, 24 to 36 px corners, one big number or word per card.
+- **Type:** Geist (SIL Open Font License) with tabular numerals. The prototypes load it from Google Fonts. The build bundles the font files and the licence into the ESP32 flash.
 - **Function colours** (always paired with a label and icon, never colour alone): soap lilac #B69CFF, disposal amber #F2B44B, cup fill cyan #4FD1E8, waterfall teal #3FC7A6, hot #FF6B4A, warm #FFB27A, cold #6FB6FF, neutral grey #AEB7C2.
-- **Right column:** "Now" card (function, one-line explanation, progress ring for cup volume, disposal time, settle progress or the 1-second off countdown), four metric tiles, and the latch-logic strip (Idle, Tracking, Active, Off in 1 s).
-- **Engineering toggle** swaps the metric tiles for live sensor ranges and draws each sensor's range circle on the sink, so the trilateration is visible.
-- **Motion:** 60 fps CSS animation, springs under 400 ms, all motion off when the viewer's device asks for reduced motion.
-- **Controls:** layout switch (Kitchen, Bathroom, Accessible), °F/°C toggle, Engineering, Calibrate. Touch targets at least 38 px; works on a tablet.
+- **Operator view:**
+  - A right-hand column holds a "Now" card, four metric tiles and the state strip (Idle, Tracking, Active, Off in 1 s).
+  - An Engineering toggle swaps the tiles for live sensor distances and range circles.
+- **Motion:** springs under 400 ms, and all motion off when the device asks for reduced motion.
+- **Controls:** layout switch, °F/°C, Engineering, Calibrate, Radar, Sound, marker style. Touch targets at least 38 px.
 
 ## 9. Build phases
 
 | Phase | Output | Exit test |
 |---|---|---|
-| 0 | Reflash XM125s, wire bench rig, raw distance stream from A and B on USB serial | Both sensors stream at ≥ 20 Hz with a hand visible 60 to 800 mm |
-| 1 | Fusion, state machine, calibration studio core (C1 to C8, C11), minimal UI over Wi-Fi | Accuracy test ≥ 95% with Nathan's hand |
-| 2 | Full Ring Studio UI, remaining studio features (C9, C10, C12, C13), LEDs, smart functions, profiles, record/replay, dashboard | Full demo run-through with 5 people, targets in section 1 met |
-| 3 | Optional: cloud sync; a small learned zone classifier trained on the recorded sessions from F11/F16, compared head to head against the rule-based fusion | n/a |
+| 0 | Reflash XM125s, wire the bench rig, echo lists from A and B on USB serial, F1 traces | T1 to T4 |
+| 1 | Fusion (association, calibrated map, plane gating), the full state machine with unit tests, calibration studio core (C1 to C8, C11), minimal UI over Wi-Fi: F2 to F5, F12, F16, F19 | T5 to T11, T16 to T21; accuracy ≥ 95% with Nathan's hand |
+| 2 | Full Ring Studio (Showcase and Operator view), remaining studio features (C9, C10, C12, C13), and F6 to F11, F13 to F15, F18, F20 to F25 | T12 to T15, T22 to T27; section 1 targets met with 5 people |
+| 3 | Optional: F17 cloud sync; a learned zone classifier trained on recorded sessions, compared head to head against the rule-based fusion | n/a |

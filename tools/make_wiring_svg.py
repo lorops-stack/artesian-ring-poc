@@ -51,16 +51,17 @@ def board(x, y, title, sub, pins):
 
 xA = board(930, 110, "XM125  ·  SENSOR A", "back-left corner", [
     ("G", ""), ("3V3", ""), ("SDA", ""), ("SCL", ""),
-    ("WU", "leave UNCONNECTED (jumper holds it high)"), ("RST", "left-side header, solder 1 pin")])
+    ("WU", "leave UNCONNECTED (jumper holds it high)"), ("RST", "REQUIRED · left-side header, solder 1 pin")])
 xB = board(930, 430, "XM125  ·  SENSOR B", "back-right corner", [
     ("G", ""), ("3V3", ""), ("SDA", ""), ("SCL", ""),
-    ("WU", "leave UNCONNECTED"), ("RST", "left-side header, solder 1 pin")])
+    ("WU", "leave UNCONNECTED"), ("RST", "REQUIRED · left-side header, solder 1 pin")])
 
 # level shifter
 lx, ly = 930, 760
 add(f'<rect x="{lx}" y="{ly}" width="230" height="176" rx="12" fill="#3a3f47"/>')
 add(f'<text x="{lx+115}" y="{ly+24}" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">74AHCT125</text>')
-add(f'<text x="{lx+115}" y="{ly+196}" font-size="13" fill="#444" text-anchor="middle">3.3 V → 5 V data level shifter</text>')
+add(f'<text x="{lx+115}" y="{ly-26}" font-size="13" fill="#444" text-anchor="middle">3.3 V → 5 V data level shifter</text>')
+add(f'<text x="{lx+115}" y="{ly-10}" font-size="12" fill="#666" text-anchor="middle">unused: 2OE–4OE → 5 V, 2A–4A → GND</text>')
 ls = {}
 for i, p in enumerate(["GND", "1OE", "1A (in)", "1Y (out)", "VCC 5V"]):
     py = ly + 50 + 30 * i
@@ -79,8 +80,8 @@ for k, (x, y) in strip.items():
     add(f'<text x="{x+14}" y="{y+5}" font-size="13" fill="#111">{k}</text>')
 px, py = 1195, 960
 add(f'<rect x="{px}" y="{py}" width="265" height="60" rx="10" fill="#fff4e6" stroke="{COL["5v"]}"/>')
-add(f'<text x="{px+130}" y="{py+25}" font-size="14" font-weight="700" fill="#111" text-anchor="middle">5 V 4 A supply</text>')
-add(f'<text x="{px+130}" y="{py+45}" font-size="12" fill="#444" text-anchor="middle">+ 1000 µF cap at strip</text>')
+add(f'<text x="{px+130}" y="{py+25}" font-size="14" font-weight="700" fill="#111" text-anchor="middle">5 V ≥ 4 A supply + 5 A fuse</text>')
+add(f'<text x="{px+130}" y="{py+45}" font-size="12" fill="#444" text-anchor="middle">feed both strip ends · 1000 µF at input</text>')
 
 # ---- wires --------------------------------------------------------------------
 def wire(p1, p2, lane, color, dash=False, w=3.2):
@@ -151,7 +152,7 @@ for n in ["10", "11", "12"]:
 add(f'<text x="{hx+54}" y="{pin_y["11"][0]+5}" font-size="12.5" fill="#777" stroke="#fff" stroke-width="5" paint-order="stroke">reserved: sensor C (SDA 10, SCL 11, RST 12)</text>')
 
 # legend
-lg = [("3V3", "3v3"), ("GND", "gnd"), ("SDA", "sda"), ("SCL", "scl"), ("RST (recommended)", "rst"),
+lg = [("3V3", "3v3"), ("GND", "gnd"), ("SDA", "sda"), ("SCL", "scl"), ("RST (required)", "rst"),
       ("LED data", "led"), ("5 V LED power", "5v")]
 lx0 = 40
 for i, (t, k) in enumerate(lg):

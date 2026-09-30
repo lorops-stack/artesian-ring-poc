@@ -2,4 +2,9 @@
 .vscode/
 __pycache__/
 *.pyc
+# scratch recordings only; regression fixtures live in firmware/test/fixtures/ and are committed
 sessions/
+# built UI
+ui/dist/
+# never commit secrets
+secrets.h

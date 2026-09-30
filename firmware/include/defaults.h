@@ -23,25 +23,31 @@ constexpr uint32_t DET_END_MM   = 850;
 // ---- Latch state machine (spec 4, studio C10) -----------------------------------
 constexpr uint16_t SETTLE_MS          = 150;
 constexpr float    SETTLE_SPEED_MMPS  = 250.0f;
-constexpr uint8_t  GONE_FRAMES        = 3;
+constexpr uint8_t  GONE_FRAMES        = 3;       // exit countdown is timed from the LAST frame seen
 constexpr uint16_t EXIT_DELAY_MS      = 1000;
-constexpr uint16_t STATIC_ABSORB_MS   = 5000;
-constexpr uint32_t MAX_RUN_WATER_MS   = 120000;
+constexpr uint16_t STATIC_ABSORB_MS   = 5000;    // IDLE/ARMING only, never while a function is latched (spec 4.4)
+constexpr uint32_t MAX_RUN_WATER_MS   = 120000;  // no target movement for this long -> TIMED_OUT
 constexpr uint16_t DISPOSAL_HOLD_MS   = 1000;
 constexpr uint32_t DISPOSAL_RUN_MS    = 15000;
-constexpr uint32_t BG_RELEARN_IDLE_MS = 30000;
+constexpr uint32_t BG_RELEARN_IDLE_MS = 30000;   // IDLE with no echoes only
+constexpr uint32_t CLEAN_MODE_MS      = 60000;
+constexpr uint16_t CLEAN_HOLD_MS      = 3000;    // still in Neutral (Kitchen) to start clean mode
+constexpr uint8_t  PRESENT_FRAMES     = 2;       // frames to confirm a hand has entered
 
 // ---- Smart functions (spec 5) ---------------------------------------------------------
-constexpr float FLOW_GPM        = 1.5f;    // ASSUMPTION, confirm with Rod (review Q4)
+constexpr float FLOW_GPM        = 1.5f;    // decided 30 Sep 2026 (review Q4)
 constexpr float BASELINE_GPM    = 2.2f;    // US federal max for kitchen faucets
 constexpr float SOAP_DOSE_ML    = 0.8f;
-constexpr float CUP_VOLUME_ML   = 350.0f;
-constexpr float HOT_CAP_F       = 120.0f;
+constexpr float CUP_VOLUME_ML   = 350.0f;  // presets 350 / 750 / 2000 (F23); cup fill uses cold (mains) water
+constexpr float HOT_SET_F       = 110.0f;
+constexpr float HOT_CAP_F       = 120.0f;  // anti-scald limit, never exceeded
 constexpr float WARM_F          = 100.0f;
 
 // ---- LEDs (review R11) -----------------------------------------------------------------
 constexpr uint16_t LED_COUNT          = 132;   // ~2.2 m at 60/m, set to actual
-constexpr uint8_t  LED_MAX_BRIGHTNESS = 90;    // of 255, keeps current under ~3 A
+constexpr uint8_t  LED_MAX_BRIGHTNESS = 90;    // of 255, about 2.8 A worst case on a >= 4 A supply
 
-// ---- Wi-Fi access point (review R12) ----------------------------------------------------
+// ---- Wi-Fi access point (review R12, R21) ----------------------------------------------------
 constexpr const char* AP_SSID = "ArtesianRing";
+// WPA2 password: set on first boot from Ring Studio and stored in flash (NVS).
+// Never commit a password to this repo (review R21).

@@ -26,8 +26,11 @@ Install **STM32CubeProgrammer** from st.com and create a free Acconeer developer
 
 ## 4. Get the code
 
+The repo is private, so the first `git clone` opens a GitHub sign-in window. Sign in as **NathanTaylorOps**.
+
 ```powershell
-cd $HOME\code
+New-Item -ItemType Directory -Force "$HOME\code" | Out-Null
+cd "$HOME\code"
 git clone https://github.com/NathanTaylorOps/artesian-ring-poc.git
 cd artesian-ring-poc
 code .
@@ -35,18 +38,42 @@ code .
 
 ## 5. Build and flash the ESP32 (once Phase 0 code is in the repo)
 
-In VS Code: **Terminal → New Terminal**, then:
+In VS Code: **Terminal → New Terminal**. The terminal opens in the repo folder. Then:
 
 ```powershell
+python tools\build_ui.py
 cd firmware
 pio run -t upload
 pio run -t uploadfs
 pio device monitor
+cd ..
 ```
 
-If `pio` is not recognised, use the PlatformIO toolbar (alien-head icon on the left) → **Upload**, then **Upload Filesystem Image**.
+- `build_ui.py` packs Ring Studio (including the Geist font files) into `ui\dist`, which `uploadfs` copies to the ESP32. It arrives in Phase 1; skip that line until then.
+- If `pio` is not recognised, use the PlatformIO toolbar (alien-head icon on the left) → **Upload**, then **Upload Filesystem Image**.
+- Press **Ctrl+C** to leave the monitor before running `cd ..`.
 
-## 6. Check the geometry maths yourself
+## 6. Run the tests without hardware (from Phase 1)
+
+```powershell
+cd firmware
+pio test -e native
+cd ..
+```
+
+## 7. Laptop copy of Ring Studio (backup, R29)
+
+Serves the UI from the laptop, so USB Web Serial and session replay work even if the ESP32 is down. Run from the repo folder:
+
+```powershell
+python -m http.server 8080 --directory ui\dist
+```
+
+Then open `http://localhost:8080` in Chrome or Edge.
+
+## 8. Check the geometry maths yourself
+
+From the repo folder:
 
 ```powershell
 python tools\geometry_sim.py

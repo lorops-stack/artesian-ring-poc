@@ -1,6 +1,6 @@
 # 05 · Reflash the XM125s with the Distance Detector firmware
 
-The boards ship with the **presence detector** firmware. This project needs the **distance detector** (`i2c_distance_detector.bin`). See review R4. Do this once per board, with the board **disconnected from the ESP32**.
+The boards ship with the **presence detector** firmware. This project needs the **distance detector** (`i2c_distance_detector.bin`). See review R4. Do this once per board, including every spare when it arrives, with the board **disconnected from the ESP32**.
 
 ## One-time setup (Windows)
 
@@ -9,7 +9,7 @@ The boards ship with the **presence detector** firmware. This project needs the 
 
 ## Flash each board
 
-1. Label the boards **A** and **B** with a marker.
+1. Label the boards **A** and **B** with a marker (spares: **S1**, **S2**, **S3**).
 2. Plug the XM125's own USB-C port into the PC.
 3. Enter bootloader mode: **hold BOOT, press and release RST, then release BOOT.**
 4. Open STM32CubeProgrammer. In the connection panel on the right:
@@ -22,7 +22,7 @@ The boards ship with the **presence detector** firmware. This project needs the 
 7. Start address: `0x08000000`
 8. Click **Start Programming** and wait for "File download complete".
 9. Click **Disconnect**, then press **RST** on the board.
-10. Repeat for the second board.
+10. Repeat for every other board.
 
 ## Check it worked
 This gets verified in Phase 0: the firmware reads the detector's version and status registers over I2C and prints them. If CubeProgrammer won't connect over UART, the SparkFun hookup guide's "Flashing Firmware" section covers the alternative route through the Acconeer Exploration Tool.
