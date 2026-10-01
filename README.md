@@ -34,6 +34,7 @@ Checks: `node --test ui/test/*.test.js` (34), `node ui/test/smoke.js` (headless 
 | [08 · Build guide](docs/08-build-guide.md) | **Start here.** Every step from parts to demo day, marked YOU or CLAUDE, with checkpoints |
 | [09 · Troubleshooting](docs/09-troubleshooting.md) | Every fault code, from wiring to calibration to LEDs, with step-by-step fixes. Ring Studio shows the same codes |
 | [10 · Protocol](docs/10-protocol.md) | The JSON messages between the ring and Ring Studio (also what the simulator speaks) |
+| [11 · Bench day](docs/11-bench-day.md) | One page for the day: mount, flash, wire, first serial output, Ring Studio, LED ring |
 | [08a · Hands-on instructions (.docx)](docs/08a-hands-on-instructions.docx) | Parts 1, 2, 3, 4, 6 and 10 of the build guide, fully broken down, for the bench |
 
 ## Layout

@@ -80,7 +80,7 @@ Do not plug anything into the sensors' own USB-C ports while they are wired to t
 3. **esp32s3, Platform, Upload Filesystem Image** (this puts Ring Studio on the board).
 4. **esp32s3, General, Monitor**. The speed is 921600, already set. Press the board's RST button to see the start-up lines.
 
-Good output looks like this:
+Good output looks like this (the numbers will differ; the shape is what matters):
 
 ```
 [ring] Artesian Ring PoC firmware 0.1.0 · protocol 1 · <date>

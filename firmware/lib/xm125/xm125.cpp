@@ -12,18 +12,27 @@ void Sensor::hardReset() {
   ok_ = false;
 }
 bool Sensor::present() { w_.beginTransmission(I2C_ADDR); return w_.endTransmission() == 0; }
-bool Sensor::readReg(uint16_t reg, uint32_t& value) {
+bool Sensor::readOnce(uint16_t reg, uint32_t& value, bool stop) {
   w_.beginTransmission(I2C_ADDR); w_.write((uint8_t)(reg >> 8)); w_.write((uint8_t)(reg & 0xFF));
-  if (w_.endTransmission(false) != 0) { errors_++; return false; }
-  if (w_.requestFrom((int)I2C_ADDR, 4) != 4) { errors_++; return false; }
+  if (w_.endTransmission(stop) != 0) return false;
+  if (w_.requestFrom((int)I2C_ADDR, 4) != 4) return false;
   uint32_t v = 0; for (int i = 0; i < 4; i++) v = (v << 8) | (uint8_t)w_.read();
   value = v; return true;
 }
+// Reads use a repeated start first. If that fails but a full STOP works, the module wants STOP and the driver stays on it.
+bool Sensor::readReg(uint16_t reg, uint32_t& value) {
+  if (readOnce(reg, value, stopMode_)) return true;
+  if (readOnce(reg, value, !stopMode_)) { stopMode_ = !stopMode_; Serial.printf("[%s] I2C reads now use %s between address and data\n", name_, stopMode_ ? "STOP" : "repeated start"); return true; }
+  errors_++; return false;
+}
 bool Sensor::writeReg(uint16_t reg, uint32_t value) {
-  w_.beginTransmission(I2C_ADDR); w_.write((uint8_t)(reg >> 8)); w_.write((uint8_t)(reg & 0xFF));
-  w_.write((uint8_t)(value >> 24)); w_.write((uint8_t)(value >> 16)); w_.write((uint8_t)(value >> 8)); w_.write((uint8_t)value);
-  if (w_.endTransmission() != 0) { errors_++; return false; }
-  return true;
+  for (int attempt = 0; attempt < 3; attempt++) {
+    w_.beginTransmission(I2C_ADDR); w_.write((uint8_t)(reg >> 8)); w_.write((uint8_t)(reg & 0xFF));
+    w_.write((uint8_t)(value >> 24)); w_.write((uint8_t)(value >> 16)); w_.write((uint8_t)(value >> 8)); w_.write((uint8_t)value);
+    if (w_.endTransmission() == 0) return true;
+    delay(5);   // the module can be busy or stretching the clock right after a command; try again
+  }
+  errors_++; return false;
 }
 bool Sensor::waitNotBusy(uint32_t timeoutMs) {
   uint32_t t0 = millis(); uint32_t st = 0;

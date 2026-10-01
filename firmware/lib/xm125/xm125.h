@@ -57,6 +57,8 @@ class Sensor {
   static void versionString(uint32_t v, char* out, int n) { snprintf(out, n, "%lu.%lu.%lu", (unsigned long)(v >> 16), (unsigned long)((v >> 8) & 0xFF), (unsigned long)(v & 0xFF)); }
  private:
   TwoWire& w_; int sda_, scl_, rst_; const char* name_; uint32_t errors_ = 0, lastStatus_ = 0; bool ok_ = false;
+  bool stopMode_ = false;   // false: repeated start between the address write and the read; true: a full STOP (auto-switched if reads fail)
+  bool readOnce(uint16_t reg, uint32_t& value, bool stop);
 };
 
 }  // namespace xm125
