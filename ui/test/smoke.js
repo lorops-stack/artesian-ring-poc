@@ -47,7 +47,7 @@ function serve() {
   const ghost = await page.evaluate(() => RS.link.latest.frame && RS.link.latest.frame.g === 1); if (!ghost) fail('ghost frames not flowing');
   const sessions = await page.evaluate(() => RS.rec.sessions.length); if (sessions < 1) fail('the real session was not recorded (' + sessions + ')');
 
-  for (const r of ['operator', 'studio', 'tests', 'dashboard', 'settings']) {
+  for (const r of ['operator', 'studio', 'aim', 'tests', 'dashboard', 'settings']) {
     await page.goto(base + '/#/' + r); await page.waitForTimeout(900); await shot('10-' + r);
     const ok = await page.evaluate(() => document.querySelector('.screen') && document.querySelector('.screen').children.length > 0);
     if (!ok) fail(r + ' rendered nothing');
@@ -61,6 +61,13 @@ function serve() {
   await page.waitForTimeout(600); f = await page.evaluate(() => RS.link.latest.frame);
   if (!f || f.fn !== 'hot') fail('operator: expected hot latched, got ' + JSON.stringify(f && { fn: f.fn, zn: f.zn, flag: f.flag }));
   await shot('11-operator-engineering');
+  // aim: demo sweep, then learn the flickering reflector
+  await page.goto(base + '/#/aim'); await page.waitForTimeout(600);
+  await page.click('button:has-text("Demo sweep")'); await page.waitForTimeout(9000); await shot('15-aim-sweep');
+  const aimTxt = await page.evaluate(() => document.querySelector('.screen').innerText);
+  if (!/Measured|measured|degrees|°/.test(aimTxt)) fail('aim: no measured aim shown');
+  await page.click('button:has-text("Flickering reflector")'); await page.click('button:has-text("Start learning")'); await page.waitForTimeout(6000);
+  await shot('16-aim-learn');
   // studio: run C0 to completion
   await page.goto(base + '/#/studio/c0'); await page.waitForTimeout(700);
   const runBtn = await page.$('button:has-text("Run hardware check")'); if (!runBtn) fail('no Run hardware check button'); else await runBtn.click();

@@ -76,9 +76,39 @@ var RS = globalThis.RS || (globalThis.RS = {});
     return pA + pB >= base - 40 && Math.abs(pA - pB) <= base + 40;
   };
 
+  // ---- Dead areas (masks) ---------------------------------------------------------------------------------------------------------
+  // cfg.masks is {id: {t:'rect', x, y, w, h} | {t:'circle', x, y, r}} in mm, plane coordinates (origin back-left, y toward the user).
+  // A fix that lands inside one is ignored. Rect x,y is the top-left (back-left) corner.
+  G.maskList = function (masks) {
+    if (!masks) return []; if (Array.isArray(masks)) return masks;
+    return Object.keys(masks).map(function (k) { var m = masks[k]; return m ? Object.assign({ id: k }, m) : null; }).filter(Boolean);
+  };
+  G.maskHit = function (masks, x, y) {
+    var L = G.maskList(masks);
+    for (var i = 0; i < L.length; i++) {
+      var m = L[i];
+      if (m.t === 'circle') { if (U.hypot(x - m.x, y - m.y) <= m.r) return m.id; }
+      else if (x >= m.x && x <= m.x + m.w && y >= m.y && y <= m.y + m.h) return m.id;
+    }
+    return null;
+  };
+
+  // ---- Vertical beam (side view) -----------------------------------------------------------------------------------------------------
+  // The radar lobe is wide. A sensor recessed behind a slot only sees through the opening, so the slot narrows the vertical
+  // half-angle to atan((slotH / 2) / recess) when the lobe is wider than that. Approximate: real radar also diffracts at the edges.
+  G.vHalf = function (cfg) {
+    var r = (cfg && cfg.rig) || {}, v = r.beamV || 60;
+    if (r.recess > 0 && r.slotH > 0) v = Math.min(v, U.deg(Math.atan((r.slotH / 2) / r.recess)));
+    return v;
+  };
+  // How far (degrees) a point at planar distance p and depth h below the plane is from the sensor's vertical boresight.
+  // tilt is negative when the sensor points down; the boresight depression is -tilt.
+  G.vertOff = function (S, p, h) { return U.deg(Math.atan2(h + (S.z || 0), Math.max(1, p))) + (S.tilt || 0); };
+  G.vertFactor = function (cfg, S, p, h) { var v = G.vHalf(cfg), o = G.vertOff(S, p, h); return Math.exp(-0.7 * Math.pow(o / Math.max(1, v), 2)); };
+
   // ---- Echo association (spec 6, one rule) --------------------------------------------------------------------
   // echoes: [[d_mm, strength], ...] per sensor. Returns {x,y,iA,iB,flag} ; flag 0 = good.
-  // opts: {A,B poses with .off, hand {zwork,strMin,strMax}, plane, bg {A:[d..], B:[d..]}, prev {x,y}, maxJump}
+  // opts: {A,B poses with .off, hand {zwork,strMin,strMax}, plane, bg {A:[d..], B:[d..]}, prev {x,y}, maxJump, masks}
   G.associate = function (eA, eB, opts) {
     var A = opts.A, B = opts.B, hand = opts.hand, plane = opts.plane, bg = opts.bg || {}, tol = 15;
     // Learned still objects: [[d, strength], ...]. An echo is background when it sits within tol of one and is
@@ -89,17 +119,18 @@ var RS = globalThis.RS || (globalThis.RS = {});
     for (i = 0; i < eA.length; i++) { if (!okStr(eA[i][1])) { anyStrengthFail = true; continue; } if (isBg(bg.A, eA[i][0], eA[i][1])) continue; candA.push(i); }
     for (j = 0; j < eB.length; j++) { if (!okStr(eB[j][1])) { anyStrengthFail = true; continue; } if (isBg(bg.B, eB[j][0], eB[j][1])) continue; candB.push(j); }
     if (!candA.length || !candB.length) return { flag: (eA.length || eB.length) ? (anyStrengthFail ? RS.FLAG.STRENGTH : RS.FLAG.NO_HAND) : RS.FLAG.NO_HAND };
-    var best = null, margin = 30, anyOutside = false;
+    var best = null, margin = 30, anyOutside = false, anyMasked = false;
     for (i = 0; i < candA.length; i++) for (j = 0; j < candB.length; j++) {
       var rA = eA[candA[i]][0] - (A.off || 0), rB = eB[candB[j]][0] - (B.off || 0);
       if (!G.pairFeasible(rA, rB, A, B, hand.zwork)) continue;
       var p = G.locate(rA, rB, A, B, hand.zwork, opts.prev || null, plane);
       if (p.x < -margin || p.x > plane.w + margin || p.y < -margin || p.y > plane.d + margin || p.res > 60) { anyOutside = true; continue; }
+      if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
       var score = rA + rB;                       // nearer pair wins (ghosts are always further away)
       if (opts.prev) score += 2.5 * U.hypot(p.x - opts.prev.x, p.y - opts.prev.y);   // an established track is not stolen by a sporadic echo
       if (!best || score < best.score) best = { x: U.clamp(p.x, 0, plane.w), y: U.clamp(p.y, 0, plane.d), iA: candA[i], iB: candB[j], res: p.res, score: score, rA: rA, rB: rB };
     }
-    if (!best) return { flag: anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND };
+    if (!best) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
     if (opts.prev && opts.maxJump && U.hypot(best.x - opts.prev.x, best.y - opts.prev.y) > opts.maxJump) { best.flag = RS.FLAG.JUMP; return best; }
     best.flag = RS.FLAG.NONE;
     return best;
@@ -135,6 +166,9 @@ var RS = globalThis.RS || (globalThis.RS = {});
       }
       cell.blind = dists[0] < tun.rangeStart || dists[1] < tun.rangeStart;
       cell.beamA = ang[0] <= half; cell.beamB = ang[1] <= half;
+      var vh = G.vHalf(cfg), vo = [G.vertOff(A, G.planar(A, x, y), hand.zwork), G.vertOff(B, G.planar(B, x, y), hand.zwork)];
+      cell.vOffA = vo[0]; cell.vOffB = vo[1]; cell.vokA = Math.abs(vo[0]) <= vh; cell.vokB = Math.abs(vo[1]) <= vh;
+      cell.masked = !!G.maskHit(cfg.masks, x, y);
       cell.mirror = y < 45;                                        // both solutions within ~45 mm of the sensor line
       // range error from depth uncertainty: d' = sqrt(r² - v²); |∂d'/∂v| = v/d'
       var errs = [];
@@ -152,14 +186,15 @@ var RS = globalThis.RS || (globalThis.RS = {});
         var ex = Math.sqrt(Math.pow(inv[0][0] * errs[0], 2) + Math.pow(inv[0][1] * errs[1], 2)), ey = Math.sqrt(Math.pow(inv[1][0] * errs[0], 2) + Math.pow(inv[1][1] * errs[1], 2));
         cell.err = Math.sqrt(ex * ex + ey * ey); cell.ex = ex; cell.ey = ey;
       }
-      if (cell.blind || !cell.beamA || !cell.beamB) cell.err = Math.max(cell.err, 150);
+      if (cell.blind || !cell.beamA || !cell.beamB || !cell.vokA || !cell.vokB) cell.err = Math.max(cell.err, 150);
+      if (cell.masked) cell.err = Math.max(cell.err, 400);
       // Probability the fix lands in the right zone: product of per-axis probabilities of staying inside the zone
       var z = G.rawZone(zones, xf, yf); cell.zone = z ? z.id : null; cell.fn = z ? z.fn : null;
       if (z) {
         var dxl = (xf - z.x0) * plane.w, dxr = (z.x1 - xf) * plane.w, dyb = (yf - z.y0) * plane.d, dyf = (z.y1 - yf) * plane.d;
         var sx = Math.max(1, cell.ex || cell.err / 1.414), sy = Math.max(1, cell.ey || cell.err / 1.414);
         var px = (z.x0 <= 0 ? 1 : phi(dxl / sx)) - (z.x1 >= 1 ? 0 : phi(-dxr / sx)), py = (z.y0 <= 0 ? 1 : phi(dyb / sy)) - (z.y1 >= 1 ? 0 : phi(-dyf / sy));
-        cell.acc = U.clamp(px * py, 0, 1); if (cell.blind) cell.acc *= 0.2;
+        cell.acc = U.clamp(px * py, 0, 1); if (cell.blind) cell.acc *= 0.2; if (cell.masked) cell.acc = 0;
       } else cell.acc = 0;
       cells.push(cell);
     }

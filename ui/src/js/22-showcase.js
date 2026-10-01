@@ -60,7 +60,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   SC.pointer = function (e) {
     var p = this.toScene(e), plane = S.cfg().plane;
     if (p.x < BX || p.x > BX + BW || p.y < BY || p.y > BY + BH) this.userHand = null;
-    else this.userHand = { x: U.clamp((p.x - BX) / BW, 0, 0.9999) * plane.w, y: U.clamp((p.y - BY) / BH, 0, 0.9999) * plane.d, h: 110 };
+    else this.userHand = { x: U.clamp((p.x - BX) / BW, 0, 0.9999) * plane.w, y: U.clamp((p.y - BY) / BH, 0, 0.9999) * plane.d, h: S.cfg().hand.zwork };
     this.lastUserT = U.now(); this.pushHand();
   };
   // In simulation the cursor is the hand. On a real ring the cursor does nothing (the radar is the hand).
@@ -95,7 +95,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (!this.attract && idle && deviceIdle && (L.mode === 'sim' ? L.sim && L.sim.sm.st === ST.IDLE && !L.sim.sm.disposalUntil : true)) this.startAttract(now);
     if (this.attract && !idle) this.stopAttract();
     if (!this.attract) return;
-    var ts = (now - this.ghostStart) / 1000, cfg = S.cfg(), hand = RS.ghostHand(cfg.layout, ts, cfg.plane);
+    var ts = (now - this.ghostStart) / 1000, cfg = S.cfg(), hand = RS.ghostHand(cfg.layout, ts, cfg.plane, cfg.hand.zwork);
     if (L.mode === 'sim') L.sim.setHand(hand, true);
     else if (this.ghostSim) { if (this.ghostSim.cfg.layout !== cfg.layout) this.ghostSim.cmd({ c: 'layout', layout: cfg.layout, id: 0 }); this.ghostSim.setHand(hand, true); this.ghostSim.tick(now); }
   };
@@ -157,9 +157,9 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (!seg) { this.drive = null; this.userHand = null; this.pushHand(); d.resolve(); return; }
     if (d.t0 === null) { d.t0 = now; d.from = this.userHand ? [this.userHand.x / plane.w, this.userHand.y / plane.d] : (seg.to ? [seg.to[0], 1.08] : null); }
     var dur = seg.ms || seg.hold || seg.out || 1, t = Math.min(1, (now - d.t0) / dur);
-    if (seg.to) { var e = t < 0.85 ? t / 0.85 * 0.94 : 0.94 + (t - 0.85) / 0.15 * 0.06; var xf = d.from[0] + (seg.to[0] - d.from[0]) * e, yf = d.from[1] + (seg.to[1] - d.from[1]) * e; this.userHand = yf <= 1 ? { x: xf * plane.w, y: U.clamp(yf, 0, 0.9999) * plane.d, h: 110 } : null; }
-    else if (seg.hold) { if (this.userHand) { var k = (now - d.t0) / 1000; this.userHand = { x: U.clamp(d.from[0] * plane.w + 3 * Math.sin(k * 7), 0, plane.w), y: U.clamp(d.from[1] * plane.d + 3 * Math.cos(k * 5), 0, plane.d), h: 110 }; } }
-    else if (seg.out) { if (t < 0.25 && d.from) { var yo = d.from[1] + (1.1 - d.from[1]) * (t / 0.25); this.userHand = yo <= 1 ? { x: d.from[0] * plane.w, y: yo * plane.d, h: 110 } : null; } else this.userHand = null; }
+    if (seg.to) { var e = t < 0.85 ? t / 0.85 * 0.94 : 0.94 + (t - 0.85) / 0.15 * 0.06; var xf = d.from[0] + (seg.to[0] - d.from[0]) * e, yf = d.from[1] + (seg.to[1] - d.from[1]) * e; this.userHand = yf <= 1 ? { x: xf * plane.w, y: U.clamp(yf, 0, 0.9999) * plane.d, h: S.cfg().hand.zwork } : null; }
+    else if (seg.hold) { if (this.userHand) { var k = (now - d.t0) / 1000; this.userHand = { x: U.clamp(d.from[0] * plane.w + 3 * Math.sin(k * 7), 0, plane.w), y: U.clamp(d.from[1] * plane.d + 3 * Math.cos(k * 5), 0, plane.d), h: S.cfg().hand.zwork }; } }
+    else if (seg.out) { if (t < 0.25 && d.from) { var yo = d.from[1] + (1.1 - d.from[1]) * (t / 0.25); this.userHand = yo <= 1 ? { x: d.from[0] * plane.w, y: yo * plane.d, h: S.cfg().hand.zwork } : null; } else this.userHand = null; }
     this.lastUserT = now; this.pushHand();
     if (t >= 1) { d.i += 1; d.t0 = null; }
   };

@@ -61,6 +61,14 @@ float locate(float rA, float rB, const SensorPose& A, const SensorPose& B, float
   return res;
 }
 
+bool maskHit(const Mask* m, int n, float x, float y) {
+  for (int i = 0; i < n; i++) {
+    if (m[i].kind == 1) { if (hypotf(x - m[i].x, y - m[i].y) <= m[i].a) return true; }
+    else if (x >= m[i].x && x <= m[i].x + m[i].a && y >= m[i].y && y <= m[i].y + m[i].b) return true;
+  }
+  return false;
+}
+
 static bool isBg(const Echo* bg, int n, float d, float s) {
   for (int i = 0; i < n; i++) if (fabsf(bg[i].d - d) <= 15 && s < bg[i].s * 1.8f + 1) return true;
   return false;
@@ -71,20 +79,21 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   for (int i = 0; i < nA && i < 10; i++) { if (eA[i].s < o.hand->strMin || eA[i].s > o.hand->strMax) { strengthFail = true; continue; } if (isBg(o.bgA, o.nBgA, eA[i].d, eA[i].s)) continue; candA[ca++] = i; }
   for (int j = 0; j < nB && j < 10; j++) { if (eB[j].s < o.hand->strMin || eB[j].s > o.hand->strMax) { strengthFail = true; continue; } if (isBg(o.bgB, o.nBgB, eB[j].d, eB[j].s)) continue; candB[cb++] = j; }
   if (!ca || !cb) { out.flag = (nA || nB) ? (strengthFail ? FLAG_STRENGTH : FLAG_NO_HAND) : FLAG_NO_HAND; return out; }
-  bool have = false, anyOutside = false; float bestScore = 0; const float margin = 30;
+  bool have = false, anyOutside = false, anyMasked = false; float bestScore = 0; const float margin = 30;
   for (int i = 0; i < ca; i++) for (int j = 0; j < cb; j++) {
     float rA = eA[candA[i]].d - o.A->off, rB = eB[candB[j]].d - o.B->off;
     if (!pairFeasible(rA, rB, *o.A, *o.B, o.hand->zwork)) continue;
     float x, y, gx = o.hasPrev ? o.prevX : o.plane->w / 2, gy = o.hasPrev ? o.prevY : o.plane->d / 2;
     float res = locate(rA, rB, *o.A, *o.B, o.hand->zwork, gx, gy, x, y);
     if (x < -margin || x > o.plane->w + margin || y < -margin || y > o.plane->d + margin || res > 60) { anyOutside = true; continue; }
+    if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
     float score = rA + rB; if (o.hasPrev) score += 2.5f * hypotf(x - o.prevX, y - o.prevY);
     if (!have || score < bestScore) {
       have = true; bestScore = score; out.x = x < 0 ? 0 : (x > o.plane->w ? o.plane->w : x); out.y = y < 0 ? 0 : (y > o.plane->d ? o.plane->d : y);
       out.iA = candA[i]; out.iB = candB[j]; out.rA = rA; out.rB = rB; out.res = res;
     }
   }
-  if (!have) { out.flag = anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND; return out; }
+  if (!have) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
   if (o.hasPrev && o.maxJump > 0 && hypotf(out.x - o.prevX, out.y - o.prevY) > o.maxJump) { out.flag = FLAG_JUMP; return out; }
   out.flag = FLAG_NONE; return out;
 }

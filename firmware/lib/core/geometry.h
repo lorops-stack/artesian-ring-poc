@@ -11,11 +11,16 @@ const char* fnName(Fn f);
 Fn fnFromName(const char* s);
 bool fnIsWater(Fn f);
 
-enum Flag : uint8_t { FLAG_NONE = 0, FLAG_NO_HAND = 1, FLAG_STRENGTH = 2, FLAG_OUTSIDE = 3, FLAG_JUMP = 4, FLAG_NOT_SETTLED = 5, FLAG_BLOCKED = 6, FLAG_STILL = 7 };
+enum Flag : uint8_t { FLAG_NONE = 0, FLAG_NO_HAND = 1, FLAG_STRENGTH = 2, FLAG_OUTSIDE = 3, FLAG_JUMP = 4, FLAG_NOT_SETTLED = 5, FLAG_BLOCKED = 6, FLAG_STILL = 7, FLAG_MASKED = 8 };
 
 struct Plane { float w = 584.2f, d = 533.4f; };
-struct SensorPose { float x = 0, y = 0, z = 0, yaw = 45, tilt = -20, off = 0; bool on = true; };
-struct HandModel { float zmin = 30, zmax = 200, zwork = 115, strMin = 600, strMax = 60000, stillThr = 6; };
+struct SensorPose { float x = 0, y = 0, z = 0, yaw = 45, tilt = 0, off = 0; bool on = true; };   // flat slot mount: level with the plane, no tilt
+struct HandModel { float zmin = -30, zmax = 60, zwork = 0, strMin = 600, strMax = 60000, stillThr = 6; };   // depth below the sensor plane (mm)
+
+// Dead areas: a fix inside one is ignored. Plane coordinates in mm. kind 0 = rectangle (x, y = back-left corner, a = width, b = height), 1 = circle (x, y = centre, a = radius).
+constexpr int MAX_MASKS = 12;
+struct Mask { char id[12] = ""; uint8_t kind = 0; float x = 0, y = 0, a = 0, b = 0; };
+bool maskHit(const Mask* m, int n, float x, float y);
 
 constexpr int MAX_ROWS = 4, MAX_COLS = 4, MAX_ZONES = MAX_ROWS * MAX_COLS;
 struct LayoutRow { float h = 0; uint8_t n = 0; Fn fns[MAX_COLS] = { Fn::None, Fn::None, Fn::None, Fn::None }; };
@@ -35,7 +40,7 @@ bool pairFeasible(float rA, float rB, const SensorPose& A, const SensorPose& B, 
 float locate(float rA, float rB, const SensorPose& A, const SensorPose& B, float h, float gx, float gy, float& x, float& y);
 
 struct Echo { float d; float s; };
-struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; };
+struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; const Mask* masks = nullptr; int nMasks = 0; };
 struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; };
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o);
 

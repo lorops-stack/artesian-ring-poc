@@ -26,8 +26,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // Fit one sensor's position (x,y,z) and distance offset from wand readings.
   // pts: [{x,y,h}] ball centres (h = depth below the ring, positive); meas: measured distance to the ball
   // centre (reading + ballR); s0: tape-measured pose {x,y,z}. Prior sd 15 mm, noise sd 8 mm.
-  F.fitSensor = function (pts, meas, s0, priorSd, noiseSd) {
-    priorSd = priorSd || 15; noiseSd = noiseSd || 8;
+  F.fitSensor = function (pts, meas, s0, priorSd, noiseSd, opts) {
+    priorSd = priorSd || 15; noiseSd = noiseSd || 8; opts = opts || {};
     var q = [s0.x, s0.y, s0.z, 0], wp = noiseSd / priorSd, i, it;
     for (it = 0; it < 40; it++) {
       var J = [], r = [];
@@ -37,7 +37,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
       }
       J.push([wp, 0, 0, 0]); r.push(wp * (q[0] - s0.x));
       J.push([0, wp, 0, 0]); r.push(wp * (q[1] - s0.y));
-      J.push([0, 0, wp, 0]); r.push(wp * (q[2] - s0.z));
+      var wz = opts.fixZ ? noiseSd / 0.5 : wp;          // flat mount: the sensor height is not observable and is held at the typed value
+      J.push([0, 0, wz, 0]); r.push(wz * (q[2] - s0.z));
       var step = solveNormal(J, r, 4), mx = 0;
       for (i = 0; i < 4; i++) { q[i] -= step[i]; mx = Math.max(mx, Math.abs(step[i])); }
       if (mx < 1e-4) break;
@@ -50,7 +51,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // Full C7 evaluation. samples: [{hole:n, depth:60|160, A:[d,str]|null, B:[d,str]|null}] (readings to the ball surface).
   // cfg: current configuration. Returns the report used by the studio and the fixes it triggers.
   F.wandFit = function (samples, cfg) {
-    var plane = cfg.plane, holes = G.templateHoles(plane), ballR = RS.CAL.ballR, CAL = RS.CAL, out = { ok: true, codes: [], holes: [] };
+    var plane = cfg.plane, holes = G.templateHoles(plane), ballR = RS.CAL.ballR, CAL = RS.CAL, out = { ok: true, codes: [], holes: [] }, flat = RS.mountOf(cfg) === 'flat';
     var byHole = {}, i;
     samples.forEach(function (s) { (byHole[s.hole] || (byHole[s.hole] = [])).push(s); });
     var fits = {};
@@ -58,7 +59,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var pts = [], meas = [], strs = [];
       samples.forEach(function (s) { if (!s[k]) return; var H = holes[s.hole - 1]; pts.push({ x: H.x, y: H.y, h: s.depth }); meas.push(s[k][0] + ballR); strs.push({ hole: s.hole, depth: s.depth, str: s[k][1] }); });
       if (pts.length < 6) { fits[k] = null; return; }
-      var f = F.fitSensor(pts, meas, cfg.sensors[k]); f.n = pts.length; f.strs = strs; f.pts = pts; f.typed = { x: cfg.sensors[k].x, y: cfg.sensors[k].y, z: cfg.sensors[k].z };
+      var f = F.fitSensor(pts, meas, cfg.sensors[k], null, null, { fixZ: flat }); f.n = pts.length; f.strs = strs; f.pts = pts; f.typed = { x: cfg.sensors[k].x, y: cfg.sensors[k].y, z: cfg.sensors[k].z };
       f.moved = Math.sqrt(Math.pow(f.x - f.typed.x, 2) + Math.pow(f.y - f.typed.y, 2) + Math.pow(f.z - f.typed.z, 2));
       fits[k] = f;
     });
@@ -88,7 +89,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     // P1 fitted vs typed
     ['A', 'B'].forEach(function (k) { if (fits[k].moved > CAL.poseFailMm) { out.ok = false; out.codes.push('P1'); } });
     // P9 heights differ
-    if (Math.abs(fits.A.z - fits.B.z) > CAL.heightDiffMm) out.codes.push('P9');
+    if (!flat && Math.abs(fits.A.z - fits.B.z) > CAL.heightDiffMm) out.codes.push('P9');
     // S2 offsets (informational unless extreme)
     ['A', 'B'].forEach(function (k) { if (Math.abs(fits[k].off) > 80) { out.ok = false; out.codes.push('S2'); } });
     // S5 A vs B strength on mirror-image holes (hole n ↔ hole with mirrored column)
@@ -99,7 +100,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var yaw = F.yawFromStrength(fits[k], holes, cfg.tuning.beamHalf), tilt = F.tiltFromStrength(fits[k]);
       fits[k].yawEst = yaw; fits[k].tiltRatio = tilt;
       if (yaw !== null && Math.abs(yaw - cfg.sensors[k].yaw) > 20) out.codes.push('P4');
-      if (tilt !== null && (tilt > 3 || tilt < 0.33)) out.codes.push('P5');
+      if (!flat && tilt !== null && (tilt > 3 || tilt < 0.33)) out.codes.push('P5');
     });
     out.codes = out.codes.filter(function (c, i, a) { return a.indexOf(c) === i; });
     // Static-object reading for the stillness threshold: spread of the still ball's readings
@@ -108,6 +109,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     out.staticSpread = stillSpread.length ? U.median(stillSpread) : null;
     return out;
   };
+  F.depthsOf = function (fits) { var d = {}; ['A', 'B'].forEach(function (k) { if (fits[k]) fits[k].strs.forEach(function (s) { d[s.depth] = 1; }); }); return Object.keys(d).map(Number).sort(function (a, b) { return a - b; }); };
   F.mirrorStrengthGap = function (fits, holes) {
     var byA = {}, byB = {};
     fits.A.strs.forEach(function (s) { byA[s.hole + '/' + s.depth] = s.str; });
@@ -115,7 +117,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var gaps = [];
     holes.forEach(function (H) {
       var row = Math.floor((H.n - 1) / 4), col = (H.n - 1) % 4, mirror = row * 4 + (3 - col) + 1;
-      [60, 160].forEach(function (d) { var a = byA[H.n + '/' + d], b = byB[mirror + '/' + d]; if (a > 0 && b > 0) gaps.push(10 * Math.log10(a / b)); });
+      F.depthsOf(fits).forEach(function (d) { var a = byA[H.n + '/' + d], b = byB[mirror + '/' + d]; if (a > 0 && b > 0) gaps.push(10 * Math.log10(a / b)); });
     });
     return gaps.length ? U.mean(gaps) : null;
   };
@@ -135,10 +137,11 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     return best && best.corr > 0.3 ? best.yaw : null;   // too little angular spread to tell: no estimate
   };
-  // Ratio of mean strength at 60 mm to 160 mm, distance-normalised. ~1 means the beam covers both depths.
+  // Ratio of mean strength at the shallow wand depth to the deep one. ~1 means the beam covers both depths.
   F.tiltFromStrength = function (fit) {
     var a = [], b = [];
-    fit.strs.forEach(function (s) { (s.depth === 60 ? a : b).push(s.str); });
+    var lo = Math.min.apply(null, fit.strs.map(function (s) { return s.depth; }));
+    fit.strs.forEach(function (s) { (s.depth === lo ? a : b).push(s.str); });
     if (!a.length || !b.length) return null; return U.mean(a) / Math.max(1, U.mean(b));
   };
 
@@ -162,8 +165,11 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var missing = points.filter(function (p) { return p.missing; }).length;
     if (missing > 0) codes.push('H1');
     if (points.some(function (p) { return !p.missing && !p.ok; })) codes.push('H5');
-    var zwork = depths.length ? U.median(depths) : cfg.hand.zwork;
-    if (zwork < cfg.hand.zmin || zwork > cfg.hand.zmax) codes.push('H3');
+    // Flat mount: the hand is about level with the sensors, so v² = r² - p² is almost pure noise (±50 mm). The depth is not estimated
+    // there; the typed value stays (it only matters at about v²/2p, a few mm, and the side view in the Aim screen is where to set it).
+    var flat = RS.mountOf(cfg) === 'flat';
+    var zwork = flat || !depths.length ? cfg.hand.zwork : U.median(depths);
+    if (!flat && (zwork < cfg.hand.zmin || zwork > cfg.hand.zmax)) codes.push('H3');
     var srt = strs.slice().sort(function (a, b) { return a - b; }), lo = srt.length ? srt[Math.floor(srt.length * 0.05)] : cfg.hand.strMin, hi = srt.length ? srt[Math.floor(srt.length * 0.95)] : cfg.hand.strMax;
     var strMin = Math.max(50, lo * 0.5), strMax = hi * 2.0;
     // Stillness threshold: between the static object's spread and a still hand's movement
@@ -179,5 +185,71 @@ var RS = globalThis.RS || (globalThis.RS = {});
       stillThr = U.round(Math.max(3, Math.min(handMove * 0.5, stat * 2.5 + (handMove - stat) * 0.4)), 1);
     }
     return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
+  };
+  // ---- Self-calibration from a free sweep (Aim screen) -----------------------------------------------------------------------------------
+  // Position needs only the sensor positions, not their angles; the aim only changes how strong the echoes are. So the aim can be
+  // read from the strengths while a hand moves around the sink: the beam is strongest along its centre line.
+  // samples: [{x, y, s}] = tracked hand fix (mm) and the linear strength this sensor reported for the echo paired with it.
+  // Strength falls with distance², so v = ln(s·d²) is fitted against the bearing as v = a·r² + b·r + c (r = bearing minus the typed yaw);
+  // the peak r0 = -b / 2a is the beam centre. Returns null with a reason when the sweep cannot tell.
+  F.aimFromSamples = function (samples, pose, minSpreadDeg) {
+    minSpreadDeg = minSpreadDeg || 35;
+    var pts = [], i;
+    for (i = 0; i < samples.length; i++) {
+      var q = samples[i], dx = q.x - pose.x, dy = q.y - pose.y, d = U.hypot(dx, dy); if (d < 90 || !(q.s > 0)) continue;
+      var rel = U.deg(Math.atan2(dy, dx)) - pose.yaw; while (rel > 180) rel -= 360; while (rel < -180) rel += 360;
+      pts.push({ r: rel, v: Math.log(q.s * d * d) });
+    }
+    var out = { n: pts.length, spread: 0, yaw: null, delta: null, half: null, r2: 0, quality: 'none', why: '' };
+    if (pts.length < 30) { out.why = 'Keep moving your hand around the whole sink'; return out; }
+    var lo = Infinity, hi = -Infinity; pts.forEach(function (p) { if (p.r < lo) lo = p.r; if (p.r > hi) hi = p.r; });
+    // spread from the 5th to the 95th percentile so one stray fix does not count as coverage
+    var rs = pts.map(function (p) { return p.r; }).sort(function (a, b) { return a - b; }); lo = rs[Math.floor(rs.length * 0.05)]; hi = rs[Math.floor(rs.length * 0.95)];
+    out.spread = hi - lo; out.lo = lo; out.hi = hi;
+    if (out.spread < minSpreadDeg) { out.why = 'Cover more of the sink, especially the far sides'; return out; }
+    // normal equations for v = a r² + b r + c
+    var S = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], T = [0, 0, 0];
+    pts.forEach(function (p) { var f = [p.r * p.r, p.r, 1]; for (var u = 0; u < 3; u++) { T[u] += f[u] * p.v; for (var w = 0; w < 3; w++) S[u][w] += f[u] * f[w]; } });
+    var sol = solve3(S, T); if (!sol) { out.why = 'The readings were too flat to tell'; return out; }
+    var a = sol[0], b = sol[1], c0 = sol[2], mean = U.mean(pts.map(function (p) { return p.v; })), ssTot = 0, ssRes = 0;
+    pts.forEach(function (p) { var fit = a * p.r * p.r + b * p.r + c0; ssTot += Math.pow(p.v - mean, 2); ssRes += Math.pow(p.v - fit, 2); });
+    out.r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+    if (!(a < -1e-5)) { out.why = 'No clear peak in the echo strength. Sweep slowly across the whole sink'; return out; }
+    var r0 = -b / (2 * a);
+    if (r0 < lo - 15 || r0 > hi + 15) { out.why = 'The strongest direction is outside where you swept. Sweep a wider area'; out.rawDelta = r0; return out; }
+    out.delta = r0; out.yaw = ((pose.yaw + r0) % 360 + 360) % 360; out.half = Math.sqrt(0.7 / -a);
+    out.quality = (out.r2 > 0.5 && out.spread > 60 && pts.length > 120) ? 'good' : (out.r2 > 0.2 ? 'fair' : 'poor');
+    return out;
+  };
+  function solve3(M, T) {
+    var A = M.map(function (r, i) { return r.concat([T[i]]); }), n = 3, i, j, k;
+    for (i = 0; i < n; i++) {
+      var p = i; for (j = i + 1; j < n; j++) if (Math.abs(A[j][i]) > Math.abs(A[p][i])) p = j;
+      if (Math.abs(A[p][i]) < 1e-12) return null; var t = A[i]; A[i] = A[p]; A[p] = t;
+      for (j = i + 1; j < n; j++) { var f = A[j][i] / A[i][i]; for (k = i; k <= n; k++) A[j][k] -= f * A[i][k]; }
+    }
+    var x = [0, 0, 0]; for (i = n - 1; i >= 0; i--) { var s = A[i][n]; for (j = i + 1; j < n; j++) s -= A[i][j] * x[j]; x[i] = s / A[i][i]; }
+    return x;
+  }
+  // Baseline check. For any real point the plane triangle holds: |pA - pB| <= L <= pA + pB (p = planar distances, from the ranges).
+  // So a sweep brackets the sensor spacing L: the largest |pA - pB| is a floor, the smallest pA + pB a ceiling. Robust percentiles are used.
+  // samples: [{rA, rB}] raw ranges of the paired echoes (mm). Returns {lo, hi, base, status: 'ok'|'low'|'high'|'wide'|'few', msg}.
+  F.baselineBracket = function (samples, cfg) {
+    var A = cfg.sensors.A, B = cfg.sensors.B, v = cfg.hand.zwork, diffs = [], sums = [];
+    samples.forEach(function (s) {
+      var rA = s.rA - (A.off || 0), rB = s.rB - (B.off || 0), vA = v + (A.z || 0), vB = v + (B.z || 0);
+      if (rA <= Math.abs(vA) || rB <= Math.abs(vB)) return;
+      var pA = Math.sqrt(rA * rA - vA * vA), pB = Math.sqrt(rB * rB - vB * vB); diffs.push(Math.abs(pA - pB)); sums.push(pA + pB);
+    });
+    var base = U.hypot(A.x - B.x, A.y - B.y), out = { n: diffs.length, base: base, lo: null, hi: null, status: 'few', msg: 'Move your hand around the sink for a few seconds' };
+    if (diffs.length < 40) return out;
+    diffs.sort(function (a, b) { return a - b; }); sums.sort(function (a, b) { return a - b; });
+    out.lo = diffs[Math.floor(diffs.length * 0.98)]; out.hi = sums[Math.floor(sums.length * 0.02)];
+    var tol = 25;
+    if (base < out.lo - tol) { out.status = 'low'; out.msg = 'The readings need the sensors at least ' + Math.round(out.lo) + ' mm apart, but the spacing is set to ' + Math.round(base) + ' mm. Re-measure, or check the distance offsets (S2).'; }
+    else if (base > out.hi + tol) { out.status = 'high'; out.msg = 'The readings put the sensors at most ' + Math.round(out.hi) + ' mm apart, but the spacing is set to ' + Math.round(base) + ' mm. Re-measure, or check the distance offsets (S2).'; }
+    else if (out.hi - out.lo > 120) { out.status = 'wide'; out.msg = 'Consistent so far. Sweep along the back edge, between the sensors, to tighten the check.'; }
+    else { out.status = 'ok'; out.msg = 'Consistent: the readings fit a spacing of ' + Math.round(out.lo) + ' to ' + Math.round(out.hi) + ' mm.'; }
+    return out;
   };
 })();

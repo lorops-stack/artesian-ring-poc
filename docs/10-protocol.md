@@ -30,7 +30,7 @@ Every message is one object with exactly one of these top-level keys.
 | `dsp` | disposal seconds remaining, 0 when not running |
 | `cup` | ml delivered so far in the current cup fill |
 | `lk` | session locks bitmask: 1 soap used, 2 disposal used |
-| `flag` | why nothing latches (C14 / A6): 0 none, 1 no hand, 2 echo strength outside the hand window, 3 outside the plane, 4 jump too large, 5 not settled, 6 zone blocked, 7 still object |
+| `flag` | why nothing latches (C14 / A6): 0 none, 1 no hand, 2 echo strength outside the hand window, 3 outside the plane, 4 jump too large, 5 not settled, 6 zone blocked, 7 still object, 8 inside a dead area (masked) |
 | `still` | seconds since the target last moved above the still-hand threshold |
 | `A`, `B` | per sensor: `e` echoes as `[distance_mm, strength]` (strength is a linear amplitude: the firmware converts the detector's dB×1000 peak strength with 1000·10^(dB/20)), `p` index of the echo used for the fix (absent if none), `hz` frame rate, `er` I2C error count since boot |
 
@@ -136,10 +136,12 @@ Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence numbe
 ```json
 {"schema":1,
  "plane":{"w":584.2,"d":533.4,"unit":"in"},
- "sensors":{"A":{"x":0,"y":0,"z":0,"yaw":45,"tilt":-20,"off":0,"on":true},
-            "B":{"x":584.2,"y":0,"z":0,"yaw":135,"tilt":-20,"off":0,"on":true},
-            "C":{"x":292.1,"y":533.4,"z":0,"yaw":270,"tilt":-20,"off":0,"on":false}},
- "hand":{"zmin":30,"zmax":200,"zwork":115,"strMin":600,"strMax":60000,"stillThr":6},
+ "sensors":{"A":{"x":0,"y":0,"z":0,"yaw":45,"tilt":0,"off":0,"on":true},
+            "B":{"x":584.2,"y":0,"z":0,"yaw":135,"tilt":0,"off":0,"on":true},
+            "C":{"x":292.1,"y":533.4,"z":0,"yaw":270,"tilt":0,"off":0,"on":false}},
+ "hand":{"zmin":-30,"zmax":60,"zwork":0,"strMin":600,"strMax":60000,"stillThr":6},
+ "rig":{"slotH":14,"recess":20,"sinkDepth":190,"beamV":35},
+ "masks":{"m1":{"t":"circle","x":300,"y":120,"r":40},"m2":{"t":"rect","x":0,"y":0,"w":80,"h":60}},
  "layout":"kitchen",
  "layouts":{"kitchen":{"name":"Kitchen","rows":[{"h":0.3333,"fns":["soap","disposal","cup"]},{"h":0.3333,"fns":["waterfall","neutral","waterfall"]},{"h":0.3334,"fns":["hot","warm","cold"]}]},
             "bathroom":{...},"accessible":{...}},
@@ -152,6 +154,12 @@ Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence numbe
                         "colors":{}}},
  "units":{"temp":"F"}}
 ```
+
+`hand.zwork` is the assumed hand depth below the sensor plane (mm), a setting, not a measurement. Defaults describe the flat slot mount (tilt 0, hand about 0). The raised mount uses tilt -20, hand 30..200, zwork 115.
+
+`rig` describes the slot: `slotH` opening height, `recess` how far the sensor sits back in it, `sinkDepth` to the floor, `beamV` the sensor's vertical half-angle. The effective vertical half-angle is `min(beamV, atan((slotH/2)/recess))`.
+
+`masks` are dead areas in plane millimetres, keyed by id: `{"t":"rect","x","y","w","h"}` (x,y is the back-left corner) or `{"t":"circle","x","y","r"}`. A target that lands in a mask is skipped; the next best pair may win. If everything is masked the frame flag is 8. Set one with `cfg set` and the path `masks.m1`; set it to null to delete it.
 
 Zone ids are `<layout>-<row>-<col>`. The firmware only needs `layouts[layout].rows`; the browser uses the same object to draw.
 

@@ -9,13 +9,15 @@ constexpr float PLANE_D_MM = 533.4f;   // 21 in
 
 // ---- Sensor geometry (studio C2/C3), origin = back-left corner, y toward user
 struct SensorPose { float x_mm, y_mm, z_mm, yaw_deg, tilt_deg; bool enabled; };
-constexpr SensorPose DEFAULT_A = {   0.0f, 0.0f, 0.0f,  45.0f, -20.0f, true  };
-constexpr SensorPose DEFAULT_B = { 584.2f, 0.0f, 0.0f, 135.0f, -20.0f, true  };
-constexpr SensorPose DEFAULT_C = { 292.1f, 533.4f, 0.0f, 270.0f, -20.0f, false }; // reserved
+// Flat slot mount (production build): sensors in the gap between the undermount sink and the countertop, level with the plane, no tilt.
+constexpr SensorPose DEFAULT_A = {   0.0f, 0.0f, 0.0f,  45.0f, 0.0f, true  };
+constexpr SensorPose DEFAULT_B = { 584.2f, 0.0f, 0.0f, 135.0f, 0.0f, true  };
+constexpr SensorPose DEFAULT_C = { 292.1f, 533.4f, 0.0f, 270.0f, 0.0f, false }; // reserved
 
-constexpr float HAND_DEPTH_MIN_MM = 30.0f;   // studio C4 (for the coverage prediction)
-constexpr float HAND_DEPTH_MAX_MM = 200.0f;
-constexpr float HAND_DEPTH_WORK_MM = 115.0f; // replaced by the C8 hand-profile measurement
+// Hand depth is mm BELOW the sensor plane (negative = above it). Flat mount: the hand is about level with the sensors.
+constexpr float HAND_DEPTH_MIN_MM = -30.0f;  // studio C4 (for the coverage prediction)
+constexpr float HAND_DEPTH_MAX_MM = 60.0f;
+constexpr float HAND_DEPTH_WORK_MM = 0.0f;   // set in the Aim screen's side view; C8 keeps it in the flat mount
 
 // ---- XM125 distance detector (review R5, R7) ----------------------------------
 constexpr uint32_t DET_START_MM = 60;     // default firmware value 250 would hide corner zones

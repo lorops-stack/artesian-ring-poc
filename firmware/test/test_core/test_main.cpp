@@ -35,16 +35,37 @@ void test_hysteresis() {
 }
 void test_locate() {
   Config c; setDefaults(c); float pts[4][2] = { { 100, 100 }, { 292, 267 }, { 500, 480 }, { 60, 500 } };
-  for (auto& p : pts) { float rA = range(c.A, p[0], p[1], 115), rB = range(c.B, p[0], p[1], 115), x, y; locate(rA, rB, c.A, c.B, 115, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.5, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.5, p[1], y); }
+  for (auto& p : pts) { float rA = range(c.A, p[0], p[1], c.hand.zwork), rB = range(c.B, p[0], p[1], c.hand.zwork), x, y; locate(rA, rB, c.A, c.B, c.hand.zwork, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.5, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.5, p[1], y); }
 }
 void test_associate() {
-  Config c; setDefaults(c); float x = 200, y = 400, rA = range(c.A, x, y, 115), rB = range(c.B, x, y, 115);
+  Config c; setDefaults(c); float x = 200, y = 400, rA = range(c.A, x, y, c.hand.zwork), rB = range(c.B, x, y, c.hand.zwork);
   Echo eA[3] = { { 520, 900 }, { roundf(rA), 2000 }, { roundf(rA) + 200, 500 } }, eB[3] = { { roundf(rB), 1800 }, { 650, 820 }, { roundf(rB) + 210, 480 } };
   Echo bgA[1] = { { 520, 900 } }, bgB[1] = { { 650, 820 } };
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, 1, bgB, 1, false, 0, 0, 220 };
   Assoc r = associate(eA, 3, eB, 3, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(4, x, r.x); TEST_ASSERT_FLOAT_WITHIN(4, y, r.y); TEST_ASSERT_EQUAL(1, r.iA); TEST_ASSERT_EQUAL(0, r.iB);
   Echo weak[1] = { { 400, 100 } }; Assoc w = associate(weak, 1, weak, 1, o); TEST_ASSERT_EQUAL(FLAG_STRENGTH, w.flag);
   Assoc none = associate(eA, 0, eB, 0, o); TEST_ASSERT_EQUAL(FLAG_NO_HAND, none.flag);
+}
+void test_masks_and_flat_defaults() {
+  Config c; setDefaults(c);
+  TEST_ASSERT_EQUAL_FLOAT(0, c.A.tilt); TEST_ASSERT_EQUAL_FLOAT(0, c.hand.zwork); TEST_ASSERT_EQUAL_STRING("flat", c.rig.mount); TEST_ASSERT_EQUAL(0, c.nMasks);
+  float h = c.hand.zwork;
+  float a1 = range(c.A, 430, 150, h), b1 = range(c.B, 430, 150, h), a2 = range(c.A, 150, 400, h), b2 = range(c.B, 150, 400, h);
+  Echo eA[2] = { { roundf(a1), 3000 }, { roundf(a2), 2500 } }, eB[2] = { { roundf(b1), 3000 }, { roundf(b2), 2500 } };
+  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 };
+  // add a circle by the config path, as the protocol does
+  JsonDocument sd; JsonObject set = sd.to<JsonObject>(); JsonObject m1 = set["masks.m1"].to<JsonObject>(); m1["t"] = "circle"; m1["x"] = 430; m1["y"] = 150; m1["r"] = 60; char err[64] = "";
+  TEST_ASSERT_TRUE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(1, c.nMasks); TEST_ASSERT_EQUAL(1, c.masks[0].kind); TEST_ASSERT_FLOAT_WITHIN(0.01, 60, c.masks[0].a);
+  o.masks = c.masks; o.nMasks = c.nMasks;
+  Assoc r = associate(eA, 2, eB, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(5, 150, r.x); TEST_ASSERT_FLOAT_WITHIN(5, 400, r.y);
+  Assoc only = associate(eA, 1, eB, 1, o); TEST_ASSERT_EQUAL(FLAG_MASKED, only.flag);
+  // a rectangle, with the edge exactly in or out
+  Mask rect; rect.kind = 0; rect.x = 400; rect.y = 100; rect.a = 100; rect.b = 100;
+  TEST_ASSERT_FALSE(maskHit(&rect, 1, 399, 150)); TEST_ASSERT_TRUE(maskHit(&rect, 1, 401, 150));
+  // round trip through JSON keeps rig and masks; null deletes
+  JsonDocument doc; JsonObject root = doc.to<JsonObject>(); configToJson(c, root); TEST_ASSERT_EQUAL(1, root["masks"].size()); TEST_ASSERT_EQUAL_STRING("flat", root["rig"]["mount"]);
+  Config d; setDefaults(d); configFromJson(root, d); TEST_ASSERT_EQUAL(1, d.nMasks); TEST_ASSERT_EQUAL_STRING("m1", d.masks[0].id);
+  JsonDocument sd2; JsonObject del = sd2.to<JsonObject>(); del["masks.m1"] = nullptr; TEST_ASSERT_TRUE(configApplySet(c, del, err, sizeof err)); TEST_ASSERT_EQUAL(0, c.nMasks);
 }
 void test_config_json_roundtrip_and_set() {
   Config c; setDefaults(c); JsonDocument doc; JsonObject root = doc.to<JsonObject>(); configToJson(c, root);
@@ -124,7 +145,7 @@ void test_layout_change_and_clean_commands() {
 void setUp() {} void tearDown() {}
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_config_json_roundtrip_and_set);
+  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
   RUN_TEST(test_fixtures); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();
 }

@@ -16,7 +16,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     this.cfg = U.deepClone(cfg || RS.DEFAULTS);
     this.rnd = U.rng(11);
     this.truth = {                   // hidden errors: what C7 is meant to discover
-      A: { dx: 8, dy: -5, dz: 6, off: 18, yawErr: 0 }, B: { dx: -10, dy: 4, dz: -3, off: 24, yawErr: 0 },
+      A: { dx: 8, dy: -5, dz: 6, off: 18, yawErr: 6 }, B: { dx: -10, dy: 4, dz: -3, off: 24, yawErr: -5 },   // yawErr: the blocks are never aimed perfectly
       basin: { A: [[520, 380], [700, 220]], B: [[560, 340], [740, 240]] }   // stainless basin reflections (recorded by C6)
     };
     // Two kinds of background. `recorded` is the detector's recorded threshold (C6 capture of the empty sink):
@@ -49,12 +49,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // ---- physics ----------------------------------------------------------------------------------------------
   Sim.prototype.truePose = function (k) {
     var kk = this.faults.swapAB ? (k === 'A' ? 'B' : 'A') : k, typed = this.cfg.sensors[kk], tr = this.truth[kk];
-    return { x: typed.x + tr.dx, y: typed.y + tr.dy, z: typed.z + tr.dz, yaw: typed.yaw + tr.yawErr + (this.faults.A_yaw30 && kk === 'A' ? -30 : 0), off: tr.off };
+    return { x: typed.x + tr.dx, y: typed.y + tr.dy, z: typed.z + tr.dz, tilt: typed.tilt || 0, yaw: typed.yaw + tr.yawErr + (this.faults.A_yaw30 && kk === 'A' ? -30 : 0) + (this.faults.aimOff ? (kk === 'A' ? 16 : -12) : 0), off: tr.off };
   };
   Sim.prototype.echoStrength = function (pose, x, y, h, d, kind) {
     var a = Math.atan2(y - pose.y, x - pose.x) - U.rad(pose.yaw); while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI;
     var half = U.rad(this.cfg.tuning.beamHalf || 60), beam = Math.exp(-0.7 * Math.pow(a / half, 2));
-    var s = S0 * Math.pow(D0 / Math.max(80, d), 2) * beam * (kind === 'ball' ? 0.9 : 1) * (1 + 0.12 * this.rnd.gauss());
+    var vf = G.vertFactor(this.cfg, pose, G.planar(pose, x, y), h);
+    var s = S0 * Math.pow(D0 / Math.max(80, d), 2) * beam * vf * (kind === 'ball' ? 0.9 : 1) * (1 + 0.12 * this.rnd.gauss());
     return Math.max(0, s);
   };
   // Echo list for one sensor given an optional target {x,y,h,kind}
@@ -72,6 +73,10 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var s = this.echoStrength(pose, target.x, target.y, target.h, d, target.kind) * atten;
       push(d, s);
       if (f.multipath || this.rnd() < 0.04) { var g = d + 170 + 60 * this.rnd(); push(g, s * 0.22); if (g < this.cfg.tuning.rangeEnd) this.ghostEcho += 1; }
+    }
+    if (f.hotspot && this.rnd() < 0.55) {     // a flickering reflector inside the sink (drip, steam, a swinging brush): false fixes at one spot
+      var hs = { x: 430 + 7 * this.rnd.gauss(), y: 150 + 7 * this.rnd.gauss(), h: this.cfg.hand.zwork };
+      var hd = G.range(pose, hs.x, hs.y, hs.h) + pose.off + NOISE_MM * this.rnd.gauss(); push(hd, this.echoStrength(pose, hs.x, hs.y, hs.h, hd, 'hand') * 0.8 * atten);
     }
     var basin = this.truth.basin[k];
     for (var i = 0; i < basin.length; i++) { var bd = basin[i][0] + (f.bgDrift && i === 0 ? 45 : 0) + 1.5 * this.rnd.gauss(); push(bd, basin[i][1] * (1 + 0.1 * this.rnd.gauss()) * atten); }
@@ -92,7 +97,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var eA = this.echoes('A', target), eB = this.echoes('B', target);
     var fpsA = eA ? 1000 / RATE_MS / late : 0, fpsB = eB ? 1000 / RATE_MS / late : 0;
     this.fps.A = 0.9 * this.fps.A + 0.1 * fpsA; this.fps.B = 0.9 * this.fps.B + 0.1 * fpsB;
-    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: this.prev, maxJump: 220 };
+    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: this.prev, maxJump: 220, masks: cfg.masks };
     var assoc = (eA && eB) ? G.associate(eA, eB, opts) : { flag: FLAG.NO_HAND };
     var pos = null, speed = 0;
     if (assoc.flag === FLAG.NONE) { this.miss = 0; this.jumps = 0; var tr = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr.x, y: tr.y }; speed = tr.speed; this.prev = { x: assoc.x, y: assoc.y }; }
@@ -203,7 +208,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       if (step === 'c0') { this.cal.n = 7; this.cal.checks = []; }
       else if (step === 'identify') { this.cal.n = 1; this.cal.state = 'waiting'; this.cal.prompt = 'Hold your hand 20 cm in front of the back-left sensor'; }
       else if (step === 'c6') { this.cal.n = 40; this.cal.frames = { A: [], B: [] }; }
-      else if (step === 'c7') { this.cal.n = 32; this.cal.hole = 1; this.cal.depth = RS.CAL.depths[0]; this.cal.state = 'waiting'; this.cal.buf = []; }
+      else if (step === 'c7') { this.cal.n = 32; this.cal.hole = 1; this.cal.depth = RS.calDepths(this.cfg)[0]; this.cal.state = 'waiting'; this.cal.buf = []; }
       else if (step === 'c8') { this.cal.n = 33; this.cal.hole = 1; this.cal.high = true; this.cal.state = 'waiting'; this.cal.buf = []; this.cal.samples = []; this.cal.still = []; }
       else return err('unknown step');
       this.calEmit(); return ack();
@@ -216,7 +221,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     err('unknown action ' + a);
   };
   Sim.prototype.calRedo = function (hole) {
-    var cal = this.cal; if (cal.step === 'c7' || cal.step === 'c8') { cal.samples = cal.samples.filter(function (s) { return s.hole !== hole; }); cal.hole = hole; cal.depth = RS.CAL.depths[0]; cal.high = true; cal.i = cal.samples.length; cal.state = 'waiting'; cal.result = null; this.calEmit(); }
+    var cal = this.cal; if (cal.step === 'c7' || cal.step === 'c8') { cal.samples = cal.samples.filter(function (s) { return s.hole !== hole; }); cal.hole = hole; cal.depth = RS.calDepths(this.cfg)[0]; cal.high = true; cal.i = cal.samples.length; cal.state = 'waiting'; cal.result = null; this.calEmit(); }
   };
   Sim.prototype.calSkip = function () {
     var cal = this.cal; if (cal.step === 'c7') { cal.skipped = (cal.skipped || 0) + 1; this.calAdvance(); }
@@ -225,8 +230,9 @@ var RS = globalThis.RS || (globalThis.RS = {});
   Sim.prototype.calAdvance = function () {
     var cal = this.cal;
     if (cal.step === 'c7') {
-      if (cal.depth === RS.CAL.depths[0]) cal.depth = RS.CAL.depths[1];
-      else { cal.depth = RS.CAL.depths[0]; cal.hole += 1; }
+      var cd = RS.calDepths(this.cfg);
+      if (cal.depth === cd[0]) cal.depth = cd[1];
+      else { cal.depth = cd[0]; cal.hole += 1; }
       cal.i = cal.samples.length; cal.buf = [];
       if (cal.hole > 16) { cal.state = 'done'; cal.result = RS.fit.wandFit(cal.samples, this.cfg); } else cal.state = 'waiting';
     } else if (cal.step === 'c8') {
@@ -287,9 +293,9 @@ var RS = globalThis.RS || (globalThis.RS = {});
       if (cal.state !== 'running') return;
       var H = holes[cal.hole - 1]; if (!H && cal.phase !== 'still') return;
       // the operator's ball/hand is assumed at the hole; readings come from the true geometry
-      var depth = cal.step === 'c7' ? cal.depth : (cal.high ? 55 + 10 * this.rnd() : 150 + 15 * this.rnd());
+      var hd = RS.handDepths(this.cfg), depth = cal.step === 'c7' ? cal.depth : (cal.high ? hd[0] + 10 * this.rnd() : hd[1] + 15 * this.rnd());
       var jitter = cal.step === 'c8' ? 12 : 1.5, tgt;
-      if (cal.phase === 'still') tgt = { x: this.cfg.plane.w / 2 + 4 * this.rnd.gauss(), y: this.cfg.plane.d / 2 + 4 * this.rnd.gauss(), h: 110, kind: 'hand' };
+      if (cal.phase === 'still') tgt = { x: this.cfg.plane.w / 2 + 4 * this.rnd.gauss(), y: this.cfg.plane.d / 2 + 4 * this.rnd.gauss(), h: this.cfg.hand.zwork, kind: 'hand' };
       else tgt = { x: H.x + jitter * this.rnd.gauss(), y: H.y + jitter * this.rnd.gauss(), h: depth, kind: cal.step === 'c7' ? 'ball' : 'hand' };
       var rA = null, rB = null;
       ['A', 'B'].forEach(function (k) {
@@ -328,7 +334,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     accessible: makeScript({ soap: [0.25, 0.2], warm: [0.5, 0.75], cup: [0.75, 0.2], third: [0.83, 0.75], hot: [0.17, 0.75] })
   };
   // Position of the ghost hand at script time ts (seconds); null when out of the sink. Adds a natural tremor.
-  RS.ghostHand = function (layoutId, ts, plane) {
+  RS.ghostHand = function (layoutId, ts, plane, zwork) {
     var S = RS.GHOST_SCRIPTS[layoutId] || RS.GHOST_SCRIPTS.kitchen, T = S[S.length - 1].t, t = ts % T;
     for (var i = 0; i < S.length - 1; i++) {
       var a = S[i], b = S[i + 1];
@@ -336,7 +342,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
         if (!a.on) return null;
         var f = (t - a.t) / (b.t - a.t), xf = b.on ? a.x + (b.x - a.x) * f : a.x, yf = b.on ? a.y + (b.y - a.y) * f : a.y;
         var tremor = 4; // mm: a real hand is never perfectly still
-        return { x: xf * plane.w + tremor * Math.sin(ts * 7.3), y: yf * plane.d + tremor * Math.cos(ts * 5.1), h: 105 + 12 * Math.sin(ts * 0.9), xf: xf, yf: yf };
+        return { x: xf * plane.w + tremor * Math.sin(ts * 7.3), y: yf * plane.d + tremor * Math.cos(ts * 5.1), h: (zwork == null ? 105 : zwork) + 12 * Math.sin(ts * 0.9) * (zwork === 0 ? 0.5 : 1), xf: xf, yf: yf };
       }
     }
     return null;

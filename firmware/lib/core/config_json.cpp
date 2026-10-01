@@ -12,6 +12,12 @@ void configToJson(const Config& c, JsonObject out) {
   JsonObject p = out["plane"].to<JsonObject>(); p["w"] = c.plane.w; p["d"] = c.plane.d; p["unit"] = "in";
   JsonObject s = out["sensors"].to<JsonObject>(); poseToJson(c.A, s["A"].to<JsonObject>()); poseToJson(c.B, s["B"].to<JsonObject>()); poseToJson(c.C, s["C"].to<JsonObject>());
   JsonObject h = out["hand"].to<JsonObject>(); h["zmin"] = c.hand.zmin; h["zmax"] = c.hand.zmax; h["zwork"] = c.hand.zwork; h["strMin"] = c.hand.strMin; h["strMax"] = c.hand.strMax; h["stillThr"] = c.hand.stillThr;
+  JsonObject rg = out["rig"].to<JsonObject>(); rg["mount"] = c.rig.mount; rg["slotH"] = c.rig.slotH; rg["recess"] = c.rig.recess; rg["sinkDepth"] = c.rig.sinkDepth; rg["beamV"] = c.rig.beamV;
+  JsonObject ms = out["masks"].to<JsonObject>();
+  for (int i = 0; i < c.nMasks; i++) {
+    const Mask& m = c.masks[i]; JsonObject mo = ms[m.id].to<JsonObject>(); mo["t"] = m.kind == 1 ? "circle" : "rect"; mo["x"] = m.x; mo["y"] = m.y;
+    if (m.kind == 1) mo["r"] = m.a; else { mo["w"] = m.a; mo["h"] = m.b; }
+  }
   out["layout"] = c.layout;
   JsonObject ls = out["layouts"].to<JsonObject>();
   for (int i = 0; i < c.nLayouts; i++) {
@@ -35,6 +41,19 @@ bool configFromJson(const JsonObjectConst in, Config& c) {
   JsonObjectConst p = in["plane"]; if (!p.isNull()) { get(p, "w", c.plane.w); get(p, "d", c.plane.d); }
   JsonObjectConst s = in["sensors"]; if (!s.isNull()) { poseFromJson(s["A"], c.A); poseFromJson(s["B"], c.B); poseFromJson(s["C"], c.C); }
   JsonObjectConst h = in["hand"]; if (!h.isNull()) { get(h, "zmin", c.hand.zmin); get(h, "zmax", c.hand.zmax); get(h, "zwork", c.hand.zwork); get(h, "strMin", c.hand.strMin); get(h, "strMax", c.hand.strMax); get(h, "stillThr", c.hand.stillThr); }
+  JsonObjectConst rg = in["rig"]; if (!rg.isNull()) { if (rg["mount"].is<const char*>()) cpy(c.rig.mount, sizeof c.rig.mount, rg["mount"]); get(rg, "slotH", c.rig.slotH); get(rg, "recess", c.rig.recess); get(rg, "sinkDepth", c.rig.sinkDepth); get(rg, "beamV", c.rig.beamV); }
+  JsonObjectConst ms = in["masks"];
+  if (!ms.isNull()) {
+    c.nMasks = 0;
+    for (JsonPairConst kv : ms) {
+      if (c.nMasks >= MAX_MASKS) break;
+      JsonObjectConst mo = kv.value(); if (mo.isNull()) continue;
+      Mask& m = c.masks[c.nMasks]; m = Mask(); cpy(m.id, sizeof m.id, kv.key().c_str()); const char* t = mo["t"] | "rect"; m.kind = strcmp(t, "circle") == 0 ? 1 : 0;
+      m.x = mo["x"] | 0.0f; m.y = mo["y"] | 0.0f;
+      if (m.kind == 1) { m.a = mo["r"] | 0.0f; if (m.a < 1) continue; } else { m.a = mo["w"] | 0.0f; m.b = mo["h"] | 0.0f; if (m.a < 1 || m.b < 1) continue; }
+      c.nMasks++;
+    }
+  }
   if (in["layout"].is<const char*>()) cpy(c.layout, sizeof c.layout, in["layout"]);
   JsonObjectConst ls = in["layouts"];
   if (!ls.isNull()) {

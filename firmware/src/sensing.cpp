@@ -91,7 +91,7 @@ void step() {
   Lock lk;
   static bool hooked = false; if (!hooked) { g.sm->onEvent(onEvent, nullptr); hooked = true; }
   const Config& c = g.cfg;
-  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, prevX, prevY, 220 };
+  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, prevX, prevY, 220, c.masks, c.nMasks };
   Assoc a = (f.A.alive && f.B.alive) ? associate(f.A.e, f.A.n, f.B.e, f.B.n, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
   bool hasPos = false; float x = 0, y = 0, speed = 0;
   if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.x; prevY = a.y; f.A.p = a.iA; f.B.p = a.iB; }

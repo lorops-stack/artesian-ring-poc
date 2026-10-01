@@ -44,13 +44,22 @@ Plan view, facing the sink. y runs from the back edge (0) to the front (533 mm).
 | Sensor B | back-right corner. x 584 mm, y 0 |
 | Spacing A to B | 584 mm between the sensor centres. Mark each module's centre and measure from the marks |
 | Yaw | A aims 45° into the plane, B aims 135° (a mirror image of A) |
-| Tilt | about 20° down toward the hand |
+| Tilt | 0 (flat). The slot between sink and countertop makes the beam a flat fan across the opening. Use tilt -20 only for the raised bench mount (Aim screen, Mount and area, Raised) |
 | Height | both modules at the same height, within 20 mm (P9) |
-| Hand level | the default assumes the hand is about 115 mm below the sensor. Keep the hand at one steady height for the first tests |
+| Hand level | flat mount: hand about 0 to 50 mm below the sensor plane (set on the Aim screen side view). Raised mount: about 115 mm |
 | Clear space | nothing metal within 600 mm of the beam paths. Put a flat cardboard or wood backboard behind the sensors |
 | Rigidity | tighten the blocks so they cannot swing. Wobble shows up as P10 |
 
 Tape the blocks down once positioned. Take a tape-measure reading of: A to B, A to the front-left corner, B to the front-right corner. Keep these numbers; Ring Studio C2 and C3 ask for them, and the fit (C7) corrects small errors.
+
+### Aim and area screen (use it before C7)
+
+Open **Aim**. The top view shows each sensor's field of view and echoes live; the side view shows the slot, the vertical fan, the sink floor and the assumed hand height.
+
+1. **Aim assistant.** Press Start sweep, move your hand slowly over the whole sink for about 20 s (in the simulator, Demo sweep does it). It reports each sensor's measured aim against the typed yaw and tells you which way to rotate the block. Press Apply to store a measured yaw. Accuracy is about ±8°. Echo strength also depends on how you hold your hand, so repeat once and compare.
+2. **Spacing check.** The sweep also checks the A to B distance against the ranges. It only tightens the upper bound if the sweep reaches the back edge between the sensors. A "wide" or "low" result means re-measure with a tape.
+3. **Dead areas.** Keep the sink empty, press Start learning, then cause the false readings (someone walking past, tap drips, a cloth on the edge). Busy spots are offered as dead areas, marked inside or outside the sink. Accept, or draw boxes and circles by hand (Draw box, Draw circle, Edit to move or resize). Readings that land in a dead area are ignored.
+4. Metal sinks give multipath ghosts. Absorber foam or a baffle behind the sensors is cheaper than software.
 
 The 16-hole wand template and foil-ball wand (40 mm ball on a stick, marks at 60 and 160 mm) are in the Calibrate screen, step C7.
 

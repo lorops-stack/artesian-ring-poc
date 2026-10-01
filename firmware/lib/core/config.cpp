@@ -16,7 +16,7 @@ void defaultLayouts(Config& c) {
 }
 void setDefaults(Config& c) {
   c = Config();
-  c.A = SensorPose{ 0, 0, 0, 45, -20, 0, true }; c.B = SensorPose{ 584.2f, 0, 0, 135, -20, 0, true }; c.C = SensorPose{ 292.1f, 533.4f, 0, 270, -20, 0, false };
+  c.A = SensorPose{ 0, 0, 0, 45, 0, 0, true }; c.B = SensorPose{ 584.2f, 0, 0, 135, 0, 0, true }; c.C = SensorPose{ 292.1f, 533.4f, 0, 270, 0, 0, false };
   defaultLayouts(c);
   c.nProfiles = 1; c.profiles[0] = Profile();
 }

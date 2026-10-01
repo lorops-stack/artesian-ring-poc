@@ -35,19 +35,48 @@ var RS = globalThis.RS || (globalThis.RS = {});
   RS.ST_LABEL = ['Idle', 'Tracking', 'Active', 'Full', 'Off in 1 s', 'Cleaning'];
 
   // Why nothing latches (protocol `flag`, C14 / A6).
-  RS.FLAG = { NONE: 0, NO_HAND: 1, STRENGTH: 2, OUTSIDE: 3, JUMP: 4, NOT_SETTLED: 5, BLOCKED: 6, STILL: 7 };
-  RS.FLAG_TEXT = ['', 'No hand in the sink', 'Echo strength outside the hand window', 'Position outside the plane', 'Jump larger than a hand can move', 'Not settled yet', 'Zone blocked this session', 'Still for 10 s: object'];
+  RS.FLAG = { NONE: 0, NO_HAND: 1, STRENGTH: 2, OUTSIDE: 3, JUMP: 4, NOT_SETTLED: 5, BLOCKED: 6, STILL: 7, MASKED: 8 };
+  RS.FLAG_TEXT = ['', 'No hand in the sink', 'Echo strength outside the hand window', 'Position outside the plane', 'Jump larger than a hand can move', 'Not settled yet', 'Zone blocked this session', 'Still for 10 s: object', 'In a dead area'];
+
+  // Mount presets. "flat" is the production build: both sensors sit in a slot between the undermount sink and the
+  // countertop, level with the sensing plane, aimed across the opening (no tilt, hand about at sensor height).
+  // "raised" is the earlier assumption: sensors above the plane, tilted down, hand about 115 mm below them.
+  // Depths are mm below the sensor plane (negative = above it).
+  RS.PRESETS = {
+    flat: {
+      name: 'Flat slot', note: 'Sensors in the gap between sink and countertop, aimed across the opening',
+      tilt: 0, z: 0, hand: { zmin: -30, zmax: 60, zwork: 0 }, calDepths: [10, 50], handDepths: [5, 35],
+      rig: { mount: 'flat', slotH: 14, recess: 20, sinkDepth: 190, beamV: 35 }
+    },
+    raised: {
+      name: 'Raised, tilted', note: 'Sensors above the plane, tilted down at the hand',
+      tilt: -20, z: 0, hand: { zmin: 30, zmax: 200, zwork: 115 }, calDepths: [60, 160], handDepths: [55, 150],
+      rig: { mount: 'raised', slotH: 40, recess: 0, sinkDepth: 190, beamV: 60 }
+    }
+  };
+  RS.mountOf = function (cfg) { var m = cfg && cfg.rig && cfg.rig.mount; return RS.PRESETS[m] ? m : 'flat'; };
+  RS.preset = function (cfg) { return RS.PRESETS[RS.mountOf(cfg)]; };
+  RS.calDepths = function (cfg) { return RS.preset(cfg).calDepths; };
+  RS.handDepths = function (cfg) { return RS.preset(cfg).handDepths; };
+  // Config for a preset (deep copy of the defaults with the preset's numbers applied)
+  RS.presetConfig = function (mount) {
+    var c = JSON.parse(JSON.stringify(RS.DEFAULTS)), P = RS.PRESETS[mount]; if (!P) return c;
+    c.sensors.A.tilt = c.sensors.B.tilt = c.sensors.C.tilt = P.tilt; c.sensors.A.z = c.sensors.B.z = c.sensors.C.z = P.z;
+    Object.assign(c.hand, P.hand); c.rig = Object.assign({}, P.rig); return c;
+  };
 
   // Factory defaults (defaults.h). Everything here is editable in the studio (C1 to C4, C9, C10, F14).
   RS.DEFAULTS = {
     schema: 1,
     plane: { w: 584.2, d: 533.4, unit: 'in' },
     sensors: {
-      A: { x: 0,     y: 0,     z: 0, yaw: 45,  tilt: -20, off: 0, on: true },
-      B: { x: 584.2, y: 0,     z: 0, yaw: 135, tilt: -20, off: 0, on: true },
-      C: { x: 292.1, y: 533.4, z: 0, yaw: 270, tilt: -20, off: 0, on: false }
+      A: { x: 0,     y: 0,     z: 0, yaw: 45,  tilt: 0, off: 0, on: true },
+      B: { x: 584.2, y: 0,     z: 0, yaw: 135, tilt: 0, off: 0, on: true },
+      C: { x: 292.1, y: 533.4, z: 0, yaw: 270, tilt: 0, off: 0, on: false }
     },
-    hand: { zmin: 30, zmax: 200, zwork: 115, strMin: 600, strMax: 60000, stillThr: 6 },
+    hand: { zmin: -30, zmax: 60, zwork: 0, strMin: 600, strMax: 60000, stillThr: 6 },
+    rig: { mount: 'flat', slotH: 14, recess: 20, sinkDepth: 190, beamV: 35 },
+    masks: {},
     layout: 'kitchen',
     layouts: JSON.parse(JSON.stringify(RS.LAYOUTS)),
     tuning: {

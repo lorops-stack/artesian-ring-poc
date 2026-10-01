@@ -603,7 +603,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     function renderStage() {
       U.empty(stage); var cal = st.cal, skipsUsed = Object.keys(st.skips).length;
       if (!cal || cal.state === 'idle') { stage.appendChild(callout(null, 'Ready when you are', 'Lay the template across the opening flush with the ring, hole 1 at the back-left. Have the wand in hand, then press Start.')); return; }
-      var mark = cal.depth === CAL.depths[1] ? 2 : 1;
+      var cd = RS.calDepths(S.cfg()), mark = cal.depth === cd[1] ? 2 : 1;
       if (cal.state === 'waiting' || cal.state === 'running') {
         stage.appendChild(h('div.row.between.wrap.top', h('div', h('div.eyebrow', 'Reading ' + Math.min((cal.i || 0) + 1, cal.n || 32) + ' of ' + (cal.n || 32)), h('div.big.mt-s', 'Hole ' + cal.hole), h('div.sub', 'Mark ' + mark + ' · ball centre ' + cal.depth + ' mm below the ring')),
           h('div.row.wrap', btn('Redo this hole', function () { redo(cal.hole); }, 'sm'), btn('Skip this hole', skip, 'sm', skipsUsed >= 2 && !st.skips[cal.hole] ? { disabled: true, title: 'At most 2 holes can be skipped' } : { title: 'Skips both marks of this hole' }), btn('Stop', stop, 'sm danger'))));
@@ -642,7 +642,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     function renderAll() { U.empty(gridBox); gridBox.appendChild(holeGrid(holeStates(), redo)); renderStage(); renderReport(); pm.dirty = true; }
     stu.body.appendChild(h('div.card', h('div.row.between.wrap.top', h('div.grow', h('h2', 'Wand geometry'), h('div.sub', 'Finds where each sensor really is, and its distance offset, from 32 readings of a foil ball at known points. The tape-measure values from C2 are a soft guide. Pass mark: fit error under ' + CAL.fitPassMm + ' mm RMS.')), btn('Start', start, 'primary')),
-      h('div.grid.c2.mt', h('div', h('div.eyebrow', 'The template'), h('div.sub.mt-s', 'A card with 16 holes in a 4 × 4 grid at 1/8, 3/8, 5/8 and 7/8 of the width and depth. Lay it across the opening, flush with the ring, hole 1 at the back-left. Holes count left to right, back to front.')), h('div', h('div.eyebrow', 'The wand'), h('div.sub.mt-s', 'A 40 mm foil-covered ball on a rod with two marks, 60 and 160 mm from the ball centre. Push the ball through each hole down to a mark, hold it still, take the reading. A beep confirms each one: 32 readings per sensor.')))));
+      h('div.grid.c2.mt', h('div', h('div.eyebrow', 'The template'), h('div.sub.mt-s', 'A card with 16 holes in a 4 × 4 grid at 1/8, 3/8, 5/8 and 7/8 of the width and depth. Lay it across the opening, flush with the ring, hole 1 at the back-left. Holes count left to right, back to front.')), h('div', h('div.eyebrow', 'The wand'), h('div.sub.mt-s', 'A 40 mm foil-covered ball on a rod with two marks, ' + RS.calDepths(S.cfg()).join(' and ') + ' mm from the ball centre. Push the ball through each hole down to a mark, hold it still, take the reading. A beep confirms each one: 32 readings per sensor.')))));
     stu.body.appendChild(h('div.card', h('div.grid.c2', h('div', h('div.eyebrow', 'Holes · click one to redo it'), gridBox), h('div', h('div.eyebrow', 'Template on the sink'), h('div.mt-s', pm.el))), stage, report));
     renderAll();
     return {

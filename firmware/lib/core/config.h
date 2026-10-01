@@ -17,11 +17,16 @@ struct Tuning {
 };
 struct Profile { char id[20] = "default"; char name[24] = "Default"; float hotF = 110, hotCapF = 120, warmF = 100, cupMl = 350, soapMl = 0.8f, flowGpm = 1.5f; };
 
+// How the sensors are built into the sink (side view in Ring Studio's Aim screen). Not used by the firmware's maths except through the studio.
+struct Rig { char mount[8] = "flat"; float slotH = 14, recess = 20, sinkDepth = 190, beamV = 35; };
+
 struct Config {
   uint8_t schema = 1;
   Plane plane;
   SensorPose A, B, C;
   HandModel hand;
+  Rig rig;
+  Mask masks[MAX_MASKS]; uint8_t nMasks = 0;
   char layout[20] = "kitchen";
   Layout layouts[MAX_LAYOUTS]; uint8_t nLayouts = 0;
   Tuning tuning;
