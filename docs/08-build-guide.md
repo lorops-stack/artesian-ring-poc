@@ -242,7 +242,7 @@ Send me:
 ## Part 5: Phase 0, reading the sensors (CLAUDE, then YOU)
 
 ### Step 20 (CLAUDE): Write the Phase 0 firmware
-I write the sensor driver and a test program that prints both sensors' echoes 20+ times a second. I push it and message you.
+**Done (30 Sep 2026, pushed).** The firmware in `firmware/` prints both sensors' echo lists on the USB serial monitor 20+ times a second whenever no Ring Studio is connected, so the Phase 0 bench tests need nothing else. The same firmware already contains Phase 1 (Wi-Fi, Ring Studio, calibration), so Step 28 is a `git pull` away rather than a new build.
 
 ### Step 21 (YOU): Load it onto the ESP32
 1. Get my update (Step 8, "Getting my updates later").
@@ -302,7 +302,7 @@ I send a 3D-print file for the sensor mounts. Each mount holds the board **uprig
 ## Part 7: Phase 1, the brain and first screens (CLAUDE, then YOU)
 
 ### Step 28 (CLAUDE): Build Phase 1
-I build:
+**Done (30 Sep 2026, pushed), untested on hardware until your Step 29.** Built:
 - the position maths;
 - the full latch state machine with its unit tests;
 - the calibration studio (C1 to C8, C11);
@@ -436,7 +436,7 @@ Send a short video of the ring lighting up.
 ## Part 11: Phase 2, the full live site (CLAUDE, then YOU)
 
 ### Step 42 (CLAUDE): Build the full Ring Studio
-I build everything in the approved design (spec sections 7, 8 and 8b):
+**Done (30 Sep 2026, pushed).** It runs on the simulator today: open `ui/dist/index.html` in Chrome after `git pull`. Everything in the approved design (spec sections 7, 8 and 8b):
 - the **Showcase** screen (rendered sink, LED ring, water, radar pulses, hand markers, sound, demo loop);
 - the **Operator view**;
 - the full **calibration studio**;

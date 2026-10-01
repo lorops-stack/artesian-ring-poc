@@ -12,7 +12,13 @@ This repo holds the live proof-of-concept demo: sensor firmware for an ESP32-S3,
 
 ## Status
 
-**Planning, revision 2.** The design is written and has been through three review passes. Build starts once it is signed off. See the open actions at the end of the design review.
+**Software built, hardware bench pending (30 Sep 2026).**
+
+- **Ring Studio** (`ui/`) is complete and runs on its built-in simulator with no hardware: `python tools/build_ui.py`, then open `ui/dist/index.html` in Chrome. Showcase, Operator view, calibration studio C0 to C14 with the troubleshooting codes built in, test runner, dashboard, settings.
+- **Firmware** (`firmware/`) covers Phase 0 and Phase 1 (XM125 driver, fusion, state machine, Wi-Fi, Ring Studio server, calibration steps, LEDs, button). It type-checks and its core passes the shared fixtures, but it has not yet run on the ESP32: that is build guide Steps 21 to 23.
+- **Hardware**: Parts 1 to 4, 6 and 10 of the build guide are Nathan's bench work (`docs/08a-hands-on-instructions.docx`).
+
+Checks: `node --test ui/test/*.test.js` (34), `node ui/test/smoke.js` (headless browser), `tools/native_tests.sh` or `pio test -e native` (C++ core against the same fixtures).
 
 ## Documents
 
@@ -27,6 +33,8 @@ This repo holds the live proof-of-concept demo: sensor firmware for an ESP32-S3,
 | [07 · Test and demo plan](docs/07-test-and-demo-plan.md) | Bench tests, accuracy protocol, pre-demo checklist, run sheet |
 | [08 · Build guide](docs/08-build-guide.md) | **Start here.** Every step from parts to demo day, marked YOU or CLAUDE, with checkpoints |
 | [09 · Troubleshooting](docs/09-troubleshooting.md) | Every fault code, from wiring to calibration to LEDs, with step-by-step fixes. Ring Studio shows the same codes |
+| [10 · Protocol](docs/10-protocol.md) | The JSON messages between the ring and Ring Studio (also what the simulator speaks) |
+| [08a · Hands-on instructions (.docx)](docs/08a-hands-on-instructions.docx) | Parts 1, 2, 3, 4, 6 and 10 of the build guide, fully broken down, for the bench |
 
 ## Layout
 
