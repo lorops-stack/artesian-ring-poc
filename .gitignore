@@ -10,3 +10,5 @@ ui/dist-fs/
 ui/.bundle-check.js
 # never commit secrets
 secrets.h
+ui/test/shots/
+ui/test/demo/

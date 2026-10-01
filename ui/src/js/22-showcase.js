@@ -145,8 +145,28 @@ var RS = globalThis.RS || (globalThis.RS = {});
     return RS.ACCENT;
   };
 
+  // ---- scripted hand (for recordings and automated demos): smooth motion generated inside the page's own frame loop,
+  // so the state machine sees a real reaching hand regardless of how a test driver times its mouse events.
+  // segments: [{to:[xf,yf], ms}, {hold: ms}, {out: ms}] in plane fractions. Returns a Promise that resolves when done.
+  SC.driveHand = function (segments) {
+    var self = this; return new Promise(function (resolve) { self.drive = { segs: segments.slice(), i: 0, t0: null, from: null, resolve: resolve }; });
+  };
+  SC.tickDrive = function (now) {
+    var d = this.drive; if (!d) return;
+    var plane = S.cfg().plane, seg = d.segs[d.i];
+    if (!seg) { this.drive = null; this.userHand = null; this.pushHand(); d.resolve(); return; }
+    if (d.t0 === null) { d.t0 = now; d.from = this.userHand ? [this.userHand.x / plane.w, this.userHand.y / plane.d] : (seg.to ? [seg.to[0], 1.08] : null); }
+    var dur = seg.ms || seg.hold || seg.out || 1, t = Math.min(1, (now - d.t0) / dur);
+    if (seg.to) { var e = t < 0.85 ? t / 0.85 * 0.94 : 0.94 + (t - 0.85) / 0.15 * 0.06; var xf = d.from[0] + (seg.to[0] - d.from[0]) * e, yf = d.from[1] + (seg.to[1] - d.from[1]) * e; this.userHand = yf <= 1 ? { x: xf * plane.w, y: U.clamp(yf, 0, 0.9999) * plane.d, h: 110 } : null; }
+    else if (seg.hold) { if (this.userHand) { var k = (now - d.t0) / 1000; this.userHand = { x: U.clamp(d.from[0] * plane.w + 3 * Math.sin(k * 7), 0, plane.w), y: U.clamp(d.from[1] * plane.d + 3 * Math.cos(k * 5), 0, plane.d), h: 110 }; } }
+    else if (seg.out) { if (t < 0.25 && d.from) { var yo = d.from[1] + (1.1 - d.from[1]) * (t / 0.25); this.userHand = yo <= 1 ? { x: d.from[0] * plane.w, y: yo * plane.d, h: 110 } : null; } else this.userHand = null; }
+    this.lastUserT = now; this.pushHand();
+    if (t >= 1) { d.i += 1; d.t0 = null; }
+  };
+
   // ---- per frame render --------------------------------------------------------------------------------------------------------------------------
   SC.tick = function (now) {
+    this.tickDrive(now);
     this.tickGhost(now);
     var cv = this.canvas, ctx = cv.getContext('2d'), sc = this.dpr * this.scale;
     ctx.setTransform(sc, 0, 0, sc, this.ox * this.dpr, this.oy * this.dpr);
