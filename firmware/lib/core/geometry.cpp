@@ -80,6 +80,8 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   for (int j = 0; j < nB && j < 10; j++) { if (eB[j].s < o.hand->strMin || eB[j].s > o.hand->strMax) { strengthFail = true; continue; } if (isBg(o.bgB, o.nBgB, eB[j].d, eB[j].s)) continue; candB[cb++] = j; }
   if (!ca || !cb) { out.flag = (nA || nB) ? (strengthFail ? FLAG_STRENGTH : FLAG_NO_HAND) : FLAG_NO_HAND; return out; }
   bool have = false, anyOutside = false, anyMasked = false; float bestScore = 0; const float margin = 30;
+  // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
+  struct Pair { int a, b; float x, y, res, rA, rB; }; Pair pr[100]; int np = 0;
   for (int i = 0; i < ca; i++) for (int j = 0; j < cb; j++) {
     float rA = eA[candA[i]].d - o.A->off, rB = eB[candB[j]].d - o.B->off;
     if (!pairFeasible(rA, rB, *o.A, *o.B, o.hand->zwork)) continue;
@@ -87,10 +89,27 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     float res = locate(rA, rB, *o.A, *o.B, o.hand->zwork, gx, gy, x, y);
     if (x < -margin || x > o.plane->w + margin || y < -margin || y > o.plane->d + margin || res > 60) { anyOutside = true; continue; }
     if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
-    float score = rA + rB; if (o.hasPrev) score += 2.5f * hypotf(x - o.prevX, y - o.prevY);
+    pr[np++] = { candA[i], candB[j], x, y, res, rA, rB };
+  }
+  // Nearest-echo gate, applied to the surviving pairs only (a reflector in a dead area must not hide a real hand):
+  // a hand is the first thing a sensor meets; table bounces and bodies come back later.
+  float limA = 1e9f, limB = 1e9f;
+  if (o.nearWin > 0 && np) {
+    float mxA = 0, mxB = 0, refA = 1e9f, refB = 1e9f;
+    for (int k = 0; k < np; k++) { if (eA[pr[k].a].s > mxA) mxA = eA[pr[k].a].s; if (eB[pr[k].b].s > mxB) mxB = eB[pr[k].b].s; }
+    for (int k = 0; k < np; k++) {   // a faint blip does not set the reference
+      if (eA[pr[k].a].s >= 0.25f * mxA && eA[pr[k].a].d < refA) refA = eA[pr[k].a].d;
+      if (eB[pr[k].b].s >= 0.25f * mxB && eB[pr[k].b].d < refB) refB = eB[pr[k].b].d;
+    }
+    limA = refA + o.nearWin; limB = refB + o.nearWin;
+  }
+  for (int k = 0; k < np; k++) {
+    const Pair& q = pr[k];
+    if (eA[q.a].d > limA || eB[q.b].d > limB) continue;
+    float score = q.rA + q.rB; if (o.hasPrev) score += 2.5f * hypotf(q.x - o.prevX, q.y - o.prevY);
     if (!have || score < bestScore) {
-      have = true; bestScore = score; out.x = x < 0 ? 0 : (x > o.plane->w ? o.plane->w : x); out.y = y < 0 ? 0 : (y > o.plane->d ? o.plane->d : y);
-      out.iA = candA[i]; out.iB = candB[j]; out.rA = rA; out.rB = rB; out.res = res;
+      have = true; bestScore = score; out.x = q.x < 0 ? 0 : (q.x > o.plane->w ? o.plane->w : q.x); out.y = q.y < 0 ? 0 : (q.y > o.plane->d ? o.plane->d : q.y);
+      out.iA = q.a; out.iB = q.b; out.rA = q.rA; out.rB = q.rB; out.res = q.res;
     }
   }
   if (!have) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }

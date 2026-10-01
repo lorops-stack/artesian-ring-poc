@@ -83,7 +83,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       settleMs: 150, settleSpeed: 250, startSpeed: 60, goneFrames: 3, exitMs: 1000, stillOffMs: 10000, presentFrames: 2,
       disposalHoldMs: 1000, disposalRunMs: 15000, cleanMs: 60000, cleanHoldMs: 3000,
       rangeStart: 60, rangeEnd: 850, threshSens: 1.0, i2cKhz: 400, log: false, wifiCh: 6,
-      ledCount: 132, ledBright: 90, ledOrder: 'GRB', hyst: 20, beamHalf: 60
+      ledCount: 132, ledBright: 90, ledOrder: 'GRB', hyst: 20, beamHalf: 60, nearWin: 120
     },
     profile: 'default',
     profiles: {
@@ -117,6 +117,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     ['wifiCh', 'Wi-Fi channel', '', 1, 11, 1, 'Change if the venue is busy on this channel'],
     ['ledCount', 'LED count', 'LEDs', 1, 300, 1, 'The real number on the strip'],
     ['ledBright', 'LED brightness cap', '/255', 10, 255, 5, 'Keeps the supply within its rating'],
-    ['hyst', 'Zone hysteresis', 'mm', 0, 60, 2, 'Hand must be this far inside a zone to count']
+    ['hyst', 'Zone hysteresis', 'mm', 0, 60, 2, 'Hand must be this far inside a zone to count'],
+    ['nearWin', 'Nearest-echo window', 'mm', 0, 400, 10, 'Only echoes within this far of each sensor\'s nearest strong echo are used (0 = off). Cuts table bounces and body echoes.']
   ];
 })();

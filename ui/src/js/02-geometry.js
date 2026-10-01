@@ -119,17 +119,34 @@ var RS = globalThis.RS || (globalThis.RS = {});
     for (i = 0; i < eA.length; i++) { if (!okStr(eA[i][1])) { anyStrengthFail = true; continue; } if (isBg(bg.A, eA[i][0], eA[i][1])) continue; candA.push(i); }
     for (j = 0; j < eB.length; j++) { if (!okStr(eB[j][1])) { anyStrengthFail = true; continue; } if (isBg(bg.B, eB[j][0], eB[j][1])) continue; candB.push(j); }
     if (!candA.length || !candB.length) return { flag: (eA.length || eB.length) ? (anyStrengthFail ? RS.FLAG.STRENGTH : RS.FLAG.NO_HAND) : RS.FLAG.NO_HAND };
-    var best = null, margin = 30, anyOutside = false, anyMasked = false;
+    var best = null, margin = 30, anyOutside = false, anyMasked = false, pairs = [];
+    // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
     for (i = 0; i < candA.length; i++) for (j = 0; j < candB.length; j++) {
       var rA = eA[candA[i]][0] - (A.off || 0), rB = eB[candB[j]][0] - (B.off || 0);
       if (!G.pairFeasible(rA, rB, A, B, hand.zwork)) continue;
       var p = G.locate(rA, rB, A, B, hand.zwork, opts.prev || null, plane);
       if (p.x < -margin || p.x > plane.w + margin || p.y < -margin || p.y > plane.d + margin || p.res > 60) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
-      var score = rA + rB;                       // nearer pair wins (ghosts are always further away)
-      if (opts.prev) score += 2.5 * U.hypot(p.x - opts.prev.x, p.y - opts.prev.y);   // an established track is not stolen by a sporadic echo
-      if (!best || score < best.score) best = { x: U.clamp(p.x, 0, plane.w), y: U.clamp(p.y, 0, plane.d), iA: candA[i], iB: candB[j], res: p.res, score: score, rA: rA, rB: rB };
+      pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB });
     }
+    // Nearest-echo gate, applied to the surviving pairs only (a reflector in a dead area must not hide a real hand):
+    // a hand is the first thing a sensor meets; table bounces and bodies come back later.
+    var limA = Infinity, limB = Infinity;
+    if (opts.nearWin > 0 && pairs.length) {
+      var mxA = 0, mxB = 0, refA = Infinity, refB = Infinity;
+      pairs.forEach(function (q) { mxA = Math.max(mxA, eA[q.ia][1]); mxB = Math.max(mxB, eB[q.ib][1]); });
+      pairs.forEach(function (q) {   // a faint blip does not set the reference
+        if (eA[q.ia][1] >= 0.25 * mxA && eA[q.ia][0] < refA) refA = eA[q.ia][0];
+        if (eB[q.ib][1] >= 0.25 * mxB && eB[q.ib][0] < refB) refB = eB[q.ib][0];
+      });
+      limA = refA + opts.nearWin; limB = refB + opts.nearWin;
+    }
+    pairs.forEach(function (q) {
+      if (eA[q.ia][0] > limA || eB[q.ib][0] > limB) return;
+      var score = q.rA + q.rB;                       // nearer pair wins (ghosts are always further away)
+      if (opts.prev) score += 2.5 * U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y);   // an established track is not stolen by a sporadic echo
+      if (!best || score < best.score) best = { x: U.clamp(q.p.x, 0, plane.w), y: U.clamp(q.p.y, 0, plane.d), iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB };
+    });
     if (!best) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
     if (opts.prev && opts.maxJump && U.hypot(best.x - opts.prev.x, best.y - opts.prev.y) > opts.maxJump) { best.flag = RS.FLAG.JUMP; return best; }
     best.flag = RS.FLAG.NONE;

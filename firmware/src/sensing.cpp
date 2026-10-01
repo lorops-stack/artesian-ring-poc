@@ -103,7 +103,7 @@ void step() {
   Lock lk;
   static bool hooked = false; if (!hooked) { g.sm->onEvent(onEvent, nullptr); hooked = true; }
   const Config& c = g.cfg;
-  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, prevX, prevY, 220, c.masks, c.nMasks };
+  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, prevX, prevY, 220, c.masks, c.nMasks, c.tuning.nearWin };
   int nEA = 0, nEB = 0; bool heldA = false, heldB = false;
   const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
   Assoc a = (f.A.alive && f.B.alive) ? associate(eA, nEA, eB, nEB, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };

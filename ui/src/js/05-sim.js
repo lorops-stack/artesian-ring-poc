@@ -97,7 +97,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var eA = this.echoes('A', target), eB = this.echoes('B', target);
     var fpsA = eA ? 1000 / RATE_MS / late : 0, fpsB = eB ? 1000 / RATE_MS / late : 0;
     this.fps.A = 0.9 * this.fps.A + 0.1 * fpsA; this.fps.B = 0.9 * this.fps.B + 0.1 * fpsB;
-    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: this.prev, maxJump: 220, masks: cfg.masks };
+    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: this.prev, maxJump: 220, masks: cfg.masks, nearWin: cfg.tuning.nearWin };
     var assoc = (eA && eB) ? G.associate(eA, eB, opts) : { flag: FLAG.NO_HAND };
     var pos = null, speed = 0;
     if (assoc.flag === FLAG.NONE) { this.miss = 0; this.jumps = 0; var tr = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr.x, y: tr.y }; speed = tr.speed; this.prev = { x: assoc.x, y: assoc.y }; }

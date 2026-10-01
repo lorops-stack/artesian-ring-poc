@@ -141,3 +141,7 @@ Only after section F passes. Follow `wiring-stage2-leds.png`. Use the separate 5
 - Sensor distances look wrong but steady: normal before C7. The wand fit corrects the offset and small angle errors.
 - Changing range or sensitivity in Settings makes the firmware reset and re-configure both sensors. Keep the sink empty for about 3 seconds afterwards.
 - If the monitor shows garbage characters, the monitor speed is not 921600.
+
+## Nearest-echo window (tuning.nearWin)
+
+Each sensor only reports range, never direction, so there is no way to drop echoes "below the plane". What does work is that anything that is not the hand (a body, a metal sink wall, a bounce off a far surface) comes back later than the hand does. With `nearWin` at 120 mm (C10, "Nearest-echo window"), each sensor's echoes further than 120 mm past its nearest solid echo are ignored. Set 0 to turn it off. A bounce off a surface only 12 mm below the sensors is within 2 mm of the direct echo, so it merges into the hand echo and the window does not touch it.

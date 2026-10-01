@@ -40,7 +40,7 @@ bool pairFeasible(float rA, float rB, const SensorPose& A, const SensorPose& B, 
 float locate(float rA, float rB, const SensorPose& A, const SensorPose& B, float h, float gx, float gy, float& x, float& y);
 
 struct Echo { float d; float s; };
-struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; const Mask* masks = nullptr; int nMasks = 0; };
+struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; const Mask* masks = nullptr; int nMasks = 0; float nearWin = 0; };   // nearWin: mm; 0 = off
 struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; };
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o);
 

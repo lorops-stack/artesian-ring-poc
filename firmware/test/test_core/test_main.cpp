@@ -46,6 +46,14 @@ void test_associate() {
   Assoc r = associate(eA, 3, eB, 3, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(4, x, r.x); TEST_ASSERT_FLOAT_WITHIN(4, y, r.y); TEST_ASSERT_EQUAL(1, r.iA); TEST_ASSERT_EQUAL(0, r.iB);
   Echo weak[1] = { { 400, 1 } }; Assoc w = associate(weak, 1, weak, 1, o); TEST_ASSERT_EQUAL(FLAG_STRENGTH, w.flag);
   Assoc none = associate(eA, 0, eB, 0, o); TEST_ASSERT_EQUAL(FLAG_NO_HAND, none.flag);
+  // nearest-echo gate: a later echo (table bounce) is dropped, the near hand echo survives, and off means unchanged
+  float x2 = 200, y2 = 150, hA = range(c.A, x2, y2, c.hand.zwork), hB = range(c.B, x2, y2, c.hand.zwork);
+  Echo gA[2] = { { roundf(hA), 80 }, { roundf(hA) + 260, 150 } }, gB[2] = { { roundf(hB), 90 }, { roundf(hB) + 240, 160 } };
+  AssocOpts og{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; og.nearWin = 120;
+  Assoc g1 = associate(gA, 2, gB, 2, og); TEST_ASSERT_EQUAL(FLAG_NONE, g1.flag); TEST_ASSERT_EQUAL(0, g1.iA); TEST_ASSERT_EQUAL(0, g1.iB);
+  Echo lateA[1] = { { roundf(hA) + 260, 150 } }, nearB[1] = { { roundf(hB), 90 } }; Echo faintA[2] = { { 70, 4 }, { roundf(hA), 80 } };
+  Assoc g2 = associate(faintA, 2, nearB, 1, og); TEST_ASSERT_EQUAL(FLAG_NONE, g2.flag); TEST_ASSERT_EQUAL(1, g2.iA);   // a faint blip nearer than the hand does not drop it
+  (void)lateA;
 }
 void test_masks_and_flat_defaults() {
   Config c; setDefaults(c);

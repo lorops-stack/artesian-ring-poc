@@ -40,6 +40,13 @@ for (const mount of MOUNTS) {
     assert.equal(weak.flag, RS.FLAG.STRENGTH);
     const none = RS.geo.associate([], [], { A, B, hand: c.hand, plane: c.plane });
     assert.equal(none.flag, RS.FLAG.NO_HAND);
+    // nearest-echo gate
+    const gx = 200, gy = 150, hA = RS.geo.range(A, gx, gy, h), hB = RS.geo.range(B, gx, gy, h);
+    const gA = [[Math.round(hA), 80], [Math.round(hA) + 260, 150]], gB = [[Math.round(hB), 90], [Math.round(hB) + 240, 160]];
+    const g1 = RS.geo.associate(gA, gB, { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+    assert.equal(g1.flag, 0); assert.equal(g1.iA, 0); assert.equal(g1.iB, 0);
+    const g2 = RS.geo.associate([[70, 4], [Math.round(hA), 80]], [[Math.round(hB), 90]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+    assert.equal(g2.flag, 0); assert.equal(g2.iA, 1, 'a faint blip nearer than the hand does not drop it');
   });
 
   test(`[${mount}] coverage prediction: back row is the weakest, overall high`, () => {
