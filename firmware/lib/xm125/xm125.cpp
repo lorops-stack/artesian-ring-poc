@@ -50,6 +50,7 @@ bool Sensor::recalibrate(uint32_t timeoutMs) { if (!writeReg(REG_COMMAND, CMD_RE
 bool Sensor::measure(Result& r, uint32_t timeoutMs) {
   r.n = 0;
   if (!writeReg(REG_COMMAND, CMD_MEASURE_DISTANCE)) return false;
+  delayMicroseconds(400);   // let the module raise BUSY before the first poll
   if (!waitNotBusy(timeoutMs)) return false;
   uint32_t res = 0; if (!readReg(REG_DISTANCE_RESULT, res)) return false;
   uint8_t n = res & 0x0F; if (n > 10) n = 10;

@@ -79,7 +79,7 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
   if (!strcmp(cmd, "clean")) { Lock lk; if (!strcmp(c["a"] | "start", "end")) g.sm->endClean(); else g.sm->startClean("ui"); return true; }
   if (!strcmp(cmd, "cfg")) {
     JsonObjectConst set = c["set"]; if (set.isNull()) return err("nothing to set");
-    char e[64]; { Lock lk; uint16_t oldKhz = g.cfg.tuning.i2cKhz; if (!configApplySet(g.cfg, set, e, sizeof e)) return err(e); g.sm->setConfig(&g.cfg); if (!g.cfg.findLayout(g.cfg.layout) && g.cfg.nLayouts) strncpy(g.cfg.layout, g.cfg.layouts[0].id, sizeof g.cfg.layout - 1); if (g.cfg.tuning.i2cKhz != oldKhz) sensing::setBusSpeed(g.cfg.tuning.i2cKhz * 1000UL); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
+    char e[64]; { Lock lk; uint16_t oldKhz = g.cfg.tuning.i2cKhz; float oS = g.cfg.tuning.rangeStart, oE = g.cfg.tuning.rangeEnd, oT = g.cfg.tuning.threshSens; if (!configApplySet(g.cfg, set, e, sizeof e)) return err(e); if (g.cfg.tuning.rangeStart != oS || g.cfg.tuning.rangeEnd != oE || g.cfg.tuning.threshSens != oT) g.sensorsReconfig = true; g.sm->setConfig(&g.cfg); if (!g.cfg.findLayout(g.cfg.layout) && g.cfg.nLayouts) strncpy(g.cfg.layout, g.cfg.layouts[0].id, sizeof g.cfg.layout - 1); if (g.cfg.tuning.i2cKhz != oldKhz) sensing::setBusSpeed(g.cfg.tuning.i2cKhz * 1000UL); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     net::sendCfg(); return true;
   }
   if (!strcmp(cmd, "cal")) { char e[64] = ""; if (!calib::command(c["step"] | "", c["a"] | "", c, e, sizeof e)) return err(e); return true; }

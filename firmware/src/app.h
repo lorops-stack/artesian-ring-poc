@@ -45,6 +45,7 @@ struct State {
   volatile int clients = 0;
   volatile bool restartWifi = false, reboot = false;
   volatile bool checkFailing = false;
+  volatile bool sensorsReconfig = false;                  // range / threshold changed: reset and re-configure both sensors (the module locks its config after apply)
   volatile bool pauseSensing = false;                     // set while a calibration step talks to the sensors itself
   volatile bool sensingBusy = false;                      // true while core 1 is inside a measurement
   // LED tests and button-driven status
@@ -60,7 +61,7 @@ inline void lockGive() { xSemaphoreGive(g.lock); }
 struct Lock { Lock() { lockTake(); } ~Lock() { lockGive(); } };
 
 // modules
-namespace sensing { void begin(); void step(); bool sensorPresent(char which); uint32_t sensorVersion(char which); uint32_t sensorStatus(char which); bool resetTest(char which, char& restartedWhich); bool recordBackground(); void setBusSpeed(uint32_t hz); xm125::Sensor& sensor(char which); float stillSpread(); void clearBg(); }
+namespace sensing { void begin(); void step(); bool sensorPresent(char which); uint32_t sensorVersion(char which); uint32_t sensorStatus(char which); bool resetTest(char which, char& restartedWhich); bool recordBackground(); void setBusSpeed(uint32_t hz); void reconfigure(); xm125::Sensor& sensor(char which); float stillSpread(); void clearBg(); }
 namespace calib { void begin(); void step(); bool command(const char* step, const char* action, JsonVariantConst extra, char* err, int errLen); void toJson(JsonObject out); bool changed(); }
 namespace proto { int frameJson(const Frame& f, char* out, int n); void eventJson(const ring::Event& e, char* out, int n); void statusJson(JsonObject o); void healthJson(JsonObject o); bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& needRestart); }
 namespace net { void begin(); void loop(); void broadcast(const char* json); void sendCfg(); void sendStatus(); void sendCals(); }

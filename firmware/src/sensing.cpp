@@ -22,7 +22,9 @@ static xm125::Settings settingsFromCfg() {
 static bool setupSensor(xm125::Sensor& s) {
   if (!s.present()) { Serial.printf("[%s] not found on the bus\n", s.name()); return false; }
   char v[16]; xm125::Sensor::versionString(s.version(), v, sizeof v); Serial.printf("[%s] distance detector %s\n", s.name(), v);
-  bool ok = s.configure(settingsFromCfg()); Serial.printf("[%s] configure %s (status 0x%08lx)\n", s.name(), ok ? "OK" : "FAILED", (unsigned long)s.lastStatus()); return ok;
+  bool ok = s.configure(settingsFromCfg()); Serial.printf("[%s] configure %s (status 0x%08lx)\n", s.name(), ok ? "OK" : "FAILED", (unsigned long)s.lastStatus());
+  if (!ok) Serial.printf("[%s] hint: is this board flashed with i2c_distance_detector.bin (docs/05)? A board still on the presence firmware answers at 0x52 but fails here. Status 0x%08lx: bits 16-25 are error flags.\n", s.name(), (unsigned long)s.lastStatus());
+  return ok;
 }
 void begin() {
   uint32_t hz = g.cfg.tuning.i2cKhz * 1000UL;
@@ -33,6 +35,13 @@ void begin() {
   idleSince = millis();
 }
 void setBusSpeed(uint32_t hz) { sA.setBusSpeed(hz); sB.setBusSpeed(hz); }
+// The XM125 locks its configuration once applied, so a new range or sensitivity needs a module reset and a fresh apply.
+void reconfigure() {
+  Serial.println("[sensors] range/threshold changed: resetting and re-configuring (keep the sink empty for 3 s)");
+  sA.hardReset(); esp_task_wdt_reset(); sB.hardReset(); esp_task_wdt_reset();
+  setupSensor(sA); esp_task_wdt_reset(); setupSensor(sB);
+  g.checkFailing = !(sA.ok() && sB.ok()); nBgA = nBgB = 0; hasPrev = false; tracker.reset(); idleSince = millis(); relearnDone = false;
+}
 bool sensorPresent(char w) { return sensor(w).present(); }
 uint32_t sensorVersion(char w) { return sensor(w).version(); }
 uint32_t sensorStatus(char w) { return sensor(w).status(); }
@@ -74,6 +83,7 @@ static void onEvent(const Event& e, void*) {
 
 void step() {
   if (g.pauseSensing) { delay(5); return; }
+  if (g.sensorsReconfig) { g.sensorsReconfig = false; reconfigure(); return; }
   Frame f; f.t = millis(); f.n = ++frameN;
   g.sensingBusy = true; readSensor(sA, f.A, lastA, hzA); readSensor(sB, f.B, lastB, hzB); g.sensingBusy = false;
   Lock lk;

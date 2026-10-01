@@ -38,7 +38,7 @@ code .
 
 ## 5. Build and flash the ESP32
 
-Follow `08-build-guide.md` Steps 21 and 29. In short: in VS Code, use **File → Open Folder** to open the `firmware` folder. Then click the PlatformIO (alien-head) icon and go to **esp32s3 → General → Upload**, then **Platform → Upload Filesystem Image**. Run `python tools\build_ui.py` from the repo folder first once the UI exists (Phase 1).
+Follow `08-build-guide.md` Steps 21 and 29. In short: in VS Code, use **File → Open Folder** to open the `firmware` folder. Then click the PlatformIO (alien-head) icon and go to **esp32s3 → General → Upload**, then **Platform → Upload Filesystem Image**. Run `python tools\build_ui.py` from the repo folder first. The UI files it writes (`ui\dist-fs`) are not in git, so this step is needed on every fresh clone before **Upload Filesystem Image**.
 
 ## 6. Run the tests without hardware (from Phase 1)
 

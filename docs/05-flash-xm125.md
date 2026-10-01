@@ -16,6 +16,7 @@ The boards ship with the **presence detector** firmware. This project needs the 
    - Interface: **UART**
    - Port: the COM port the board appears on (CH340). If it doesn't appear, install the CH340 driver.
    - Baudrate: 115200
+   - Parity: **Even**, Data bits: 8, Stop bits: 1, Flow control: None (even parity is required by the STM32 bootloader; the default of None fails to connect)
    - Click **Connect**.
 5. Go to **Erasing & Programming** (second icon on the left).
 6. File path: browse to `i2c_distance_detector.bin`.
