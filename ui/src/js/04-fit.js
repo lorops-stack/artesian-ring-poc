@@ -96,7 +96,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (dbGap !== null && Math.abs(dbGap) > CAL.strengthGapDb) out.codes.push('S5');
     // P4 yaw estimate from the strength map, P5 tilt from 60 vs 160 strength
     ['A', 'B'].forEach(function (k) {
-      var yaw = F.yawFromStrength(fits[k], holes), tilt = F.tiltFromStrength(fits[k]);
+      var yaw = F.yawFromStrength(fits[k], holes, cfg.tuning.beamHalf), tilt = F.tiltFromStrength(fits[k]);
       fits[k].yawEst = yaw; fits[k].tiltRatio = tilt;
       if (yaw !== null && Math.abs(yaw - cfg.sensors[k].yaw) > 20) out.codes.push('P4');
       if (tilt !== null && (tilt > 3 || tilt < 0.33)) out.codes.push('P5');
@@ -119,11 +119,21 @@ var RS = globalThis.RS || (globalThis.RS = {});
     });
     return gaps.length ? U.mean(gaps) : null;
   };
-  // Direction of the strength-weighted centroid of the holes, seen from the fitted sensor (deg, 0 = +x).
-  F.yawFromStrength = function (fit, holes) {
-    var sx = 0, sy = 0, sw = 0;
-    fit.strs.forEach(function (s) { var H = holes[s.hole - 1], d = G.planar(fit, H.x, H.y) || 1, w = s.str * d * d; sx += w * (H.x - fit.x) / d; sy += w * (H.y - fit.y) / d; sw += w; });
-    if (sw <= 0) return null; return U.deg(Math.atan2(sy, sx));
+  // Where does the beam actually point? Strengths are normalised for spreading (× d²) and compared with a beam
+  // model exp(-0.7 (Δangle / half)²) over every candidate yaw; the best-correlated yaw is the estimate (deg, 0 = +x).
+  F.yawFromStrength = function (fit, holes, half) {
+    half = half || 60; var obs = [];
+    fit.strs.forEach(function (s) { var H = holes[s.hole - 1], d = G.planar(fit, H.x, H.y) || 1; if (s.str > 0) obs.push({ ang: U.deg(Math.atan2(H.y - fit.y, H.x - fit.x)), v: Math.log(s.str * d * d) }); });
+    if (obs.length < 6) return null;
+    var mv = U.mean(obs.map(function (o) { return o.v; })), best = null;
+    for (var yaw = 0; yaw < 360; yaw += 2) {
+      var m = obs.map(function (o) { var a = o.ang - yaw; while (a > 180) a -= 360; while (a < -180) a += 360; return -0.7 * Math.pow(a / half, 2); });
+      var mm = U.mean(m), num = 0, da = 0, db = 0;
+      for (var i = 0; i < obs.length; i++) { num += (obs[i].v - mv) * (m[i] - mm); da += Math.pow(obs[i].v - mv, 2); db += Math.pow(m[i] - mm, 2); }
+      var corr = da > 0 && db > 0 ? num / Math.sqrt(da * db) : 0;
+      if (!best || corr > best.corr) best = { yaw: yaw, corr: corr };
+    }
+    return best && best.corr > 0.3 ? best.yaw : null;   // too little angular spread to tell: no estimate
   };
   // Ratio of mean strength at 60 mm to 160 mm, distance-normalised. ~1 means the beam covers both depths.
   F.tiltFromStrength = function (fit) {
