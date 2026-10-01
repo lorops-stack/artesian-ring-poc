@@ -275,6 +275,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   function resetSweep() { st.sweep.reset(); st.result = null; st.sweepT0 = U.now(); refreshAim(); }
   function refreshAim() {
     var c = cfg(), r = st.sweep.n >= 1 ? st.sweep.result(c) : null; st.result = r;
+    if (r && st.sweep.n >= 30) RS.aimLast = { when: new Date().toISOString(), result: JSON.parse(JSON.stringify(r)) };     // for the bench log
     var secs = st.sweeping ? Math.round((U.now() - st.sweepT0) / 1000) : 0;
     st.sweepInfo.textContent = (st.sweeping ? 'Sweeping ' + secs + ' s · ' : '') + st.sweep.A.length + ' readings · ' + Math.round(st.sweep.coverage() * 100) + '% of the sink covered';
     var body = st.aimBody; U.empty(body); if (!r) { body.appendChild(h('div.sub.small.dim', 'Nothing yet. Press Start sweep, then move your hand around the sink.')); return; }

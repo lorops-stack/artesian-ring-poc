@@ -15,5 +15,6 @@ inline void delay(uint32_t ms) { g_ms += ms; }
 inline void delayMicroseconds(uint32_t us) { g_ms += us / 1000; }
 inline void pinMode(int, int) {}
 inline void digitalWrite(int, int) {}
+inline int digitalRead(int) { return 1; }
 struct SerialShim { void printf(const char* f, ...) { va_list a; va_start(a, f); vprintf(f, a); va_end(a); } };
 extern SerialShim Serial;

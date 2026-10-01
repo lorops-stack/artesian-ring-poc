@@ -47,7 +47,7 @@ function serve() {
   const ghost = await page.evaluate(() => RS.link.latest.frame && RS.link.latest.frame.g === 1); if (!ghost) fail('ghost frames not flowing');
   const sessions = await page.evaluate(() => RS.rec.sessions.length); if (sessions < 1) fail('the real session was not recorded (' + sessions + ')');
 
-  for (const r of ['operator', 'studio', 'aim', 'tests', 'dashboard', 'settings']) {
+  for (const r of ['operator', 'studio', 'aim', 'hw', 'bench', 'tests', 'dashboard', 'settings']) {
     await page.goto(base + '/#/' + r); await page.waitForTimeout(900); await shot('10-' + r);
     const ok = await page.evaluate(() => document.querySelector('.screen') && document.querySelector('.screen').children.length > 0);
     if (!ok) fail(r + ' rendered nothing');
@@ -68,6 +68,28 @@ function serve() {
   if (!/Measured|measured|degrees|°/.test(aimTxt)) fail('aim: no measured aim shown');
   await page.click('button:has-text("Flickering reflector")'); await page.click('button:has-text("Start learning")'); await page.waitForTimeout(6000);
   await shot('16-aim-learn');
+  // hardware check: healthy, then a rehearsed fault, then the wave test
+  await page.goto(base + '/#/hw'); await page.waitForTimeout(1800);
+  let hwTxt = await page.evaluate(() => document.querySelector('.screen').innerText);
+  if (!/Both sensors are good/.test(hwTxt)) fail('hw: expected both sensors good, got: ' + hwTxt.slice(0, 200));
+  await shot('17-hw-good');
+  await page.click('button:has-text("B: no power")'); await page.waitForTimeout(300);
+  hwTxt = await page.evaluate(() => document.querySelector('.screen').innerText);
+  if (!/Sensor B has no power/.test(hwTxt)) fail('hw: expected the no-power verdict for B');
+  await shot('18-hw-fault');
+  await page.click('button:has-text("B: no power")'); await page.waitForTimeout(300);
+  await page.click('button:has-text("Start wave test")'); await page.waitForTimeout(9500);
+  hwTxt = await page.evaluate(() => document.querySelector('.screen').innerText);
+  if (!/swung/.test(hwTxt)) fail('hw: wave test produced no result'); await shot('19-hw-wave');
+  // bench log: save, change something, compare, restore
+  await page.goto(base + '/#/bench'); await page.waitForTimeout(500);
+  await page.click('button:has-text("Save snapshot")'); await page.waitForTimeout(300);
+  await page.evaluate(() => RS.link.setMany({ 'sensors.A.yaw': 63 })); await page.waitForTimeout(300);
+  await page.click('button:has-text("Compare with now")'); await page.waitForTimeout(300);
+  const cmpTxt = await page.evaluate(() => document.querySelector('.screen').innerText);
+  if (!/sensors\.A\.yaw/.test(cmpTxt)) fail('bench: comparison did not show the changed yaw'); await shot('20-bench');
+  await page.click('button:has-text("Restore setup")'); await page.waitForTimeout(200); await page.click('.modal button:has-text("Restore")'); await page.waitForTimeout(500);
+  const yaw = await page.evaluate(() => RS.link.latest.cfg.sensors.A.yaw); if (yaw === 63) fail('bench: restore did not put the yaw back');
   // studio: run C0 to completion
   await page.goto(base + '/#/studio/c0'); await page.waitForTimeout(700);
   const runBtn = await page.$('button:has-text("Run hardware check")'); if (!runBtn) fail('no Run hardware check button'); else await runBtn.click();

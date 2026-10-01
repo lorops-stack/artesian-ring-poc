@@ -19,14 +19,24 @@ xm125::Sensor& sensor(char which) { return which == 'A' ? sA : sB; }
 static xm125::Settings settingsFromCfg() {
   xm125::Settings s; const Tuning& t = g.cfg.tuning; s.startMm = t.rangeStart; s.endMm = t.rangeEnd; s.sensitivityX1000 = (uint32_t)(500 * t.threshSens); return s;
 }
-static bool setupSensor(xm125::Sensor& s) {
-  if (!s.present()) { Serial.printf("[%s] not found on the bus\n", s.name()); return false; }
-  char v[16]; xm125::Sensor::versionString(s.version(), v, sizeof v); Serial.printf("[%s] distance detector %s\n", s.name(), v);
+static bool setupSensorImpl(xm125::Sensor& s, SensorInfo& inf) {
+  s.lineLevels(inf.sda, inf.scl);
+  Serial.printf("[%s] I2C lines idle: SDA %s, SCL %s%s\n", s.name(), inf.sda ? "high" : "LOW", inf.scl ? "high" : "LOW", (inf.sda && inf.scl) ? "" : "  <- the module's pull-ups are not holding them up: no 3V3/G on the module, or the wire is open or shorted (or its I2C pull-up jumper was cut)");
+  inf.present = s.present(); inf.busErr = s.lastBusError();
+  if (!inf.present) { Serial.printf("[%s] not found on the bus (I2C error %d: 2 = no ACK at 0x52, 5 = timeout)\n", s.name(), inf.busErr); return false; }
+  inf.ver = s.version(); char v[16]; xm125::Sensor::versionString(inf.ver, v, sizeof v); Serial.printf("[%s] distance detector %s\n", s.name(), v);
   bool ok = s.configure(settingsFromCfg());
   if (!ok) { Serial.printf("[%s] configure failed (status 0x%08lx), resetting and trying once more\n", s.name(), (unsigned long)s.lastStatus()); s.hardReset(); esp_task_wdt_reset(); ok = s.present() && s.configure(settingsFromCfg()); }
+  inf.cfgOk = ok; inf.status = s.lastStatus(); inf.stop = s.stopMode();
   Serial.printf("[%s] configure %s (status 0x%08lx)\n", s.name(), ok ? "OK" : "FAILED", (unsigned long)s.lastStatus());
   if (!ok) Serial.printf("[%s] hint: is this board flashed with i2c_distance_detector.bin (docs/05)? A board still on the presence firmware answers at 0x52 but fails here. Status 0x%08lx: bits 16-25 are error flags.\n", s.name(), (unsigned long)s.lastStatus());
   return ok;
+}
+// Works on a local record and publishes it in one copy, so core 0 never reads a half-filled one.
+static bool setupSensor(xm125::Sensor& s) {
+  SensorInfo& pub = s.name()[0] == 'A' ? g.infoA : g.infoB;
+  SensorInfo inf; inf.setups = pub.setups + 1;
+  bool ok = setupSensorImpl(s, inf); pub = inf; return ok;
 }
 void begin() {
   uint32_t hz = g.cfg.tuning.i2cKhz * 1000UL;

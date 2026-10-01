@@ -26,7 +26,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     this.recorded = { A: this.truth.basin.A.map(function (e) { return [e[0], e[1]]; }), B: this.truth.basin.B.map(function (e) { return [e[0], e[1]]; }) };
     this.bg = { A: [], B: [] };
     this.idleSince = 0; this.idleAcc = null;
-    this.faults = {};
+    this.faults = {}; this.setups = { A: 1, B: 1 };
     this.sm = new RS.StateMachine(this.cfg);
     var self = this;
     this.sm.ev.on('event', function (e) { self.onEvent(e); });
@@ -154,9 +154,17 @@ var RS = globalThis.RS || (globalThis.RS = {});
     return { fw: RS.VERSION + '-sim', proto: RS.PROTO, up: Math.round(U.now() - this.uptime0), rst: this.resetReason, setup: this.setup, heap: 182000, clients: 1, sim: true,
       cal: { saved: !!this.calName, name: this.calName || null, when: this.calWhen || null }, sess: tot.sess, ml: Math.round(tot.ml), savedOff: Math.round(tot.savedOff), savedFlow: Math.round(tot.savedFlow) };
   };
+  // Per-sensor wiring detail, as the firmware reports it (docs/10-protocol.md)
+  Sim.prototype.hwInfo = function (k) {
+    var f = this.faults, noPower = k === 'B' && f.B_noPower, swapped = k === 'A' && f.A_swapSdaScl, badFw = k === 'B' && f.wrongFw, statusErr = k === 'A' && f.statusErr;
+    var pres = !noPower && !swapped, cfg = pres && !badFw && !statusErr;
+    return { sda: !noPower, scl: !noPower, pres: pres, cfg: cfg, ver: pres ? 0x010400 : 0, st: !pres ? 0 : (cfg ? 0x0380 : (statusErr ? 0x00010080 : 0x0)), bus: pres ? 0 : (noPower ? 5 : 2), stop: false, setups: this.setups[k] || 1 };
+  };
   Sim.prototype.health = function () {
-    var f = this.faults, cfg = this.cfg;
-    return { A: { hz: U.round(this.fps.A, 1), er: this.err.A, calNeeded: !!f.calNeeded, str: f.A_swapSdaScl ? 0 : 1800 }, B: { hz: U.round(this.fps.B, 1), er: this.err.B, calNeeded: false, str: f.B_foil ? 30 : 1700 },
+    var f = this.faults, cfg = this.cfg, hwA = this.hwInfo('A'), hwB = this.hwInfo('B');
+    var ha = { hz: U.round(this.fps.A, 1), er: this.err.A, calNeeded: !!f.calNeeded, str: f.A_swapSdaScl ? 0 : 1800 }, hb = { hz: U.round(this.fps.B, 1), er: this.err.B, calNeeded: false, str: f.B_foil ? 30 : 1700 };
+    ha.alive = hwA.cfg && this.fps.A > 0; hb.alive = hwB.cfg && this.fps.B > 0; Object.assign(ha, hwA); Object.assign(hb, hwB);
+    return { A: ha, B: hb,
       bgDrift: f.bgDrift ? 38 : 3, ghosts: this.ghostEcho, front: this.frontEcho, trigNoHand: this.trigNoHand, falseOff: this.sm.falseOff, heldOn: this.sm.heldOn,
       led: cfg.tuning.ledBright, rssi: -38, heap: 182000, rst: this.resetReason, temp: 41 + (this.t / 60000) * 0.3, faults: Object.keys(f) };
   };
@@ -187,6 +195,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       case 'get': if (c.what === 'cfg') this.out.emit('msg', { cfg: this.cfg }); else if (c.what === 'health') this.out.emit('msg', { health: this.health() }); else if (c.what === 'cal') this.out.emit('msg', { cal: this.cal }); else this.out.emit('msg', { status: this.status() }); ack(); break;
       case 'reset': if (c.what === 'totals') this.sm.totals = { sess: 0, ml: 0, savedOff: 0, savedFlow: 0 }; else { this.cfg = U.deepClone(RS.DEFAULTS); this.bg = { A: [], B: [] }; this.recorded = { A: [], B: [] }; this.sm.setConfig(this.cfg); this.calName = null; this.out.emit('msg', { cfg: this.cfg }); } ack(); this.out.emit('msg', { status: this.status() }); break;
       case 'reboot': this.resetReason = 'SW_RESET'; this.uptime0 = U.now(); this.sm.reset(); ack(); this.out.emit('msg', { status: this.status() }); break;
+      case 'sensors': if (c.a === 'recheck') { this.setups.A = (this.setups.A || 1) + 1; this.setups.B = (this.setups.B || 1) + 1; ack(); } else err('unknown sensors action'); break;
       case 'fault': this.setFault(c.name, c.on); ack(); break;   // simulator only (T30 rehearsal)
       default: err('unknown command ' + c.c);
     }

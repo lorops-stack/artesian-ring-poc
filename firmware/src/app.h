@@ -24,6 +24,8 @@ struct Frame {
 constexpr int EVQ = 32, EVLEN = 160;
 struct EventQueue { char buf[EVQ][EVLEN]; volatile int head = 0, tail = 0; void push(const char* s); bool pop(char* out); };
 
+// What core 1 learned about each sensor when it last set it up (core 0 only reads this; it never touches the I2C bus).
+struct SensorInfo { bool sda = false, scl = false, present = false, cfgOk = false, stop = false; uint32_t ver = 0, status = 0; int busErr = 0; uint16_t setups = 0; };
 struct Health {
   float bgDrift = 0; uint32_t ghosts = 0, front = 0, trigNoHand = 0; const char* rst = "UNKNOWN"; float temp = 0;
 };
@@ -35,6 +37,7 @@ struct State {
   Frame frame;                 // latest, written by core 1
   EventQueue events;
   Health health;
+  SensorInfo infoA, infoB;
   ring::Totals totals;         // persisted
   bool setupNeeded = true;     // no Wi-Fi password / PIN yet
   char wifiPass[64] = "";

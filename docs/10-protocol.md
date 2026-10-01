@@ -73,10 +73,13 @@ The whole configuration object (see `firmware/include/defaults.h`; the schema is
 ### `health` · every second (C12)
 
 ```json
-{"health":{"A":{"hz":22.1,"er":0,"calNeeded":false,"str":1800},"B":{...},
+{"health":{"A":{"hz":22.1,"er":0,"calNeeded":false,"str":1800,"alive":true,
+              "sda":true,"scl":true,"pres":true,"cfg":true,"ver":66560,"st":896,"bus":0,"stop":false,"setups":1},"B":{...},
            "bgDrift":3,"ghosts":0,"front":0,"trigNoHand":0,"falseOff":0,"heldOn":2,
            "led":90,"rssi":-40,"heap":180000,"rst":"POWERON","temp":41.2}}
 ```
+
+Per-sensor wiring fields (Hardware check screen): `sda`/`scl` line idle level read with a brief pull-down (high only if the module's own pull-ups are powered), `pres` answers at 0x52, `cfg` distance detector configured, `ver` and `st` version and detector status registers, `bus` last Wire error code (0 ok, 2 no ACK, 5 timeout), `stop` I2C STOP mode in use, `setups` how many times the sensor has been set up. A reading whose result register has the measure-error bit (bit 10) set counts as an error and is not used.
 
 ### `cal` · calibration progress
 
@@ -118,6 +121,7 @@ Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence numbe
 | `get` | `what`: `cfg` `health` `status` `cal` | request one message |
 | `reset` | `what`: `totals` or `factory` | reset running totals or everything |
 | `reboot` | | restart the ESP32 |
+| `sensors` | `a`: `recheck` | set both sensors up again (about 10 s) |
 
 ## HTTP
 

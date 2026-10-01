@@ -42,21 +42,26 @@ class Sensor {
   bool writeReg(uint16_t reg, uint32_t value);
   bool waitNotBusy(uint32_t timeoutMs);
   // Configure and run APPLY_CONFIG_AND_CALIBRATE (needs an empty scene when the threshold method is "recorded").
-  bool configure(const Settings& s, uint32_t timeoutMs = 6000);
-  bool calibrate(uint32_t timeoutMs = 6000);     // CMD_CALIBRATE: re-record the threshold (C6)
+  bool configure(const Settings& s, uint32_t timeoutMs = 15000);
+  bool calibrate(uint32_t timeoutMs = 15000);     // CMD_CALIBRATE: re-record the threshold (C6)
   bool recalibrate(uint32_t timeoutMs = 3000);   // CMD_RECALIBRATE: sensor-only (temperature drift)
-  bool measure(Result& r, uint32_t timeoutMs = 120);
+  bool measure(Result& r, uint32_t timeoutMs = 200);
   uint32_t version() { uint32_t v = 0; readReg(REG_VERSION, v); return v; }
   uint32_t status() { uint32_t v = 0; readReg(REG_DETECTOR_STATUS, v); return v; }
   uint32_t measureCounter() { uint32_t v = 0; readReg(REG_MEASURE_COUNTER, v); return v; }
   uint32_t errors() const { return errors_; }
+  int lastBusError() const { return lastBusErr_; }          // last Wire endTransmission code (0 ok, 2 address NACK, 3 data NACK, 4 other, 5 timeout)
+  bool stopMode() const { return stopMode_; }
+  // Are the module's own pull-ups holding SDA and SCL up? The ESP32 pulls its pins DOWN for a moment while it looks, so a line only reads high if the module is powered and wired.
+  // (Wire turns the ESP32's own pull-ups on, which would read high with nothing connected.) Call from the sensing core only, with the bus idle.
+  void lineLevels(bool& sda, bool& scl);
   uint32_t lastStatus() const { return lastStatus_; }
   const char* name() const { return name_; }
   bool ok() const { return ok_; }
   static float strengthLinear(int32_t db1000) { return 1000.0f * powf(10.0f, db1000 / 1000.0f / 20.0f); }   // dB x1000 -> linear amplitude
   static void versionString(uint32_t v, char* out, int n) { snprintf(out, n, "%lu.%lu.%lu", (unsigned long)(v >> 16), (unsigned long)((v >> 8) & 0xFF), (unsigned long)(v & 0xFF)); }
  private:
-  TwoWire& w_; int sda_, scl_, rst_; const char* name_; uint32_t errors_ = 0, lastStatus_ = 0; bool ok_ = false;
+  TwoWire& w_; int sda_, scl_, rst_; const char* name_; uint32_t errors_ = 0, lastStatus_ = 0; int lastBusErr_ = 0; bool ok_ = false;
   bool stopMode_ = false;   // false: repeated start between the address write and the read; true: a full STOP (auto-switched if reads fail)
   bool readOnce(uint16_t reg, uint32_t& value, bool stop);
 };

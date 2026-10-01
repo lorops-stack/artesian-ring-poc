@@ -51,8 +51,11 @@ void statusJson(JsonObject o) {
 }
 void healthJson(JsonObject o) {
   const Frame& f = g.frame;
-  JsonObject a = o["A"].to<JsonObject>(); a["hz"] = f.A.hz; a["er"] = f.A.er; a["calNeeded"] = f.A.calNeeded; a["str"] = (int)f.A.topStr; a["alive"] = f.A.alive;
-  JsonObject b = o["B"].to<JsonObject>(); b["hz"] = f.B.hz; b["er"] = f.B.er; b["calNeeded"] = f.B.calNeeded; b["str"] = (int)f.B.topStr; b["alive"] = f.B.alive;
+  auto sensor = [&](const char* key, const SensorFrame& sf, const SensorInfo& inf) {
+    JsonObject a = o[key].to<JsonObject>(); a["hz"] = sf.hz; a["er"] = sf.er; a["calNeeded"] = sf.calNeeded; a["str"] = (int)sf.topStr; a["alive"] = sf.alive;
+    a["sda"] = inf.sda; a["scl"] = inf.scl; a["pres"] = inf.present; a["cfg"] = inf.cfgOk; a["ver"] = inf.ver; a["st"] = inf.status; a["bus"] = inf.busErr; a["stop"] = inf.stop; a["setups"] = inf.setups;
+  };
+  sensor("A", f.A, g.infoA); sensor("B", f.B, g.infoB);
   o["bgDrift"] = g.health.bgDrift; o["ghosts"] = g.health.ghosts; o["front"] = g.health.front; o["trigNoHand"] = g.health.trigNoHand;
   o["falseOff"] = 0; o["heldOn"] = 0;   // the state machine's counters are mirrored into the frame's lat/flag; detailed counts come with Phase 2 health
   o["led"] = g.cfg.tuning.ledBright; o["rssi"] = WiFi.softAPgetStationNum(); o["heap"] = ESP.getFreeHeap(); o["rst"] = resetReason(); o["temp"] = g.health.temp;
@@ -97,6 +100,7 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
     else { { Lock lk; storage::factoryReset(); g.sm->setConfig(&g.cfg); sensing::clearBg(); } net::sendCfg(); }
     net::sendStatus(); return true;
   }
+  if (!strcmp(cmd, "sensors")) { if (!strcmp(c["a"] | "", "recheck")) { g.sensorsReconfig = true; return true; } return err("unknown sensors action"); }
   if (!strcmp(cmd, "reboot")) { if (needAuth()) return err("PIN required"); g.reboot = true; return true; }
   return err("unknown command");
 }

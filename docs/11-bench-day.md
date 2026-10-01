@@ -121,8 +121,10 @@ Move your hand in front of each sensor and watch its distance change (that is te
 
 1. On the phone or laptop, join Wi-Fi **ArtesianRing** with the temporary password from the monitor.
 2. Open `http://192.168.4.1`. The Setup screen asks for your own Wi-Fi password and a studio PIN. Write them down; they are never stored in the repo.
-3. Open **Calibrate** and run C0 (hardware check), then C2 and C3 with your tape-measure numbers, then C6 (empty-sink background, keep hands and tools out), then C7 (wand) and C8 (hand profile).
-4. Run tests T1 to T4 from the **Tests** screen.
+3. Open **Hardware** first. Each sensor shows power, answer, setup and measuring, and names the first thing wrong (for example "no power" points at the red and black wires). Use Re-check sensors after fixing a wire, and the 8 s wave test to confirm each sensor sees a hand. The power check pulls the two I2C lines low for a moment, so a line reads high only if the module is powered; this is untested on real wiring.
+4. After each change that mattered, open **Bench log** and press Save snapshot (setup, aim result, dead areas, sensor health). Compare with now, Restore setup, Copy as text or Download from there.
+5. Open **Calibrate** and run C0 (hardware check), then C2 and C3 with your tape-measure numbers, then C6 (empty-sink background, keep hands and tools out), then C7 (wand) and C8 (hand profile).
+6. Run tests T1 to T4 from the **Tests** screen.
 
 ## G. Last: the LED ring
 

@@ -1,4 +1,7 @@
 #include "xm125.h"
+#if defined(ARDUINO_ARCH_ESP32)
+#include <driver/gpio.h>
+#endif
 
 namespace xm125 {
 
@@ -11,10 +14,21 @@ void Sensor::hardReset() {
   delay(1200);   // the module boots and runs its own start-up; the first registers answer after ~1 s
   ok_ = false;
 }
-bool Sensor::present() { w_.beginTransmission(I2C_ADDR); return w_.endTransmission() == 0; }
+static bool probeHigh(int pin) {
+#if defined(ARDUINO_ARCH_ESP32)
+  gpio_pullup_dis((gpio_num_t)pin); gpio_pulldown_en((gpio_num_t)pin); delayMicroseconds(300);
+  bool hi = gpio_get_level((gpio_num_t)pin) != 0;
+  gpio_pulldown_dis((gpio_num_t)pin); gpio_pullup_en((gpio_num_t)pin);
+  return hi;
+#else
+  return digitalRead(pin) != 0;
+#endif
+}
+void Sensor::lineLevels(bool& sda, bool& scl) { sda = probeHigh(sda_); scl = probeHigh(scl_); }
+bool Sensor::present() { w_.beginTransmission(I2C_ADDR); lastBusErr_ = w_.endTransmission(); return lastBusErr_ == 0; }
 bool Sensor::readOnce(uint16_t reg, uint32_t& value, bool stop) {
   w_.beginTransmission(I2C_ADDR); w_.write((uint8_t)(reg >> 8)); w_.write((uint8_t)(reg & 0xFF));
-  if (w_.endTransmission(stop) != 0) return false;
+  lastBusErr_ = w_.endTransmission(stop); if (lastBusErr_ != 0) return false;
   if (w_.requestFrom((int)I2C_ADDR, 4) != 4) return false;
   uint32_t v = 0; for (int i = 0; i < 4; i++) v = (v << 8) | (uint8_t)w_.read();
   value = v; return true;
@@ -29,7 +43,7 @@ bool Sensor::writeReg(uint16_t reg, uint32_t value) {
   for (int attempt = 0; attempt < 3; attempt++) {
     w_.beginTransmission(I2C_ADDR); w_.write((uint8_t)(reg >> 8)); w_.write((uint8_t)(reg & 0xFF));
     w_.write((uint8_t)(value >> 24)); w_.write((uint8_t)(value >> 16)); w_.write((uint8_t)(value >> 8)); w_.write((uint8_t)value);
-    if (w_.endTransmission() == 0) return true;
+    lastBusErr_ = w_.endTransmission(); if (lastBusErr_ == 0) return true;
     delay(5);   // the module can be busy or stretching the clock right after a command; try again
   }
   errors_++; return false;
@@ -63,6 +77,7 @@ bool Sensor::measure(Result& r, uint32_t timeoutMs) {
   if (!waitNotBusy(timeoutMs)) return false;
   uint32_t res = 0; if (!readReg(REG_DISTANCE_RESULT, res)) return false;
   uint8_t n = res & 0x0F; if (n > 10) n = 10;
+  if (res & (1u << 10)) { errors_++; return false; }   // MEASURE_DISTANCE_ERROR: the peaks are not valid
   r.nearStart = res & (1u << 8); r.calNeeded = res & (1u << 9); r.measureError = res & (1u << 10); r.tempC = (int16_t)((res >> 16) & 0xFFFF);
   for (uint8_t i = 0; i < n; i++) {
     uint32_t d = 0, s = 0;
