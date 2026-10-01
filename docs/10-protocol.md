@@ -53,6 +53,8 @@ Every message is one object with exactly one of these top-level keys.
 | `falseoff` | `why` | the false-off counter incremented (F4) |
 | `heldon` | `frames` | a dropout was bridged (F4) |
 | `button` | `a`: `short`, `cal`, `reset` | BOOT button |
+| `beep` | | a calibration reading was taken (C7, C8); Ring Studio plays the beep |
+| `bg` | `A`, `B` lists, `why` | the background was re-learned (idle re-record or a still object) |
 
 ### `status` · on connect, then every 5 s
 
@@ -83,7 +85,7 @@ The whole configuration object (see `firmware/include/defaults.h`; the schema is
         "reading":{"A":[412,1830],"B":[590,1200],"steady":0.8},"result":null}}
 ```
 
-`state` is `idle`, `running`, `waiting` (needs the user), `done` or `failed`. On `done`, `result` holds the step's numbers (for C7: the fitted poses, offsets, RMS error and per-hole errors; for C8: working depth, strength window and still threshold; for C0: the check list with pass/fail and fix codes).
+`state` is `idle`, `running`, `waiting` (needs the user), `done` or `failed`. On `done`, `result` holds the step's numbers for C0 (the check list with pass/fail and fix codes), identify and C6. For C7 and C8 the device sends the raw `samples` (and C8's `still` frames) and Ring Studio computes the fit in the browser (`RS.fit`), then sends the result back with `cal … apply`. The simulator includes `result` directly.
 
 ### `ack` / `err`
 
@@ -100,7 +102,7 @@ Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence numbe
 | `c` | Keys | Does |
 |---|---|---|
 | `hello` | `ui` version | first message; the device replies with `status`, `cfg` and `health` |
-| `auth` | `pin` | unlocks studio commands for this connection (presentation mode) |
+| `auth` | `pin` | unlocks the protected commands for this connection. With a PIN set, `wifi`, `pin`, `delete`, `reset` and `reboot` need it; everything else is open on the private Wi-Fi, and Ring Studio locks its own screens in presentation mode |
 | `setup` | `pass` (8 to 63 chars), `pin` (4 to 8 digits) | first-run setup; the AP restarts with the new password |
 | `layout` | `layout` | switch layout by id (any state → IDLE) |
 | `clean` | `a`: `start` or `end` | clean mode |

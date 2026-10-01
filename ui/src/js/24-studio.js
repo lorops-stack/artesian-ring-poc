@@ -1096,6 +1096,14 @@ var RS = globalThis.RS || (globalThis.RS = {});
   STU.tick = function (now) { if (this.panel && this.panel.tick) { try { this.panel.tick(now); } catch (e) { console.error('[studio] tick failed', e); this.panel.tick = null; } } };
   STU.onCal = function (cal) {
     if (!cal) return;
+    // A real ring sends the raw samples and leaves the fit to the browser (docs/10-protocol.md); the simulator
+    // already includes the result. Compute it here when missing so every panel sees the same shape.
+    if (cal.state === 'done' && !cal.result && cal.samples) {
+      try {
+        if (cal.step === 'c7') { cal.result = RS.fit.wandFit(cal.samples, S.cfg()); if (cal.result && cal.result.staticSpread != null) this.staticSpread = cal.result.staticSpread; }
+        else if (cal.step === 'c8') cal.result = RS.fit.handProfile(cal.samples, cal.still || [], S.cfg(), this.staticSpread);
+      } catch (e) { console.error('[studio] fit failed', e); }
+    }
     if (cal.step) { var s = this.st[cal.step] || (this.st[cal.step] = {}); s.cal = cal; this.calStep = cal.step; }
     else if (this.calStep && this.st[this.calStep]) this.st[this.calStep].cal = null;
     if (this.panel && this.panel.onCal) this.panel.onCal(cal);

@@ -1,0 +1,130 @@
+// Native tests for lib/core: geometry, and the state machine against the shared fixtures in test/fixtures.
+// Run: pio test -e native   (from firmware/). Also: tools/native_tests.sh builds it with plain g++.
+#include <unity.h>
+#include <ArduinoJson.h>
+#include <stdio.h>
+#include <string.h>
+#include <vector>
+#include <string>
+#include "geometry.h"
+#include "config.h"
+#include "config_json.h"
+#include "state_machine.h"
+
+using namespace ring;
+
+static std::string readFile(const char* path) {
+  FILE* f = fopen(path, "rb"); if (!f) { f = fopen((std::string("../") + path).c_str(), "rb"); } if (!f) return "";
+  std::string s; char buf[4096]; size_t n; while ((n = fread(buf, 1, sizeof buf, f)) > 0) s.append(buf, n); fclose(f); return s;
+}
+
+// ---- geometry ---------------------------------------------------------------------------------------------------------------------------
+void test_zones_kitchen() {
+  Config c; setDefaults(c); Zone z[MAX_ZONES]; int n = buildZones(*c.findLayout("kitchen"), z, MAX_ZONES);
+  TEST_ASSERT_EQUAL(9, n); TEST_ASSERT_EQUAL((int)Fn::Soap, (int)z[0].fn); TEST_ASSERT_EQUAL((int)Fn::Neutral, (int)z[4].fn); TEST_ASSERT_EQUAL((int)Fn::Cold, (int)z[8].fn);
+  TEST_ASSERT_EQUAL_STRING("kitchen-2-1", z[7].id);
+  TEST_ASSERT_EQUAL(6, buildZones(*c.findLayout("bathroom"), z, MAX_ZONES)); TEST_ASSERT_EQUAL(5, buildZones(*c.findLayout("accessible"), z, MAX_ZONES));
+  TEST_ASSERT_FLOAT_WITHIN(1e-5, 0.4f, z[0].y1);
+}
+void test_hysteresis() {
+  Config c; setDefaults(c); Zone z[MAX_ZONES]; int n = buildZones(*c.findLayout("kitchen"), z, MAX_ZONES); float edge = c.plane.w / 3;
+  const Zone* a = zoneAt(z, n, c.plane, edge - 40, 450, nullptr, 20); TEST_ASSERT_NOT_NULL(a); TEST_ASSERT_EQUAL((int)Fn::Hot, (int)a->fn);
+  TEST_ASSERT_EQUAL_PTR(a, zoneAt(z, n, c.plane, edge + 10, 450, a, 20));
+  TEST_ASSERT_NULL(zoneAt(z, n, c.plane, edge + 10, 450, nullptr, 20));
+  TEST_ASSERT_EQUAL((int)Fn::Warm, (int)zoneAt(z, n, c.plane, edge + 25, 450, a, 20)->fn);
+}
+void test_locate() {
+  Config c; setDefaults(c); float pts[4][2] = { { 100, 100 }, { 292, 267 }, { 500, 480 }, { 60, 500 } };
+  for (auto& p : pts) { float rA = range(c.A, p[0], p[1], 115), rB = range(c.B, p[0], p[1], 115), x, y; locate(rA, rB, c.A, c.B, 115, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.5, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.5, p[1], y); }
+}
+void test_associate() {
+  Config c; setDefaults(c); float x = 200, y = 400, rA = range(c.A, x, y, 115), rB = range(c.B, x, y, 115);
+  Echo eA[3] = { { 520, 900 }, { roundf(rA), 2000 }, { roundf(rA) + 200, 500 } }, eB[3] = { { roundf(rB), 1800 }, { 650, 820 }, { roundf(rB) + 210, 480 } };
+  Echo bgA[1] = { { 520, 900 } }, bgB[1] = { { 650, 820 } };
+  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, 1, bgB, 1, false, 0, 0, 220 };
+  Assoc r = associate(eA, 3, eB, 3, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(4, x, r.x); TEST_ASSERT_FLOAT_WITHIN(4, y, r.y); TEST_ASSERT_EQUAL(1, r.iA); TEST_ASSERT_EQUAL(0, r.iB);
+  Echo weak[1] = { { 400, 100 } }; Assoc w = associate(weak, 1, weak, 1, o); TEST_ASSERT_EQUAL(FLAG_STRENGTH, w.flag);
+  Assoc none = associate(eA, 0, eB, 0, o); TEST_ASSERT_EQUAL(FLAG_NO_HAND, none.flag);
+}
+void test_config_json_roundtrip_and_set() {
+  Config c; setDefaults(c); JsonDocument doc; JsonObject root = doc.to<JsonObject>(); configToJson(c, root);
+  TEST_ASSERT_EQUAL(3, root["layouts"].size()); TEST_ASSERT_EQUAL_STRING("kitchen", root["layout"]);
+  Config d; setDefaults(d); d.tuning.settleMs = 999; configFromJson(root, d); TEST_ASSERT_EQUAL(150, d.tuning.settleMs);
+  JsonDocument sd; JsonObject set = sd.to<JsonObject>(); set["tuning.settleMs"] = 210; set["sensors.A.off"] = 17.5; set["layouts.bathroom"] = nullptr; char err[64] = "";
+  TEST_ASSERT_TRUE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(210, c.tuning.settleMs); TEST_ASSERT_FLOAT_WITHIN(0.01, 17.5, c.A.off); TEST_ASSERT_NULL(c.findLayout("bathroom")); TEST_ASSERT_EQUAL(2, c.nLayouts);
+}
+
+// ---- fixtures through the state machine ---------------------------------------------------------------------------------------------
+struct Rec { std::string ev, fn, a, why; int lat; float used, savedOff, savedFlow; };
+static std::vector<Rec> g_events;
+static void onEv(const Event& e, void*) {
+  Rec r; r.lat = e.lat; r.used = e.used; r.savedOff = e.savedOff; r.savedFlow = e.savedFlow; r.a = e.a ? e.a : ""; r.why = e.why ? e.why : ""; r.fn = e.fn == Fn::None ? "" : fnName(e.fn);
+  switch (e.type) { case Ev::Session: r.ev = "session"; break; case Ev::Latch: r.ev = "latch"; break; case Ev::Soap: r.ev = "soap"; break; case Ev::CupFull: r.ev = "cupfull"; break; case Ev::Disp: r.ev = "disp"; break; case Ev::Off: r.ev = "off"; break; case Ev::Still: r.ev = "still"; break; case Ev::Clean: r.ev = "clean"; break; case Ev::FalseOff: r.ev = "falseoff"; break; case Ev::HeldOn: r.ev = "heldon"; break; case Ev::Resume: r.ev = "resume"; break; case Ev::Layout: r.ev = "layout"; break; case Ev::Bg: r.ev = "bg"; break; }
+  g_events.push_back(r);
+}
+static bool matches(const Rec& e, JsonObjectConst x) {
+  if (e.ev != (x["ev"] | "")) return false;
+  if (!x["fn"].isNull() && e.fn != (x["fn"] | "")) return false;
+  if (!x["a"].isNull() && e.a != (x["a"] | "")) return false;
+  if (!x["why"].isNull() && e.why != (x["why"] | "")) return false;
+  return true;
+}
+static JsonDocument g_fx;
+void run_scenario(JsonObjectConst sc) {
+  Config c; setDefaults(c); StateMachine sm(&c); g_events.clear(); sm.onEvent(onEv, nullptr);
+  Zone z[MAX_ZONES]; int nz = buildZones(*c.findLayout("kitchen"), z, MAX_ZONES);
+  uint32_t t = 0;
+  for (JsonObjectConst seg : sc["plan"].as<JsonArrayConst>()) {
+    bool has = !(seg["pos"].is<JsonVariantConst>() && seg["pos"].isNull() && !seg["zone"].is<const char*>());
+    float px = 0, py = 0;
+    if (seg["zone"].is<const char*>()) { Fn fn = fnFromName(seg["zone"]); for (int i = 0; i < nz; i++) if (z[i].fn == fn) { zoneCentre(z[i], c.plane, px, py); break; } has = true; }
+    else if (seg["pos"].is<JsonArrayConst>()) { px = seg["pos"][0]; py = seg["pos"][1]; has = true; } else has = false;
+    int frames = (int)((seg["ms"].as<float>() / 45.0f) + 0.5f); if (frames < 1) frames = 1;
+    bool wobble = seg["wobble"] | false; float speed = seg["speed"].isNull() ? (has ? 20.0f : 0.0f) : seg["speed"].as<float>(); uint8_t flag = seg["flag"] | 0;
+    for (int i = 0; i < frames; i++) { t += 45; Input in{ t, has, px + (wobble ? ((i % 2) ? 4.0f : -4.0f) : 0.0f), py, speed, flag }; sm.step(in); }
+  }
+  // ordered subsequence of expected events
+  JsonArrayConst exp = sc["events"]; size_t k = 0; std::string got;
+  for (const Rec& e : g_events) {
+    got += e.ev + (e.fn.empty() ? "" : ":" + e.fn) + (e.a.empty() ? "" : ":" + e.a) + (e.why.empty() ? "" : "(" + e.why + ")") + " ";
+    if (k < exp.size() && matches(e, exp[k])) {
+      JsonObjectConst x = exp[k];
+      if (!x["usedMin"].isNull()) { TEST_ASSERT_TRUE_MESSAGE(e.used >= x["usedMin"].as<float>() && e.savedOff >= x["savedOffMin"].as<float>() && e.savedFlow >= x["savedFlowMin"].as<float>(), "saved split"); }
+      k++;
+    }
+  }
+  char msg[512]; snprintf(msg, sizeof msg, "%s: expected events in order; got %s", sc["id"] | "?", got.c_str());
+  TEST_ASSERT_EQUAL_MESSAGE((int)exp.size(), (int)k, msg);
+  snprintf(msg, sizeof msg, "%s: final state", sc["id"] | "?"); TEST_ASSERT_EQUAL_MESSAGE(sc["state"].as<int>(), (int)sm.state(), msg);
+  if (sc["fn"].is<const char*>()) TEST_ASSERT_EQUAL_STRING(sc["fn"], fnName(sm.fn()));
+  if (!sc["latMax"].isNull()) { for (const Rec& e : g_events) if (e.ev == "latch") { TEST_ASSERT_TRUE_MESSAGE(e.lat >= 150 && e.lat <= sc["latMax"].as<int>(), "latency"); break; } }
+  for (JsonObjectConst x : sc["noEvents"].as<JsonArrayConst>()) for (const Rec& e : g_events) { snprintf(msg, sizeof msg, "%s: unexpected %s", sc["id"] | "?", x["ev"] | ""); TEST_ASSERT_FALSE_MESSAGE(matches(e, x), msg); }
+  for (JsonPairConst kv : sc["count"].as<JsonObjectConst>()) {
+    std::string key = kv.key().c_str(), ev = key, a; size_t dot = key.find('.'); if (dot != std::string::npos) { ev = key.substr(0, dot); a = key.substr(dot + 1); }
+    int n = 0; for (const Rec& e : g_events) if (e.ev == ev && (a.empty() || e.a == a)) n++;
+    snprintf(msg, sizeof msg, "%s: count of %s", sc["id"] | "?", key.c_str()); TEST_ASSERT_EQUAL_MESSAGE(kv.value().as<int>(), n, msg);
+  }
+}
+void test_fixtures() {
+  std::string text = readFile("test/fixtures/scenarios.json");
+  TEST_ASSERT_TRUE_MESSAGE(text.size() > 0, "scenarios.json not found (run from firmware/)");
+  TEST_ASSERT_TRUE(deserializeJson(g_fx, text) == DeserializationError::Ok);
+  int n = 0; for (JsonObjectConst sc : g_fx["scenarios"].as<JsonArrayConst>()) { run_scenario(sc); n++; }
+  TEST_ASSERT_TRUE(n >= 10);
+}
+void test_layout_change_and_clean_commands() {
+  Config c; setDefaults(c); StateMachine sm(&c); g_events.clear(); sm.onEvent(onEv, nullptr);
+  Zone z[MAX_ZONES]; int nz = buildZones(*c.findLayout("kitchen"), z, MAX_ZONES); float px = 0, py = 0; for (int i = 0; i < nz; i++) if (z[i].fn == Fn::Disposal) zoneCentre(z[i], c.plane, px, py);
+  uint32_t t = 0; for (int i = 0; i < 30; i++) { t += 45; Input in{ t, true, px + ((i % 2) ? 4.0f : -4.0f), py, i < 3 ? 400.0f : 20.0f, 0 }; sm.step(in); }
+  TEST_ASSERT_TRUE(sm.disposalUntil() > 0);
+  strcpy(c.layout, "bathroom"); TEST_ASSERT_TRUE(sm.setLayout("bathroom")); TEST_ASSERT_EQUAL(IDLE, sm.state()); TEST_ASSERT_EQUAL(0, (int)sm.disposalUntil());
+  sm.startClean("ui"); TEST_ASSERT_EQUAL(CLEAN, sm.state()); sm.endClean(); TEST_ASSERT_EQUAL(IDLE, sm.state());
+}
+
+void setUp() {} void tearDown() {}
+int main(int, char**) {
+  UNITY_BEGIN();
+  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_config_json_roundtrip_and_set);
+  RUN_TEST(test_fixtures); RUN_TEST(test_layout_change_and_clean_commands);
+  return UNITY_END();
+}
