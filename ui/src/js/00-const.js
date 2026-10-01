@@ -4,6 +4,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
 (function () {
   'use strict';
   RS.VERSION = '0.1.0';
+  RS.screens = RS.screens || {};
   RS.PROTO = 1;
 
   // Function catalogue: colour, label, icon path (24x24 stroke icons).

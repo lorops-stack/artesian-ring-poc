@@ -41,6 +41,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // ---- inputs -----------------------------------------------------------------------------------------------
   // truth {x, y, h} in mm (h = depth below the ring) or null; ghost marks the demo hand (excluded from metrics)
   Sim.prototype.setHand = function (truth, ghost) { this.hand = truth; this.ghost = !!ghost; };
+  // Hand-over between the ghost and a real hand: end whatever session was running so the numbers stay honest.
+  Sim.prototype.resetSession = function () { if (this.sm.session || this.sm.st !== ST.IDLE) this.sm.allOff('reset', true); this.tracker.reset(); this.prev = null; this.miss = 0; };
   Sim.prototype.setFault = function (name, on) { if (on) this.faults[name] = true; else delete this.faults[name]; this.out.emit('faults', Object.keys(this.faults)); };
   Sim.prototype.now = function () { return this.t; };
 
@@ -93,8 +95,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: this.prev, maxJump: 220 };
     var assoc = (eA && eB) ? G.associate(eA, eB, opts) : { flag: FLAG.NO_HAND };
     var pos = null, speed = 0;
-    if (assoc.flag === FLAG.NONE) { this.miss = 0; var tr = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr.x, y: tr.y }; speed = tr.speed; this.prev = { x: assoc.x, y: assoc.y }; }
-    else if (assoc.flag === FLAG.JUMP) { pos = this.prev; speed = this.tracker.x !== null ? U.hypot(this.tracker.vx, this.tracker.vy) : 0; }
+    if (assoc.flag === FLAG.NONE) { this.miss = 0; this.jumps = 0; var tr = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr.x, y: tr.y }; speed = tr.speed; this.prev = { x: assoc.x, y: assoc.y }; }
+    else if (assoc.flag === FLAG.JUMP) {
+      this.jumps = (this.jumps || 0) + 1;
+      if (this.jumps >= 2) {   // two jumps in a row: the target really moved; re-acquire there (firmware does the same)
+        this.jumps = 0; this.tracker.reset(); var tr2 = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr2.x, y: tr2.y }; speed = 400; this.prev = { x: assoc.x, y: assoc.y }; assoc.flag = FLAG.NONE;
+      } else { pos = this.prev; speed = this.tracker.x !== null ? U.hypot(this.tracker.vx, this.tracker.vy) : 0; }
+    }
     else { this.miss = (this.miss || 0) + 1; if (this.miss >= cfg.tuning.goneFrames) { this.tracker.reset(); this.prev = null; } }   // coast through a brief dropout
     if (this.faults.personFront && !hand && assoc.flag === FLAG.OUTSIDE) this.frontEcho += 1;
     var wasSession = this.sm.session;
@@ -157,11 +164,12 @@ var RS = globalThis.RS || (globalThis.RS = {});
       case 'hello': this.out.emit('msg', { status: this.status() }); this.out.emit('msg', { cfg: this.cfg }); this.out.emit('msg', { health: this.health() }); ack(); break;
       case 'auth': this.auth = true; ack({ ok: true }); break;
       case 'setup': if (!c.pass || c.pass.length < 8 || c.pass.length > 63) return err('Password must be 8 to 63 characters'); if (!/^\d{4,8}$/.test(c.pin || '')) return err('PIN must be 4 to 8 digits'); this.setup = false; ack({ restart: true }); this.out.emit('msg', { status: this.status() }); break;
-      case 'layout': if (!this.sm.setLayout(c.id)) return err('unknown layout'); ack(); this.out.emit('msg', { cfg: this.cfg }); break;
+      case 'layout': if (!this.sm.setLayout(c.layout)) return err('unknown layout'); ack(); this.out.emit('msg', { cfg: this.cfg }); break;
       case 'clean': if (c.a === 'end') this.sm.endClean(); else this.sm.startClean('ui'); ack(); break;
       case 'cfg':
         if (!c.set) return err('nothing to set');
-        Object.keys(c.set).forEach(function (k) { U.setPath(self.cfg, k, c.set[k]); });
+        Object.keys(c.set).forEach(function (k) { if (c.set[k] === null) { var parts = k.split('.'), parent = parts.length > 1 ? U.getPath(self.cfg, parts.slice(0, -1).join('.')) : self.cfg; if (parent) delete parent[parts[parts.length - 1]]; } else U.setPath(self.cfg, k, c.set[k]); });
+        if (!this.cfg.layouts[this.cfg.layout]) this.sm.setLayout(Object.keys(this.cfg.layouts)[0] || 'kitchen');
         this.sm.setConfig(this.cfg); ack(); this.out.emit('msg', { cfg: this.cfg }); break;
       case 'cal': this.calCmd(c, ack, err); break;
       case 'led': this.ledTest = c.test === 'off' ? null : { test: c.test, n: c.n }; ack(); this.out.emit('msg', { led: this.ledTest }); break;
@@ -178,7 +186,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       default: err('unknown command ' + c.c);
     }
   };
-  Sim.prototype.calList = function () { var self = this; return Object.keys(this.savedCals).map(function (k) { var s = self.savedCals[k]; return { name: s.name, notes: s.notes, when: s.when }; }); };
+  Sim.prototype.calList = function () { var self = this; return Object.keys(this.savedCals).map(function (k) { var s = self.savedCals[k]; return { name: s.name, notes: s.notes, when: s.when, cfg: { sensors: s.cfg.sensors, hand: s.cfg.hand, plane: s.cfg.plane } }; }); };
 
   // ---- calibration steps (C0, identify, C6, C7, C8) ----------------------------------------------------------------
   Sim.prototype.calEmit = function () { this.out.emit('msg', { cal: U.deepClone(this.cal) }); };

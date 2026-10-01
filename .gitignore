@@ -6,5 +6,7 @@ __pycache__/
 sessions/
 # built UI
 ui/dist/
+ui/dist-fs/
+ui/.bundle-check.js
 # never commit secrets
 secrets.h

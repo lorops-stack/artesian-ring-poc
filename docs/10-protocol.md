@@ -89,26 +89,27 @@ The whole configuration object (see `firmware/include/defaults.h`; the schema is
 
 ```json
 {"ack":{"c":"layout","id":7}}
+{"ack":{"c":"cfg","id":8}}
 {"err":{"c":"cfg","id":8,"msg":"ledCount out of range"}}
 ```
 
 ## Ring Studio → device
 
-Every command is `{"c": name, "id": n, ...}`. `id` is echoed in the `ack` or `err`.
+Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence number, echoed in the `ack` or `err`; no command uses `id` for anything else.
 
 | `c` | Keys | Does |
 |---|---|---|
 | `hello` | `ui` version | first message; the device replies with `status`, `cfg` and `health` |
 | `auth` | `pin` | unlocks studio commands for this connection (presentation mode) |
 | `setup` | `pass` (8 to 63 chars), `pin` (4 to 8 digits) | first-run setup; the AP restarts with the new password |
-| `layout` | `id` | switch layout (any state → IDLE) |
+| `layout` | `layout` | switch layout by id (any state → IDLE) |
 | `clean` | `a`: `start` or `end` | clean mode |
-| `cfg` | `set`: object of dotted paths to values, e.g. `{"tuning.settleMs":150}` | live config change, saved to flash after 2 s quiet |
+| `cfg` | `set`: object of dotted paths to values, e.g. `{"tuning.settleMs":150}`; a `null` value deletes that key (used for custom layouts) | live config change, saved to flash after 2 s quiet |
 | `cal` | `step`, `a`: `start` `stop` `sample` `redo` `skip` `next` `apply`; step-specific keys | drive a calibration step; `apply` sends fitted results (`sensors`, `hand`) computed in the browser |
 | `led` | `test`: `white` `rgb` `count` `off`, `n` | LED tests (C0) |
 | `save` | `name`, `notes` | save the current calibration under a name |
 | `load` | `name` | load a saved calibration |
-| `list` | | reply `{"cals":[...]}` |
+| `list` | | reply `{"cals":[{"name","notes","when","cfg":{"sensors","hand","plane"}}]}` |
 | `delete` | `name` | delete a saved calibration |
 | `wifi` | `pass` | change the Wi-Fi password |
 | `pin` | `pin` | change the studio PIN |
