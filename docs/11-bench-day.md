@@ -126,6 +126,9 @@ Move your hand in front of each sensor and watch its distance change (that is te
 5. Open **Calibrate** and run C0 (hardware check), then C2 and C3 with your tape-measure numbers, then C6 (empty-sink background, keep hands and tools out), then C7 (wand) and C8 (hand profile).
 6. Run tests T1 to T4 from the **Tests** screen.
 
+### Echo strength numbers (measured on the bench, 1 Oct 2026)
+A real hand 6 to 25 cm from a sensor reads about 5 to 50 in the monitor, and a body at 40 to 60 cm reads 70 to 170. The default hand-strength minimum is therefore 3, and C8 refines it from your own hand. The strength scale is not yet verified against Acconeer's documents, so treat the numbers as relative. The C6 clutter thresholds (1000 and 1200) were written for a larger scale and will not flag clutter until they are rescaled from real data.
+
 ## G. Last: the LED ring
 
 Only after section F passes. Follow `wiring-stage2-leds.png`. Use the separate 5 V supply for the strip, and join its ground to the ESP32 ground. Checkpoint photos of the strip's pads and the supply label first (build guide step with the photo checkpoint).

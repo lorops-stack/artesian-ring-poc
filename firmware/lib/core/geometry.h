@@ -15,7 +15,7 @@ enum Flag : uint8_t { FLAG_NONE = 0, FLAG_NO_HAND = 1, FLAG_STRENGTH = 2, FLAG_O
 
 struct Plane { float w = 584.2f, d = 533.4f; };
 struct SensorPose { float x = 0, y = 0, z = 0, yaw = 45, tilt = 0, off = 0; bool on = true; };   // flat slot mount: level with the plane, no tilt
-struct HandModel { float zmin = -30, zmax = 60, zwork = 0, strMin = 600, strMax = 60000, stillThr = 6; };   // depth below the sensor plane (mm)
+struct HandModel { float zmin = -30, zmax = 60, zwork = 0, strMin = 3, strMax = 60000, stillThr = 6; };   // depth below the sensor plane (mm)
 
 // Dead areas: a fix inside one is ignored. Plane coordinates in mm. kind 0 = rectangle (x, y = back-left corner, a = width, b = height), 1 = circle (x, y = centre, a = radius).
 constexpr int MAX_MASKS = 12;

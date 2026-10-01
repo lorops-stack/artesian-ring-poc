@@ -74,7 +74,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       B: { x: 584.2, y: 0,     z: 0, yaw: 135, tilt: 0, off: 0, on: true },
       C: { x: 292.1, y: 533.4, z: 0, yaw: 270, tilt: 0, off: 0, on: false }
     },
-    hand: { zmin: -30, zmax: 60, zwork: 0, strMin: 600, strMax: 60000, stillThr: 6 },
+    hand: { zmin: -30, zmax: 60, zwork: 0, strMin: 3, strMax: 60000, stillThr: 6 },
     rig: { mount: 'flat', slotH: 14, recess: 20, sinkDepth: 190, beamV: 35 },
     masks: {},
     layout: 'kitchen',

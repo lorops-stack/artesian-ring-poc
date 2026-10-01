@@ -39,11 +39,11 @@ void test_locate() {
 }
 void test_associate() {
   Config c; setDefaults(c); float x = 200, y = 400, rA = range(c.A, x, y, c.hand.zwork), rB = range(c.B, x, y, c.hand.zwork);
-  Echo eA[3] = { { 520, 900 }, { roundf(rA), 2000 }, { roundf(rA) + 200, 500 } }, eB[3] = { { roundf(rB), 1800 }, { 650, 820 }, { roundf(rB) + 210, 480 } };
+  Echo eA[3] = { { 520, 900 }, { roundf(rA), 2000 }, { roundf(rA) + 200, 2 } }, eB[3] = { { roundf(rB), 1800 }, { 650, 820 }, { roundf(rB) + 210, 2 } };
   Echo bgA[1] = { { 520, 900 } }, bgB[1] = { { 650, 820 } };
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, 1, bgB, 1, false, 0, 0, 220 };
   Assoc r = associate(eA, 3, eB, 3, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(4, x, r.x); TEST_ASSERT_FLOAT_WITHIN(4, y, r.y); TEST_ASSERT_EQUAL(1, r.iA); TEST_ASSERT_EQUAL(0, r.iB);
-  Echo weak[1] = { { 400, 100 } }; Assoc w = associate(weak, 1, weak, 1, o); TEST_ASSERT_EQUAL(FLAG_STRENGTH, w.flag);
+  Echo weak[1] = { { 400, 1 } }; Assoc w = associate(weak, 1, weak, 1, o); TEST_ASSERT_EQUAL(FLAG_STRENGTH, w.flag);
   Assoc none = associate(eA, 0, eB, 0, o); TEST_ASSERT_EQUAL(FLAG_NO_HAND, none.flag);
 }
 void test_masks_and_flat_defaults() {

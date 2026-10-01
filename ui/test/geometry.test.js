@@ -31,12 +31,12 @@ for (const mount of MOUNTS) {
     }
   });
 
-  test(`[${mount}] association picks the nearer pair and rejects background and weak echoes`, () => {
+  test(`[${mount}] association picks the nearer pair and rejects background and weak echoes (strength below 3)`, () => {
     const x = 200, y = 400, rA = RS.geo.range(A, x, y, h), rB = RS.geo.range(B, x, y, h);
-    const eA = [[520, 900], [Math.round(rA), 2000], [Math.round(rA) + 200, 500]], eB = [[Math.round(rB), 1800], [650, 820], [Math.round(rB) + 210, 480]];
+    const eA = [[520, 900], [Math.round(rA), 2000], [Math.round(rA) + 200, 2]], eB = [[Math.round(rB), 1800], [650, 820], [Math.round(rB) + 210, 2]];
     const r = RS.geo.associate(eA, eB, { A, B, hand: c.hand, plane: c.plane, bg: { A: [520], B: [650] } });
     assert.equal(r.flag, 0); assert.ok(Math.hypot(r.x - x, r.y - y) < 4, `got ${r.x},${r.y}`);
-    const weak = RS.geo.associate([[400, 100]], [[400, 100]], { A, B, hand: c.hand, plane: c.plane });
+    const weak = RS.geo.associate([[400, 1]], [[400, 1]], { A, B, hand: c.hand, plane: c.plane });
     assert.equal(weak.flag, RS.FLAG.STRENGTH);
     const none = RS.geo.associate([], [], { A, B, hand: c.hand, plane: c.plane });
     assert.equal(none.flag, RS.FLAG.NO_HAND);
