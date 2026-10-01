@@ -155,6 +155,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
 
   // ---- Alpha-beta tracker for a 2D position; gives a smoothed position and speed (mm/s) ------------------------
   G.Tracker = function (alpha, beta) { this.a = alpha || 0.6; this.b = beta || 0.15; this.reset(); };
+  G.Tracker.prototype.setAlpha = function (a) { this.a = U.clamp(a, 0.05, 1); this.b = 0.25 * this.a; };
   G.Tracker.prototype.reset = function () { this.x = null; this.y = null; this.vx = 0; this.vy = 0; this.t = 0; };
   G.Tracker.prototype.update = function (x, y, t) {
     if (this.x === null) { this.x = x; this.y = y; this.vx = 0; this.vy = 0; this.t = t; return { x: x, y: y, speed: 0 }; }

@@ -92,7 +92,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (nowMs - this.lastTick < RATE_MS) return null;
     var late = this.lastTick > 0 ? (nowMs - this.lastTick) / RATE_MS : 1; this.lastTick = nowMs;
     var t = Math.round(nowMs - this.t0); this.t = t; this.n += 1;
-    var cfg = this.cfg, hand = this.hand;
+    var cfg = this.cfg, hand = this.hand; this.tracker.setAlpha(cfg.tuning.smooth || 0.35);
     var target = hand ? { x: hand.x, y: hand.y, h: hand.h == null ? cfg.hand.zwork : hand.h, kind: 'hand' } : null;
     var eA = this.echoes('A', target), eB = this.echoes('B', target);
     var fpsA = eA ? 1000 / RATE_MS / late : 0, fpsB = eB ? 1000 / RATE_MS / late : 0;

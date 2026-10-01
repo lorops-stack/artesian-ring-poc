@@ -27,7 +27,7 @@ void configToJson(const Config& c, JsonObject out) {
   const Tuning& t = c.tuning; JsonObject to = out["tuning"].to<JsonObject>();
   to["settleMs"] = t.settleMs; to["settleSpeed"] = t.settleSpeed; to["startSpeed"] = t.startSpeed; to["goneFrames"] = t.goneFrames; to["exitMs"] = t.exitMs; to["stillOffMs"] = t.stillOffMs; to["presentFrames"] = t.presentFrames;
   to["disposalHoldMs"] = t.disposalHoldMs; to["disposalRunMs"] = t.disposalRunMs; to["cleanMs"] = t.cleanMs; to["cleanHoldMs"] = t.cleanHoldMs; to["rangeStart"] = t.rangeStart; to["rangeEnd"] = t.rangeEnd; to["threshSens"] = t.threshSens;
-  to["i2cKhz"] = t.i2cKhz; to["log"] = t.log; to["wifiCh"] = t.wifiCh; to["ledCount"] = t.ledCount; to["ledBright"] = t.ledBright; to["ledOrder"] = t.ledOrder; to["hyst"] = t.hyst; to["beamHalf"] = t.beamHalf; to["ledOffset"] = t.ledOffset; to["bgRelearnIdleMs"] = t.bgRelearnIdleMs; to["nearWin"] = t.nearWin;
+  to["i2cKhz"] = t.i2cKhz; to["log"] = t.log; to["wifiCh"] = t.wifiCh; to["ledCount"] = t.ledCount; to["ledBright"] = t.ledBright; to["ledOrder"] = t.ledOrder; to["hyst"] = t.hyst; to["beamHalf"] = t.beamHalf; to["ledOffset"] = t.ledOffset; to["bgRelearnIdleMs"] = t.bgRelearnIdleMs; to["nearWin"] = t.nearWin; to["smooth"] = t.smooth;
   out["profile"] = c.profile;
   JsonObject ps = out["profiles"].to<JsonObject>();
   for (int i = 0; i < c.nProfiles; i++) { const Profile& P = c.profiles[i]; JsonObject po = ps[P.id].to<JsonObject>(); po["name"] = P.name; po["hotF"] = P.hotF; po["hotCapF"] = P.hotCapF; po["warmF"] = P.warmF; po["cupMl"] = P.cupMl; po["soapMl"] = P.soapMl; po["flowGpm"] = P.flowGpm; po["colors"].to<JsonObject>(); }
@@ -71,7 +71,7 @@ bool configFromJson(const JsonObjectConst in, Config& c) {
   if (!to.isNull()) {
     get(to, "settleMs", t.settleMs); get(to, "settleSpeed", t.settleSpeed); get(to, "startSpeed", t.startSpeed); get(to, "goneFrames", t.goneFrames); get(to, "exitMs", t.exitMs); get(to, "stillOffMs", t.stillOffMs); get(to, "presentFrames", t.presentFrames);
     get(to, "disposalHoldMs", t.disposalHoldMs); get(to, "disposalRunMs", t.disposalRunMs); get(to, "cleanMs", t.cleanMs); get(to, "cleanHoldMs", t.cleanHoldMs); get(to, "rangeStart", t.rangeStart); get(to, "rangeEnd", t.rangeEnd); get(to, "threshSens", t.threshSens);
-    get(to, "i2cKhz", t.i2cKhz); get(to, "log", t.log); get(to, "wifiCh", t.wifiCh); get(to, "ledCount", t.ledCount); get(to, "ledBright", t.ledBright); if (to["ledOrder"].is<const char*>()) cpy(t.ledOrder, sizeof t.ledOrder, to["ledOrder"]); get(to, "hyst", t.hyst); get(to, "beamHalf", t.beamHalf); get(to, "nearWin", t.nearWin); get(to, "ledOffset", t.ledOffset); get(to, "bgRelearnIdleMs", t.bgRelearnIdleMs);
+    get(to, "i2cKhz", t.i2cKhz); get(to, "log", t.log); get(to, "wifiCh", t.wifiCh); get(to, "ledCount", t.ledCount); get(to, "ledBright", t.ledBright); if (to["ledOrder"].is<const char*>()) cpy(t.ledOrder, sizeof t.ledOrder, to["ledOrder"]); get(to, "hyst", t.hyst); get(to, "beamHalf", t.beamHalf); get(to, "nearWin", t.nearWin); get(to, "smooth", t.smooth); get(to, "ledOffset", t.ledOffset); get(to, "bgRelearnIdleMs", t.bgRelearnIdleMs);
   }
   if (in["profile"].is<const char*>()) cpy(c.profile, sizeof c.profile, in["profile"]);
   JsonObjectConst ps = in["profiles"];

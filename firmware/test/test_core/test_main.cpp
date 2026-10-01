@@ -38,6 +38,14 @@ void test_locate() {
   Config c; setDefaults(c); float pts[4][2] = { { 100, 100 }, { 292, 267 }, { 500, 480 }, { 60, 500 } };
   for (auto& p : pts) { float rA = range(c.A, p[0], p[1], c.hand.zwork), rB = range(c.B, p[0], p[1], c.hand.zwork), x, y; locate(rA, rB, c.A, c.B, c.hand.zwork, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.5, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.5, p[1], y); }
 }
+void test_tracker_smoothing() {
+  // the same noisy readings: lower alpha gives a steadier dot
+  float xs[8] = { 200, 214, 190, 212, 188, 210, 192, 205 }; float spread[2];
+  float al[2] = { 1.0f, 0.3f };
+  for (int k = 0; k < 2; k++) { Tracker t; t.setAlpha(al[k]); float lo = 1e9f, hi = -1e9f, ox, oy, sp;
+    for (int i = 0; i < 8; i++) { t.update(xs[i], 150, 1000 + i * 43, ox, oy, sp); if (i >= 2) { if (ox < lo) lo = ox; if (ox > hi) hi = ox; } } spread[k] = hi - lo; }
+  TEST_ASSERT_TRUE(spread[1] < spread[0] * 0.6f);
+}
 void test_associate() {
   Config c; setDefaults(c); float x = 200, y = 400, rA = range(c.A, x, y, c.hand.zwork), rB = range(c.B, x, y, c.hand.zwork);
   Echo eA[3] = { { 520, 900 }, { roundf(rA), 2000 }, { roundf(rA) + 200, 2 } }, eB[3] = { { roundf(rB), 1800 }, { 650, 820 }, { roundf(rB) + 210, 2 } };
@@ -167,7 +175,7 @@ static void test_echo_hold() {
 
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
+  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
   RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();
 }

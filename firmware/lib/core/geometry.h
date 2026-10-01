@@ -50,6 +50,7 @@ class Tracker {
   bool has() const { return has_; }
   float vx() const { return vx_; } float vy() const { return vy_; }
   void update(float x, float y, uint32_t t, float& ox, float& oy, float& speed);
+  void setAlpha(float a) { if (a < 0.05f) a = 0.05f; if (a > 1.0f) a = 1.0f; a_ = a; b_ = 0.25f * a; }   // position smoothing: 1 = none, lower = steadier but slower to follow
  private:
   bool has_ = false; float x_ = 0, y_ = 0, vx_ = 0, vy_ = 0; uint32_t t_ = 0; float a_ = 0.6f, b_ = 0.15f;
 };

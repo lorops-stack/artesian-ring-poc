@@ -102,7 +102,7 @@ void step() {
   g.sensingBusy = true; readSensor(sA, f.A, lastA, hzA); readSensor(sB, f.B, lastB, hzB); g.sensingBusy = false;
   Lock lk;
   static bool hooked = false; if (!hooked) { g.sm->onEvent(onEvent, nullptr); hooked = true; }
-  const Config& c = g.cfg;
+  const Config& c = g.cfg; tracker.setAlpha(c.tuning.smooth);
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, prevX, prevY, 220, c.masks, c.nMasks, c.tuning.nearWin };
   int nEA = 0, nEB = 0; bool heldA = false, heldB = false;
   const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
