@@ -23,6 +23,9 @@ constexpr float HAND_DEPTH_WORK_MM = 0.0f;   // set in the Aim screen's side vie
 constexpr uint32_t DET_START_MM = 60;     // default firmware value 250 would hide corner zones
 constexpr uint32_t DET_END_MM   = 850;
 
+// ---- Echo hold-over: reuse a sensor's last echoes for this many frames when it drops out (about 45 ms each)
+constexpr uint8_t ECHO_HOLD_FRAMES = 2;
+
 // ---- Latch state machine (spec 4, studio C10) -----------------------------------
 constexpr uint16_t SETTLE_MS          = 150;
 constexpr float    SETTLE_SPEED_MMPS  = 250.0f;

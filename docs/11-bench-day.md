@@ -129,6 +129,9 @@ Move your hand in front of each sensor and watch its distance change (that is te
 ### Echo strength numbers (measured on the bench, 1 Oct 2026)
 A real hand 6 to 25 cm from a sensor reads about 5 to 50 in the monitor, and a body at 40 to 60 cm reads 70 to 170. The default hand-strength minimum is therefore 3, and C8 refines it from your own hand. The strength scale is not yet verified against Acconeer's documents, so treat the numbers as relative. The C6 clutter thresholds (1000 and 1200) were written for a larger scale and will not flag clutter until they are rescaled from real data.
 
+### Dropouts (measured on the bench, 1 Oct 2026)
+A moving hand fades in and out of the radar return, and the position fix needs an echo from both sensors in the same frame. The firmware now reuses a sensor's last echoes for up to 2 missed frames (about 90 ms) when computing the fix (`ECHO_HOLD_FRAMES` in defaults.h, `lib/core/echo_hold.h`). The published echo lists and the Hardware screen still show the raw readings. A hand that is really gone still ends the session after the normal exit delay.
+
 ## G. Last: the LED ring
 
 Only after section F passes. Follow `wiring-stage2-leds.png`. Use the separate 5 V supply for the strip, and join its ground to the ESP32 ground. Checkpoint photos of the strip's pads and the supply label first (build guide step with the photo checkpoint).

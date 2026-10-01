@@ -1,6 +1,7 @@
 // sensing.cpp - core 1: measure A then B, associate, track, run the state machine, publish the frame.
 #include "app.h"
 #include "pins.h"
+#include "echo_hold.h"
 #include "defaults.h"
 #include <esp_task_wdt.h>
 
@@ -9,6 +10,7 @@ namespace app { namespace sensing {
 
 static xm125::Sensor sA(Wire, PIN_A_SDA, PIN_A_SCL, PIN_A_RST, "A");
 static xm125::Sensor sB(Wire1, PIN_B_SDA, PIN_B_SCL, PIN_B_RST, "B");
+static EchoHold holdA(ECHO_HOLD_FRAMES), holdB(ECHO_HOLD_FRAMES);
 static Tracker tracker; static bool hasPrev = false; static float prevX = 0, prevY = 0; static int miss = 0, jumps = 0;
 static Echo bgA[8], bgB[8]; static int nBgA = 0, nBgB = 0;          // still objects learned by the stillness rule
 static uint32_t lastA = 0, lastB = 0; static float hzA = 0, hzB = 0; static uint32_t frameN = 0;
@@ -102,7 +104,10 @@ void step() {
   static bool hooked = false; if (!hooked) { g.sm->onEvent(onEvent, nullptr); hooked = true; }
   const Config& c = g.cfg;
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, prevX, prevY, 220, c.masks, c.nMasks };
-  Assoc a = (f.A.alive && f.B.alive) ? associate(f.A.e, f.A.n, f.B.e, f.B.n, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
+  int nEA = 0, nEB = 0; bool heldA = false, heldB = false;
+  const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
+  Assoc a = (f.A.alive && f.B.alive) ? associate(eA, nEA, eB, nEB, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
+  if (heldA) a.iA = -1; if (heldB) a.iB = -1;   // a held echo has no index in this frame's list
   bool hasPos = false; float x = 0, y = 0, speed = 0;
   if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.x; prevY = a.y; f.A.p = a.iA; f.B.p = a.iB; }
   else if (a.flag == FLAG_JUMP) {

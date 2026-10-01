@@ -1,6 +1,7 @@
 // Native tests for lib/core: geometry, and the state machine against the shared fixtures in test/fixtures.
 // Run: pio test -e native   (from firmware/). Also: tools/native_tests.sh builds it with plain g++.
 #include <unity.h>
+#include "echo_hold.h"
 #include <ArduinoJson.h>
 #include <stdio.h>
 #include <string.h>
@@ -143,9 +144,22 @@ void test_layout_change_and_clean_commands() {
 }
 
 void setUp() {} void tearDown() {}
+static void test_echo_hold() {
+  EchoHold h(2); Echo a[1] = { { 300, 80 } }; int n = 0; bool held = false;
+  const Echo* r = h.update(a, 1, true, n, held); TEST_ASSERT_FALSE(held); TEST_ASSERT_EQUAL(1, n); TEST_ASSERT_TRUE(r == a);
+  r = h.update(a, 0, true, n, held); TEST_ASSERT_TRUE(held); TEST_ASSERT_EQUAL(1, n); TEST_ASSERT_EQUAL_FLOAT(300, r[0].d);   // 1st missed frame held
+  r = h.update(a, 0, true, n, held); TEST_ASSERT_TRUE(held); TEST_ASSERT_EQUAL(1, n);                                          // 2nd held
+  r = h.update(a, 0, true, n, held); TEST_ASSERT_FALSE(held); TEST_ASSERT_EQUAL(0, n);                                         // 3rd: let go
+  r = h.update(a, 0, true, n, held); TEST_ASSERT_FALSE(held); TEST_ASSERT_EQUAL(0, n);                                         // nothing saved any more
+  Echo b[1] = { { 250, 60 } }; h.update(b, 1, true, n, held); r = h.update(b, 0, false, n, held);                              // a dead sensor is never held
+  TEST_ASSERT_FALSE(held); TEST_ASSERT_EQUAL(0, n); r = h.update(b, 0, true, n, held); TEST_ASSERT_FALSE(held); TEST_ASSERT_EQUAL(0, n);
+  h.update(b, 1, true, n, held); Echo c[2] = { { 100, 9 }, { 200, 9 } }; h.update(c, 2, true, n, held); r = h.update(c, 0, true, n, held);
+  TEST_ASSERT_TRUE(held); TEST_ASSERT_EQUAL(2, n); TEST_ASSERT_EQUAL_FLOAT(200, r[1].d);                                       // keeps the latest list
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
-  RUN_TEST(test_fixtures); RUN_TEST(test_layout_change_and_clean_commands);
+  RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();
 }
