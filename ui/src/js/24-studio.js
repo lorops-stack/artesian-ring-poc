@@ -692,7 +692,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     function stop() { send({ c: 'cal', step: 'c8', a: 'stop' }); }
     function apply() {
       var r = st.result; if (!r) return;
-      send({ c: 'cal', step: 'c8', a: 'apply', hand: { zwork: r.zwork, strMin: r.strMin, strMax: r.strMax, stillThr: r.stillThr } }).then(function (ack) { if (ack) { st.applied = true; setProgress('c8', 'done'); RS.app.toast('Hand profile applied', 'ok'); renderReport(); } });
+      send({ c: 'cal', step: 'c8', a: 'apply', hand: { zwork: r.zwork, strMin: r.strMin, strMax: r.strMax, stillThr: r.stillThr, envRef: r.envRef, envK: r.envK } }).then(function (ack) { if (ack) { st.applied = true; setProgress('c8', 'done'); RS.app.toast('Hand profile applied', 'ok'); renderReport(); } });
     }
     function renderStage() {
       U.empty(stage); stillBar = null; var cal = st.cal;
@@ -715,8 +715,9 @@ var RS = globalThis.RS || (globalThis.RS = {});
       report.appendChild(h('div.eyebrow.mt-l', 'Result'));
       var zT = tile('Working hand depth', fmtLen(r.zwork, 1), 'now ' + fmtLen(cfg.hand.zwork, 1)); zT.appendChild(chip(inBand ? 'Inside the C4 band ' + Math.round(cfg.hand.zmin) + ' to ' + Math.round(cfg.hand.zmax) + ' mm' : 'Outside the C4 band (H3)', inBand ? 'ok' : 'bad'));
       var sT = tile('Hand strength window', r.strMin + ' to ' + r.strMax, 'now ' + cfg.hand.strMin + ' to ' + cfg.hand.strMax);
+      var eT = tile('Strength envelope', r.envRef ? r.envRef + ' at 300 mm, falls as d^-' + r.envK : 'not fitted', cfg.hand.envRef ? 'now ' + cfg.hand.envRef + ', d^-' + cfg.hand.envK : 'now off');
       var tT = tile('Still threshold', r.stillThr, 'mm · now ' + cfg.hand.stillThr);
-      report.appendChild(h('div.grid.c3.mt-s', zT, sT, tT));
+      report.appendChild(h('div.grid.c3.mt-s', zT, sT, tT)); report.appendChild(h('div.grid.c3.mt-s', eT));
       var tooClose = r.handMove != null && r.handMove < r.staticSpread * 1.6;
       report.appendChild(h('div.card.tight.mt', h('h3', 'The stillness rule'), h('div.sub', 'A target that moves less than the still threshold for 10 seconds is treated as an object, and the water turns off. The threshold has to sit between how much a static object appears to move (the still wand in C7: ' + (r.staticSpread != null ? r.staticSpread.toFixed(1) : '–') + ' mm) and how much a relaxed still hand moves (' + (r.handMove != null ? r.handMove.toFixed(1) : 'not measured') + ' mm RMS). Threshold: ' + r.stillThr + ' mm.' + (tooClose ? ' The two are too close to tell apart, so the rule would be held off (H4).' : ''))));
       report.appendChild(h('div.card.tight.mt', h('div.eyebrow', 'Per-point spread (position scatter of the located hand)'),

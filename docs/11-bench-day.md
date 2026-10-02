@@ -149,3 +149,17 @@ The dot follows each reading through an alpha-beta filter. `smooth` is its alpha
 ## Nearest-echo window (tuning.nearWin)
 
 Each sensor only reports range, never direction, so there is no way to drop echoes "below the plane". What does work is that anything that is not the hand (a body, a metal sink wall, a bounce off a far surface) comes back later than the hand does. With `nearWin` at 120 mm (C10, "Nearest-echo window"), each sensor's echoes further than 120 mm past its nearest solid echo are ignored. Set 0 to turn it off. A bounce off a surface only 12 mm below the sensors is within 2 mm of the direct echo, so it merges into the hand echo and the window does not touch it.
+
+## Reflection filters (metal sink)
+
+A single XM125 reports range only, so nothing in software can tell "on the plane" from "below it". What a reflection cannot fake is used instead, in `associate()` on both the firmware and Ring Studio:
+
+1. **First arrival.** The direct path is the shortest path a pulse can take, so on each sensor the nearest surviving echo is the hand and anything more than `nearWin` (120 mm) further is a bounce off the bowl or a body behind it. There is no strength rule in picking the reference any more: a strong metal bounce cannot outvote a weak direct echo. With a live track the reference is the pair nearest the track, so a cup set down nearer a sensor than the hand cannot steal it.
+2. **Strength envelope.** A hand at range d returns about `envRef * (300 / d) ^ envK`. An echo more than `envDb` (12 dB) above that is a wall or a flat reflector; far below is a second bounce. C8 fits `envRef` and `envK` from your own hand; `envRef` 0 (the default) leaves the gate off. The gate is a ratio, so it does not depend on the unverified strength unit.
+3. **Kinematic gate.** Candidates are compared against where the track should be now (the tracker's prediction), not where it was last frame. A pair more than 220 mm from the prediction is a jump; two jumps in a row within 60 mm of each other are a real move and re-acquire there, one is held. Speed on re-acquire is the measured displacement, not a constant.
+
+The solver is now the closed-form two-circle intersection taking the sink-side root. It is exact in the back strip, cannot be pulled onto the back edge by a clamped track (the track follows the raw fix), and gives the same answer in C++ and JS. Behind the baseline there is no information: a target at y = -12 reads as y = +12, which is a property of two sensors on one line.
+
+What these do not solve: a second moving target, or a bounce that is both geometrically plausible and kinematically consistent for several frames (a large flat wall parallel to the baseline). Those need the third sensor. Test against the real bowl before deciding.
+
+In Ring Studio the simulator fault **Stainless bowl** adds the hand's wall reflections (90 and 160 mm later, 0.6 to 1.4x the hand's strength, plus an occasional far second bounce) for trying the filters without hardware.

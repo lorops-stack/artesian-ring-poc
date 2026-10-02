@@ -46,6 +46,44 @@ void test_tracker_smoothing() {
     for (int i = 0; i < 8; i++) { t.update(xs[i], 150, 1000 + i * 43, ox, oy, sp); if (i >= 2) { if (ox < lo) lo = ox; if (ox > hi) hi = ox; } } spread[k] = hi - lo; }
   TEST_ASSERT_TRUE(spread[1] < spread[0] * 0.6f);
 }
+void test_reflection_filters() {
+  // 406 x 330 bench rig, A(0,0) B(406.4,0). Mirrors ui/test/reflection.test.js.
+  Config c; setDefaults(c); c.plane.w = 406.4f; c.plane.d = 330.2f; c.A.x = 0; c.A.y = 0; c.B.x = 406.4f; c.B.y = 0; float h = c.hand.zwork;
+  // closed-form solver: exact in the back strip, never the mirror root, deterministic when the circles fall short
+  float pts[5][2] = { { 203, 10 }, { 50, 30 }, { 380, 60 }, { 203, 165 }, { 400, 330 } };
+  for (auto& p : pts) { float x, y; locate(range(c.A, p[0], p[1], h), range(c.B, p[0], p[1], h), c.A, c.B, h, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.01, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.01, p[1], y); }
+  { float x, y, res = locate(180, 190, c.A, c.B, 0, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(1e-4, 0, y); TEST_ASSERT_TRUE(res > 20 && res < 40); TEST_ASSERT_TRUE(x > 180 && x < 230); }
+  { float x, y; locate(range(c.A, 203, -12, h), range(c.B, 203, -12, h), c.A, c.B, h, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_TRUE(y > 0); }
+  // back-edge lock is gone: a track pinned at y=0 does not drag the fix onto the edge; the raw fix keeps an overshoot
+  { Echo a[1] = { { roundf(range(c.A, 203, 100, h)), 60 } }, b[1] = { { roundf(range(c.B, 203, 100, h)), 60 } };
+    AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, true, 203, 0, 220 }; o.nearWin = 120;
+    Assoc r = associate(a, 1, b, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(2, 100, r.y);
+    Echo a2[1] = { { roundf(range(c.A, -12, 150, h)), 60 } }, b2[1] = { { roundf(range(c.B, -12, 150, h)), 60 } }; o.hasPrev = false;
+    Assoc e = associate(a2, 1, b2, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, e.flag); TEST_ASSERT_EQUAL_FLOAT(0, e.x); TEST_ASSERT_TRUE(e.ux < -8); }
+  // first-arrival rule: bounces later than the hand are dropped, and a strong bounce cannot set the reference
+  { float x = 200, y = 180, rA = roundf(range(c.A, x, y, h)), rB = roundf(range(c.B, x, y, h));
+    Echo a[3] = { { rA, 55 }, { rA + 90, 70 }, { rA + 240, 30 } }, b[2] = { { rB, 48 }, { rB + 160, 60 } };
+    AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; o.nearWin = 120;
+    Assoc r = associate(a, 3, b, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_EQUAL(0, r.iA); TEST_ASSERT_EQUAL(0, r.iB); TEST_ASSERT_TRUE(hypotf(r.x - x, r.y - y) < 3);
+    Echo a2[2] = { { rA, 12 }, { rA + 90, 170 } }, b2[2] = { { rB, 10 }, { rB + 160, 160 } };
+    Assoc r2 = associate(a2, 2, b2, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r2.flag); TEST_ASSERT_EQUAL(0, r2.iA); TEST_ASSERT_EQUAL(0, r2.iB); }
+  // track-aware reference: a cup nearer sensor A than the hand does not steal an established track
+  { float hx = 150, hy = 200, cx = 100, cy = 80;
+    Echo a[2] = { { roundf(range(c.A, cx, cy, h)), 40 }, { roundf(range(c.A, hx, hy, h)), 20 } }, b[2] = { { roundf(range(c.B, hx, hy, h)), 20 }, { roundf(range(c.B, cx, cy, h)), 40 } };
+    AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, true, hx, hy, 220 }; o.nearWin = 120;
+    Assoc r = associate(a, 2, b, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_TRUE(hypotf(r.x - hx, r.y - hy) < 5);
+    o.hasPrev = false; Assoc r0 = associate(a, 2, b, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r0.flag); TEST_ASSERT_TRUE(hypotf(r0.x - cx, r0.y - cy) < 5); }
+  // strength envelope
+  { HandModel hm = c.hand; hm.envRef = 60; hm.envK = 2; hm.envDb = 12;
+    TEST_ASSERT_TRUE(strengthInEnvelope(hm, 300, 60)); TEST_ASSERT_TRUE(strengthInEnvelope(hm, 300, 20)); TEST_ASSERT_TRUE(strengthInEnvelope(hm, 150, 180));
+    TEST_ASSERT_FALSE(strengthInEnvelope(hm, 250, 400)); TEST_ASSERT_FALSE(strengthInEnvelope(hm, 300, 4)); TEST_ASSERT_TRUE(strengthInEnvelope(c.hand, 250, 400));
+    float x = 200, y = 180, rA = roundf(range(c.A, x, y, h)), rB = roundf(range(c.B, x, y, h));
+    Echo a[1] = { { rA, 400 } }, b[1] = { { rB, 380 } }; AssocOpts o{ &c.A, &c.B, &hm, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; o.nearWin = 120;
+    TEST_ASSERT_EQUAL(FLAG_STRENGTH, associate(a, 1, b, 1, o).flag);
+    Echo a2[1] = { { rA, 70 } }, b2[1] = { { rB, 55 } }; TEST_ASSERT_EQUAL(FLAG_NONE, associate(a2, 1, b2, 1, o).flag); }
+  // tracker predict extrapolates
+  { Tracker t; t.setAlpha(0.6f); float ox, oy, sp; for (int i = 0; i < 8; i++) t.update(100 + 20 * i, 150, 1000 + 43 * i, ox, oy, sp); float px, py; t.predict(1000 + 43 * 8, px, py); TEST_ASSERT_TRUE(px > 100 + 20 * 7.5f); TEST_ASSERT_FLOAT_WITHIN(1, 150, py); }
+}
 void test_associate() {
   Config c; setDefaults(c); float x = 200, y = 400, rA = range(c.A, x, y, c.hand.zwork), rB = range(c.B, x, y, c.hand.zwork);
   Echo eA[3] = { { 520, 900 }, { roundf(rA), 2000 }, { roundf(rA) + 200, 2 } }, eB[3] = { { roundf(rB), 1800 }, { 650, 820 }, { roundf(rB) + 210, 2 } };
@@ -175,7 +213,7 @@ static void test_echo_hold() {
 
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
+  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
   RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();
 }

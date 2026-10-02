@@ -11,7 +11,7 @@ void configToJson(const Config& c, JsonObject out) {
   out["schema"] = c.schema;
   JsonObject p = out["plane"].to<JsonObject>(); p["w"] = c.plane.w; p["d"] = c.plane.d; p["unit"] = "in";
   JsonObject s = out["sensors"].to<JsonObject>(); poseToJson(c.A, s["A"].to<JsonObject>()); poseToJson(c.B, s["B"].to<JsonObject>()); poseToJson(c.C, s["C"].to<JsonObject>());
-  JsonObject h = out["hand"].to<JsonObject>(); h["zmin"] = c.hand.zmin; h["zmax"] = c.hand.zmax; h["zwork"] = c.hand.zwork; h["strMin"] = c.hand.strMin; h["strMax"] = c.hand.strMax; h["stillThr"] = c.hand.stillThr;
+  JsonObject h = out["hand"].to<JsonObject>(); h["zmin"] = c.hand.zmin; h["zmax"] = c.hand.zmax; h["zwork"] = c.hand.zwork; h["strMin"] = c.hand.strMin; h["strMax"] = c.hand.strMax; h["stillThr"] = c.hand.stillThr; h["envRef"] = c.hand.envRef; h["envK"] = c.hand.envK; h["envDb"] = c.hand.envDb;
   JsonObject rg = out["rig"].to<JsonObject>(); rg["mount"] = c.rig.mount; rg["slotH"] = c.rig.slotH; rg["recess"] = c.rig.recess; rg["sinkDepth"] = c.rig.sinkDepth; rg["beamV"] = c.rig.beamV;
   JsonObject ms = out["masks"].to<JsonObject>();
   for (int i = 0; i < c.nMasks; i++) {
@@ -40,7 +40,7 @@ bool configFromJson(const JsonObjectConst in, Config& c) {
   if (in.isNull()) return false;
   JsonObjectConst p = in["plane"]; if (!p.isNull()) { get(p, "w", c.plane.w); get(p, "d", c.plane.d); }
   JsonObjectConst s = in["sensors"]; if (!s.isNull()) { poseFromJson(s["A"], c.A); poseFromJson(s["B"], c.B); poseFromJson(s["C"], c.C); }
-  JsonObjectConst h = in["hand"]; if (!h.isNull()) { get(h, "zmin", c.hand.zmin); get(h, "zmax", c.hand.zmax); get(h, "zwork", c.hand.zwork); get(h, "strMin", c.hand.strMin); get(h, "strMax", c.hand.strMax); get(h, "stillThr", c.hand.stillThr); }
+  JsonObjectConst h = in["hand"]; if (!h.isNull()) { get(h, "zmin", c.hand.zmin); get(h, "zmax", c.hand.zmax); get(h, "zwork", c.hand.zwork); get(h, "strMin", c.hand.strMin); get(h, "strMax", c.hand.strMax); get(h, "stillThr", c.hand.stillThr); get(h, "envRef", c.hand.envRef); get(h, "envK", c.hand.envK); get(h, "envDb", c.hand.envDb); }
   JsonObjectConst rg = in["rig"]; if (!rg.isNull()) { if (rg["mount"].is<const char*>()) cpy(c.rig.mount, sizeof c.rig.mount, rg["mount"]); get(rg, "slotH", c.rig.slotH); get(rg, "recess", c.rig.recess); get(rg, "sinkDepth", c.rig.sinkDepth); get(rg, "beamV", c.rig.beamV); }
   JsonObjectConst ms = in["masks"];
   if (!ms.isNull()) {

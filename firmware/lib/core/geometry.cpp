@@ -45,20 +45,19 @@ bool pairFeasible(float rA, float rB, const SensorPose& A, const SensorPose& B, 
   float pA = sqrtf(rA * rA - vA * vA), pB = sqrtf(rB * rB - vB * vB), base = hypotf(A.x - B.x, A.y - B.y);
   return pA + pB >= base - 40 && fabsf(pA - pB) <= base + 40;
 }
+// Closed-form two-circle intersection in the sensor-baseline frame. Both solutions are mirror images across the
+// line through the sensors; the one on the sink side (the side of the plane centre gx,gy) is returned. When the
+// circles fall short of meeting, the point sits on the baseline between them and res says by how much they missed.
+// Deterministic and identical in C++ and JS, with no dependence on a starting guess.
 float locate(float rA, float rB, const SensorPose& A, const SensorPose& B, float h, float gx, float gy, float& x, float& y) {
-  x = gx; y = gy; const SensorPose* S[2] = { &A, &B }; float r[2] = { rA, rB }, res = 0;
-  for (int it = 0; it < 12; it++) {
-    float J[2][2], f[2];
-    for (int k = 0; k < 2; k++) { float d = range(*S[k], x, y, h); if (d < 1e-6f) d = 1e-6f; J[k][0] = (x - S[k]->x) / d; J[k][1] = (y - S[k]->y) / d; f[k] = d - r[k]; }
-    float a = J[0][0] * J[0][0] + J[1][0] * J[1][0] + 1e-6f, b = J[0][0] * J[0][1] + J[1][0] * J[1][1], c = J[0][1] * J[0][1] + J[1][1] * J[1][1] + 1e-6f;
-    float g0 = J[0][0] * f[0] + J[1][0] * f[1], g1 = J[0][1] * f[0] + J[1][1] * f[1], det = a * c - b * b;
-    if (fabsf(det) < 1e-9f) break;
-    float dx = (c * g0 - b * g1) / det, dy = (a * g1 - b * g0) / det, step = hypotf(dx, dy);
-    if (step > 200) { dx *= 200 / step; dy *= 200 / step; }
-    x -= dx; y -= dy; res = hypotf(f[0], f[1]);
-    if (step < 0.01f) break;
-  }
-  return res;
+  float vA = h + A.z, vB = h + B.z;
+  float pA = rA * rA - vA * vA, pB = rB * rB - vB * vB; pA = pA > 0 ? sqrtf(pA) : 0; pB = pB > 0 ? sqrtf(pB) : 0;
+  float ux = B.x - A.x, uy = B.y - A.y, base = hypotf(ux, uy); if (base < 1e-3f) { x = A.x; y = A.y + pA; return 0; }
+  ux /= base; uy /= base; float nx = -uy, ny = ux;                             // n is perpendicular to the baseline
+  if ((gx - A.x) * nx + (gy - A.y) * ny < 0) { nx = -nx; ny = -ny; }          // point n toward the sink
+  float xp = (pA * pA - pB * pB + base * base) / (2 * base), y2 = pA * pA - xp * xp, yp = y2 > 0 ? sqrtf(y2) : 0;
+  x = A.x + ux * xp + nx * yp; y = A.y + uy * xp + ny * yp;
+  return hypotf(pA - hypotf(xp, yp), pB - hypotf(base - xp, yp));
 }
 
 bool maskHit(const Mask* m, int n, float x, float y) {
@@ -73,34 +72,41 @@ static bool isBg(const Echo* bg, int n, float d, float s) {
   for (int i = 0; i < n; i++) if (fabsf(bg[i].d - d) <= 15 && s < bg[i].s * 1.8f + 1) return true;
   return false;
 }
+// Hand strength envelope: a hand at range d returns about envRef * (300 / d) ^ envK. An echo more than envDb away from that
+// is not a hand at that range (a metal wall is far above it, a second bounce far below). envRef 0 = off (C8 learns it).
+bool strengthInEnvelope(const HandModel& h, float d, float s) {
+  if (!(h.envRef > 0) || !(s > 0) || !(d > 0)) return true;
+  float expct = h.envRef * powf(300.0f / d, h.envK), db = 20.0f * log10f(s / expct);
+  return fabsf(db) <= h.envDb;
+}
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o) {
   Assoc out{}; out.flag = FLAG_NO_HAND; out.iA = out.iB = -1;
   int candA[10], candB[10], ca = 0, cb = 0; bool strengthFail = false;
-  for (int i = 0; i < nA && i < 10; i++) { if (eA[i].s < o.hand->strMin || eA[i].s > o.hand->strMax) { strengthFail = true; continue; } if (isBg(o.bgA, o.nBgA, eA[i].d, eA[i].s)) continue; candA[ca++] = i; }
-  for (int j = 0; j < nB && j < 10; j++) { if (eB[j].s < o.hand->strMin || eB[j].s > o.hand->strMax) { strengthFail = true; continue; } if (isBg(o.bgB, o.nBgB, eB[j].d, eB[j].s)) continue; candB[cb++] = j; }
+  for (int i = 0; i < nA && i < 10; i++) { if (eA[i].s < o.hand->strMin || eA[i].s > o.hand->strMax || !strengthInEnvelope(*o.hand, eA[i].d, eA[i].s)) { strengthFail = true; continue; } if (isBg(o.bgA, o.nBgA, eA[i].d, eA[i].s)) continue; candA[ca++] = i; }
+  for (int j = 0; j < nB && j < 10; j++) { if (eB[j].s < o.hand->strMin || eB[j].s > o.hand->strMax || !strengthInEnvelope(*o.hand, eB[j].d, eB[j].s)) { strengthFail = true; continue; } if (isBg(o.bgB, o.nBgB, eB[j].d, eB[j].s)) continue; candB[cb++] = j; }
   if (!ca || !cb) { out.flag = (nA || nB) ? (strengthFail ? FLAG_STRENGTH : FLAG_NO_HAND) : FLAG_NO_HAND; return out; }
   bool have = false, anyOutside = false, anyMasked = false; float bestScore = 0; const float margin = 30;
   // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
   struct Pair { int a, b; float x, y, res, rA, rB; }; Pair pr[100]; int np = 0;
+  float gx = o.plane->w / 2, gy = o.plane->d / 2;                                  // the sink side of the baseline
   for (int i = 0; i < ca; i++) for (int j = 0; j < cb; j++) {
     float rA = eA[candA[i]].d - o.A->off, rB = eB[candB[j]].d - o.B->off;
     if (!pairFeasible(rA, rB, *o.A, *o.B, o.hand->zwork)) continue;
-    float x, y, gx = o.hasPrev ? o.prevX : o.plane->w / 2, gy = o.hasPrev ? o.prevY : o.plane->d / 2;
-    float res = locate(rA, rB, *o.A, *o.B, o.hand->zwork, gx, gy, x, y);
+    float x, y; float res = locate(rA, rB, *o.A, *o.B, o.hand->zwork, gx, gy, x, y);
     if (x < -margin || x > o.plane->w + margin || y < -margin || y > o.plane->d + margin || res > 60) { anyOutside = true; continue; }
     if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
     pr[np++] = { candA[i], candB[j], x, y, res, rA, rB };
   }
-  // Nearest-echo gate, applied to the surviving pairs only (a reflector in a dead area must not hide a real hand):
-  // a hand is the first thing a sensor meets; table bounces and bodies come back later.
+  if (!np) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
+  // First-arrival rule (nearWin). The direct path is the shortest path a radar pulse can take, so on each sensor the
+  // nearest surviving echo is the hand and anything much further is a bounce off the sink or a body behind it. With an
+  // established track the reference is the pair nearest the track instead, so a cup set down nearer the sensor than the
+  // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
   float limA = 1e9f, limB = 1e9f;
-  if (o.nearWin > 0 && np) {
-    float mxA = 0, mxB = 0, refA = 1e9f, refB = 1e9f;
-    for (int k = 0; k < np; k++) { if (eA[pr[k].a].s > mxA) mxA = eA[pr[k].a].s; if (eB[pr[k].b].s > mxB) mxB = eB[pr[k].b].s; }
-    for (int k = 0; k < np; k++) {   // a faint blip does not set the reference
-      if (eA[pr[k].a].s >= 0.25f * mxA && eA[pr[k].a].d < refA) refA = eA[pr[k].a].d;
-      if (eB[pr[k].b].s >= 0.25f * mxB && eB[pr[k].b].d < refB) refB = eB[pr[k].b].d;
-    }
+  if (o.nearWin > 0) {
+    float refA = 1e9f, refB = 1e9f;
+    if (o.hasPrev) { int k0 = 0; float bd = 1e9f; for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } } refA = eA[pr[k0].a].d; refB = eB[pr[k0].b].d; }
+    else for (int k = 0; k < np; k++) { if (eA[pr[k].a].d < refA) refA = eA[pr[k].a].d; if (eB[pr[k].b].d < refB) refB = eB[pr[k].b].d; }
     limA = refA + o.nearWin; limB = refB + o.nearWin;
   }
   for (int k = 0; k < np; k++) {
@@ -108,15 +114,20 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     if (eA[q.a].d > limA || eB[q.b].d > limB) continue;
     float score = q.rA + q.rB; if (o.hasPrev) score += 2.5f * hypotf(q.x - o.prevX, q.y - o.prevY);
     if (!have || score < bestScore) {
-      have = true; bestScore = score; out.x = q.x < 0 ? 0 : (q.x > o.plane->w ? o.plane->w : q.x); out.y = q.y < 0 ? 0 : (q.y > o.plane->d ? o.plane->d : q.y);
+      have = true; bestScore = score; out.ux = q.x; out.uy = q.y;
+      out.x = q.x < 0 ? 0 : (q.x > o.plane->w ? o.plane->w : q.x); out.y = q.y < 0 ? 0 : (q.y > o.plane->d ? o.plane->d : q.y);
       out.iA = q.a; out.iB = q.b; out.rA = q.rA; out.rB = q.rB; out.res = q.res;
     }
   }
   if (!have) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
-  if (o.hasPrev && o.maxJump > 0 && hypotf(out.x - o.prevX, out.y - o.prevY) > o.maxJump) { out.flag = FLAG_JUMP; return out; }
+  if (o.hasPrev && o.maxJump > 0 && hypotf(out.ux - o.prevX, out.uy - o.prevY) > o.maxJump) { out.flag = FLAG_JUMP; return out; }
   out.flag = FLAG_NONE; return out;
 }
 
+void Tracker::predict(uint32_t t, float& px, float& py) const {
+  float dt = (t - t_) / 1000.0f; if (dt < 0) dt = 0; if (dt > 0.5f) dt = 0.5f;
+  px = x_ + vx_ * dt; py = y_ + vy_ * dt;
+}
 void Tracker::update(float x, float y, uint32_t t, float& ox, float& oy, float& speed) {
   if (!has_) { has_ = true; x_ = x; y_ = y; vx_ = vy_ = 0; t_ = t; ox = x; oy = y; speed = 0; return; }
   float dt = (t - t_) / 1000.0f; if (dt < 0.001f) dt = 0.001f; t_ = t;

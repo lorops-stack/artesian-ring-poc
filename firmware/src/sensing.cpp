@@ -11,7 +11,7 @@ namespace app { namespace sensing {
 static xm125::Sensor sA(Wire, PIN_A_SDA, PIN_A_SCL, PIN_A_RST, "A");
 static xm125::Sensor sB(Wire1, PIN_B_SDA, PIN_B_SCL, PIN_B_RST, "B");
 static EchoHold holdA(ECHO_HOLD_FRAMES), holdB(ECHO_HOLD_FRAMES);
-static Tracker tracker; static bool hasPrev = false; static float prevX = 0, prevY = 0; static int miss = 0, jumps = 0;
+static Tracker tracker; static bool hasPrev = false; static float prevX = 0, prevY = 0; static int miss = 0, jumps = 0; static float jumpX = 0, jumpY = 0; static uint32_t jumpT = 0;
 static Echo bgA[8], bgB[8]; static int nBgA = 0, nBgB = 0;          // still objects learned by the stillness rule
 static uint32_t lastA = 0, lastB = 0; static float hzA = 0, hzB = 0; static uint32_t frameN = 0;
 static uint32_t idleSince = 0; static bool relearnDone = false; static uint32_t lastSerial = 0; static uint32_t lastRecal = 0;
@@ -103,17 +103,23 @@ void step() {
   Lock lk;
   static bool hooked = false; if (!hooked) { g.sm->onEvent(onEvent, nullptr); hooked = true; }
   const Config& c = g.cfg; tracker.setAlpha(c.tuning.smooth);
-  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, prevX, prevY, 220, c.masks, c.nMasks, c.tuning.nearWin };
+  // Kinematic gate: with a live track the association compares candidates against where the track should be now,
+  // not where it was last frame, so a hand in motion is followed and a bounce that moves the wrong way is rejected.
+  float gateX = prevX, gateY = prevY; if (hasPrev && tracker.has()) tracker.predict(f.t, gateX, gateY);
+  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, gateX, gateY, 220, c.masks, c.nMasks, c.tuning.nearWin };
   int nEA = 0, nEB = 0; bool heldA = false, heldB = false;
   const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
   Assoc a = (f.A.alive && f.B.alive) ? associate(eA, nEA, eB, nEB, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
   if (heldA) a.iA = -1; if (heldB) a.iB = -1;   // a held echo has no index in this frame's list
   bool hasPos = false; float x = 0, y = 0, speed = 0;
-  if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.x; prevY = a.y; f.A.p = a.iA; f.B.p = a.iB; }
+  if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; f.A.p = a.iA; f.B.p = a.iB; }   // prev is the raw fix: a clamped one would pin the track to the edge
   else if (a.flag == FLAG_JUMP) {
-    if (++jumps >= 2) { jumps = 0; tracker.reset(); tracker.update(a.x, a.y, f.t, x, y, speed); speed = 400; hasPos = true; hasPrev = true; prevX = a.x; prevY = a.y; a.flag = FLAG_NONE; f.A.p = a.iA; f.B.p = a.iB; }
-    else if (hasPrev) { x = prevX; y = prevY; hasPos = true; speed = hypotf(tracker.vx(), tracker.vy()); }
-  } else { if (++miss >= c.tuning.goneFrames) { tracker.reset(); hasPrev = false; } }
+    // One jump is a bounce or a body; two jumps in a row to the same place is the hand really having moved. The second
+    // must land within 60 mm of the first, or it is treated as a new first jump. Speed is the measured displacement.
+    bool agrees = jumps > 0 && hypotf(a.ux - jumpX, a.uy - jumpY) <= 60;
+    if (agrees) { jumps = 0; float dt = (f.t - jumpT) / 1000.0f; if (dt < 0.02f) dt = 0.02f; float sp = hypotf(a.ux - jumpX, a.uy - jumpY) / dt; tracker.reset(); tracker.update(a.x, a.y, f.t, x, y, speed); speed = sp > 1500 ? 1500 : sp; hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; a.flag = FLAG_NONE; f.A.p = a.iA; f.B.p = a.iB; }
+    else { jumps = 1; jumpX = a.ux; jumpY = a.uy; jumpT = f.t; if (hasPrev) { x = gateX; y = gateY; hasPos = true; speed = hypotf(tracker.vx(), tracker.vy()); } }
+  } else { jumps = 0; if (++miss >= c.tuning.goneFrames) { tracker.reset(); hasPrev = false; } }
   if (hasPos) { spreadBuf[spreadN % 24] = x; spreadN++; } else spreadN = 0;
   Input in{ f.t, hasPos, x, y, speed, a.flag };
   bool wasSession = g.sm->session();

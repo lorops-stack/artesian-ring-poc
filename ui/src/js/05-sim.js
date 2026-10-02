@@ -73,6 +73,10 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var s = this.echoStrength(pose, target.x, target.y, target.h, d, target.kind) * atten;
       push(d, s);
       if (f.multipath || this.rnd() < 0.04) { var g = d + 170 + 60 * this.rnd(); push(g, s * 0.22); if (g < this.cfg.tuning.rangeEnd) this.ghostEcho += 1; }
+      if (f.metalSink) {   // stainless bowl: the hand's own reflection off a wall arrives later, often as strong as the direct echo
+        var mb = d + (k === 'A' ? 90 : 160) + 25 * this.rnd.gauss(); push(mb, s * (0.6 + 0.8 * this.rnd())); if (mb < this.cfg.tuning.rangeEnd) this.ghostEcho += 1;
+        if (this.rnd() < 0.3) push(d + 240 + 40 * this.rnd(), s * 0.5);
+      }
     }
     if (f.hotspot && this.rnd() < 0.55) {     // a flickering reflector inside the sink (drip, steam, a swinging brush): false fixes at one spot
       var hs = { x: 430 + 7 * this.rnd.gauss(), y: 150 + 7 * this.rnd.gauss(), h: this.cfg.hand.zwork };
@@ -97,17 +101,21 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var eA = this.echoes('A', target), eB = this.echoes('B', target);
     var fpsA = eA ? 1000 / RATE_MS / late : 0, fpsB = eB ? 1000 / RATE_MS / late : 0;
     this.fps.A = 0.9 * this.fps.A + 0.1 * fpsA; this.fps.B = 0.9 * this.fps.B + 0.1 * fpsB;
-    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: this.prev, maxJump: 220, masks: cfg.masks, nearWin: cfg.tuning.nearWin };
+    // Kinematic gate: compare candidates against where the track should be now, not where it was last frame
+    var gate = (this.prev && this.tracker.x !== null) ? this.tracker.predict(t) : this.prev;
+    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: gate, maxJump: 220, masks: cfg.masks, nearWin: cfg.tuning.nearWin };
     var assoc = (eA && eB) ? G.associate(eA, eB, opts) : { flag: FLAG.NO_HAND };
     var pos = null, speed = 0;
-    if (assoc.flag === FLAG.NONE) { this.miss = 0; this.jumps = 0; var tr = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr.x, y: tr.y }; speed = tr.speed; this.prev = { x: assoc.x, y: assoc.y }; }
+    if (assoc.flag === FLAG.NONE) { this.miss = 0; this.jumps = 0; var tr = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr.x, y: tr.y }; speed = tr.speed; this.prev = { x: assoc.ux, y: assoc.uy }; }   // prev is the raw fix
     else if (assoc.flag === FLAG.JUMP) {
-      this.jumps = (this.jumps || 0) + 1;
-      if (this.jumps >= 2) {   // two jumps in a row: the target really moved; re-acquire there (firmware does the same)
-        this.jumps = 0; this.tracker.reset(); var tr2 = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr2.x, y: tr2.y }; speed = 400; this.prev = { x: assoc.x, y: assoc.y }; assoc.flag = FLAG.NONE;
-      } else { pos = this.prev; speed = this.tracker.x !== null ? U.hypot(this.tracker.vx, this.tracker.vy) : 0; }
+      // One jump is a bounce or a body; two jumps in a row to the same place is the hand really having moved (firmware does the same)
+      var agrees = this.jumps > 0 && this.jump && U.hypot(assoc.ux - this.jump.x, assoc.uy - this.jump.y) <= 60;
+      if (agrees) {
+        var dt = Math.max(0.02, (t - this.jump.t) / 1000), sp = Math.min(1500, U.hypot(assoc.ux - this.jump.x, assoc.uy - this.jump.y) / dt);
+        this.jumps = 0; this.tracker.reset(); var tr2 = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr2.x, y: tr2.y }; speed = sp; this.prev = { x: assoc.ux, y: assoc.uy }; assoc.flag = FLAG.NONE;
+      } else { this.jumps = 1; this.jump = { x: assoc.ux, y: assoc.uy, t: t }; if (this.prev) { pos = gate; speed = this.tracker.x !== null ? U.hypot(this.tracker.vx, this.tracker.vy) : 0; } }
     }
-    else { this.miss = (this.miss || 0) + 1; if (this.miss >= cfg.tuning.goneFrames) { this.tracker.reset(); this.prev = null; } }   // coast through a brief dropout
+    else { this.jumps = 0; this.miss = (this.miss || 0) + 1; if (this.miss >= cfg.tuning.goneFrames) { this.tracker.reset(); this.prev = null; } }   // coast through a brief dropout
     if (this.faults.personFront && !hand && assoc.flag === FLAG.OUTSIDE) this.frontEcho += 1;
     var wasSession = this.sm.session;
     var snap = this.sm.step({ t: t, pos: pos, speed: speed, flag: assoc.flag });

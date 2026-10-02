@@ -49,7 +49,7 @@ bool command(const char* s, const char* a, JsonVariantConst extra, char* err, in
     { Lock lk; JsonObjectConst sens = extra["sensors"]; JsonObjectConst hand = extra["hand"];
     auto poseSet = [&](JsonObjectConst o, SensorPose& p) { if (o.isNull()) return; if (!o["x"].isNull()) p.x = o["x"]; if (!o["y"].isNull()) p.y = o["y"]; if (!o["z"].isNull()) p.z = o["z"]; if (!o["off"].isNull()) p.off = o["off"]; };
     if (!sens.isNull()) { poseSet(sens["A"], g.cfg.A); poseSet(sens["B"], g.cfg.B); }
-    if (!hand.isNull()) { if (!hand["zwork"].isNull()) g.cfg.hand.zwork = hand["zwork"]; if (!hand["strMin"].isNull()) g.cfg.hand.strMin = hand["strMin"]; if (!hand["strMax"].isNull()) g.cfg.hand.strMax = hand["strMax"]; if (!hand["stillThr"].isNull()) g.cfg.hand.stillThr = hand["stillThr"]; }
+    if (!hand.isNull()) { if (!hand["zwork"].isNull()) g.cfg.hand.zwork = hand["zwork"]; if (!hand["strMin"].isNull()) g.cfg.hand.strMin = hand["strMin"]; if (!hand["strMax"].isNull()) g.cfg.hand.strMax = hand["strMax"]; if (!hand["stillThr"].isNull()) g.cfg.hand.stillThr = hand["stillThr"]; if (!hand["envRef"].isNull()) g.cfg.hand.envRef = hand["envRef"]; if (!hand["envK"].isNull()) g.cfg.hand.envK = hand["envK"]; }
     g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     net::sendCfg(); return true;
   }

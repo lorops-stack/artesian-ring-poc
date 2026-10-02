@@ -148,13 +148,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // C8 hand profile: samples [{hole, high:true|false, A:[d,str], B:[d,str]}] plus stillHold: [{A:d,B:d}] frames.
   // Returns {zwork, strMin, strMax, stillThr, points:[{n, spread, ok}], codes}
   F.handProfile = function (samples, stillHold, cfg, staticSpread) {
-    var A = cfg.sensors.A, B = cfg.sensors.B, plane = cfg.plane, holes = G.templateHoles(plane), depths = [], strs = [], points = [], codes = [];
+    var A = cfg.sensors.A, B = cfg.sensors.B, plane = cfg.plane, holes = G.templateHoles(plane), depths = [], strs = [], env = [], points = [], codes = [];
     var byHole = {};
     samples.forEach(function (s) { if (!s.A || !s.B) return; (byHole[s.hole] || (byHole[s.hole] = [])).push(s); });
     holes.forEach(function (H) {
       var ss = byHole[H.n] || [], est = [];
       ss.forEach(function (s) {
-        strs.push(s.A[1], s.B[1]);
+        strs.push(s.A[1], s.B[1]); env.push([s.A[0], s.A[1]], [s.B[0], s.B[1]]);
         var rr = [s.A[0] - (A.off || 0), s.B[0] - (B.off || 0)], hs = [];
         [[A, rr[0]], [B, rr[1]]].forEach(function (q) { var pl = G.planar(q[0], H.x, H.y), v2 = q[1] * q[1] - pl * pl; if (v2 > 0) hs.push(Math.sqrt(v2) - q[0].z); });
         if (hs.length) { var h = U.mean(hs); depths.push(h); var p = G.locate(rr[0], rr[1], A, B, h, { x: H.x, y: H.y }, plane); est.push(U.hypot(p.x - H.x, p.y - H.y)); }
@@ -171,7 +171,16 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var zwork = flat || !depths.length ? cfg.hand.zwork : U.median(depths);
     if (!flat && (zwork < cfg.hand.zmin || zwork > cfg.hand.zmax)) codes.push('H3');
     var srt = strs.slice().sort(function (a, b) { return a - b; }), lo = srt.length ? srt[Math.floor(srt.length * 0.05)] : cfg.hand.strMin, hi = srt.length ? srt[Math.floor(srt.length * 0.95)] : cfg.hand.strMax;
-    var strMin = Math.max(50, lo * 0.5), strMax = hi * 2.0;
+    var strMin = Math.max(1, lo * 0.5), strMax = hi * 2.0;   // measured XM125 hand echoes run 5 to 170, so no absolute floor
+    // Strength-vs-range envelope: ln(s) = ln(envRef) - k ln(d / 300), least squares over every sample from both sensors.
+    // k is held to 1..4 (point targets fall as d^-2 in amplitude); fewer than 6 samples keep k = 2 and fit envRef alone.
+    var envRef = cfg.hand.envRef || 0, envK = cfg.hand.envK || 2, ev = env.filter(function (e) { return e[0] > 0 && e[1] > 0; });
+    if (ev.length >= 3) {
+      var xs = ev.map(function (e) { return Math.log(e[0] / 300); }), ys = ev.map(function (e) { return Math.log(e[1]); }), mx = U.mean(xs), my = U.mean(ys), sxx = 0, sxy = 0;
+      for (var q = 0; q < xs.length; q++) { sxx += (xs[q] - mx) * (xs[q] - mx); sxy += (xs[q] - mx) * (ys[q] - my); }
+      if (ev.length >= 6 && sxx > 0.05) envK = U.clamp(-sxy / sxx, 1, 4); else envK = 2;
+      envRef = Math.exp(my + envK * mx);
+    }
     // Stillness threshold: between the static object's spread and a still hand's movement
     var handMove = null;
     if (stillHold && stillHold.length > 4) {
@@ -184,7 +193,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       if (handMove < stat * 1.6) codes.push('H4');
       stillThr = U.round(Math.max(3, Math.min(handMove * 0.5, stat * 2.5 + (handMove - stat) * 0.4)), 1);
     }
-    return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
+    return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, envRef: U.round(envRef, 1), envK: U.round(envK, 2), handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
   };
   // ---- Self-calibration from a free sweep (Aim screen) -----------------------------------------------------------------------------------
   // Position needs only the sensor positions, not their angles; the aim only changes how strong the echoes are. So the aim can be

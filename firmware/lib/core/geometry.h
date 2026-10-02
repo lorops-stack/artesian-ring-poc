@@ -15,7 +15,7 @@ enum Flag : uint8_t { FLAG_NONE = 0, FLAG_NO_HAND = 1, FLAG_STRENGTH = 2, FLAG_O
 
 struct Plane { float w = 584.2f, d = 533.4f; };
 struct SensorPose { float x = 0, y = 0, z = 0, yaw = 45, tilt = 0, off = 0; bool on = true; };   // flat slot mount: level with the plane, no tilt
-struct HandModel { float zmin = -30, zmax = 60, zwork = 0, strMin = 3, strMax = 60000, stillThr = 6; };   // depth below the sensor plane (mm)
+struct HandModel { float zmin = -30, zmax = 60, zwork = 0, strMin = 3, strMax = 60000, stillThr = 6; float envRef = 0, envK = 2, envDb = 12; };   // depth below the sensor plane (mm); envRef = hand strength at 300 mm (0 = envelope off)
 
 // Dead areas: a fix inside one is ignored. Plane coordinates in mm. kind 0 = rectangle (x, y = back-left corner, a = width, b = height), 1 = circle (x, y = centre, a = radius).
 constexpr int MAX_MASKS = 12;
@@ -36,12 +36,13 @@ void zoneCentre(const Zone& z, const Plane& p, float& x, float& y);
 float range(const SensorPose& s, float x, float y, float h);
 float planar(const SensorPose& s, float x, float y);
 bool pairFeasible(float rA, float rB, const SensorPose& A, const SensorPose& B, float h);
-// Gauss-Newton solve of (x,y) from two ranges at hand depth h; returns residual norm.
+// Closed-form solve of (x,y) from two ranges at hand depth h, taking the root on the side of (gx,gy); returns how far the circles missed (mm).
 float locate(float rA, float rB, const SensorPose& A, const SensorPose& B, float h, float gx, float gy, float& x, float& y);
 
 struct Echo { float d; float s; };
 struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; const Mask* masks = nullptr; int nMasks = 0; float nearWin = 0; };   // nearWin: mm; 0 = off
-struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; };
+struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; float ux = 0, uy = 0; };   // x,y clamped to the plane; ux,uy the raw fix
+bool strengthInEnvelope(const HandModel& h, float d, float s);
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o);
 
 class Tracker {
@@ -50,6 +51,7 @@ class Tracker {
   bool has() const { return has_; }
   float vx() const { return vx_; } float vy() const { return vy_; }
   void update(float x, float y, uint32_t t, float& ox, float& oy, float& speed);
+  void predict(uint32_t t, float& px, float& py) const;   // where the track should be at time t (no update)
   void setAlpha(float a) { if (a < 0.05f) a = 0.05f; if (a > 1.0f) a = 1.0f; a_ = a; b_ = 0.25f * a; }   // position smoothing: 1 = none, lower = steadier but slower to follow
  private:
   bool has_ = false; float x_ = 0, y_ = 0, vx_ = 0, vy_ = 0; uint32_t t_ = 0; float a_ = 0.6f, b_ = 0.15f;

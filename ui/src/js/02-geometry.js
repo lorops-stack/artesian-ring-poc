@@ -45,27 +45,19 @@ var RS = globalThis.RS || (globalThis.RS = {});
   G.planar = function (S, x, y) { return U.hypot(x - S.x, y - S.y); };
 
   // Solve x,y from two ranges (already corrected for each sensor's distance offset) at assumed hand depth h.
-  // Gauss-Newton from a guess (default: plane centre). Returns {x, y, res} where res is the range residual.
+  // Closed-form two-circle intersection in the sensor-baseline frame. Both solutions are mirror images across the line
+  // through the sensors; the one on the sink side (the side of the plane centre) is returned. When the circles fall short
+  // of meeting, the point sits on the baseline between them and res says by how much they missed. `guess` is accepted
+  // for callers that still pass it, and only decides the side when no plane is given. Same arithmetic as geometry.cpp.
   G.locate = function (rA, rB, A, B, h, guess, plane) {
-    var x = guess ? guess.x : (plane ? plane.w / 2 : 292), y = guess ? guess.y : (plane ? plane.d / 2 : 267);
-    var S = [A, B], r = [rA, rB], res = 0;
-    for (var it = 0; it < 12; it++) {
-      var J = [], f = [];
-      for (var k = 0; k < 2; k++) {
-        var d = G.range(S[k], x, y, h); if (d < 1e-6) d = 1e-6;
-        J.push([(x - S[k].x) / d, (y - S[k].y) / d]); f.push(d - r[k]);
-      }
-      // Solve (J^T J + λI) δ = J^T f
-      var a = J[0][0] * J[0][0] + J[1][0] * J[1][0] + 1e-6, b = J[0][0] * J[0][1] + J[1][0] * J[1][1], c = J[0][1] * J[0][1] + J[1][1] * J[1][1] + 1e-6;
-      var g0 = J[0][0] * f[0] + J[1][0] * f[1], g1 = J[0][1] * f[0] + J[1][1] * f[1];
-      var det = a * c - b * b; if (Math.abs(det) < 1e-9) break;
-      var dx = (c * g0 - b * g1) / det, dy = (a * g1 - b * g0) / det;
-      var step = U.hypot(dx, dy); if (step > 200) { dx *= 200 / step; dy *= 200 / step; }
-      x -= dx; y -= dy;
-      res = U.hypot(f[0], f[1]);
-      if (step < 0.01) break;
-    }
-    return { x: x, y: y, res: res };
+    var gx = plane ? plane.w / 2 : (guess ? guess.x : 292), gy = plane ? plane.d / 2 : (guess ? guess.y : 267);
+    var vA = h + (A.z || 0), vB = h + (B.z || 0);
+    var pA = rA * rA - vA * vA, pB = rB * rB - vB * vB; pA = pA > 0 ? Math.sqrt(pA) : 0; pB = pB > 0 ? Math.sqrt(pB) : 0;
+    var ux = B.x - A.x, uy = B.y - A.y, base = U.hypot(ux, uy); if (base < 1e-3) return { x: A.x, y: A.y + pA, res: 0 };
+    ux /= base; uy /= base; var nx = -uy, ny = ux;                                   // n is perpendicular to the baseline
+    if ((gx - A.x) * nx + (gy - A.y) * ny < 0) { nx = -nx; ny = -ny; }              // point n toward the sink
+    var xp = (pA * pA - pB * pB + base * base) / (2 * base), y2 = pA * pA - xp * xp, yp = y2 > 0 ? Math.sqrt(y2) : 0;
+    return { x: A.x + ux * xp + nx * yp, y: A.y + uy * xp + ny * yp, res: U.hypot(pA - U.hypot(xp, yp), pB - U.hypot(base - xp, yp)) };
   };
 
   // Do two range circles (planar) intersect at all? Used to reject impossible pairs quickly.
@@ -107,48 +99,56 @@ var RS = globalThis.RS || (globalThis.RS = {});
   G.vertFactor = function (cfg, S, p, h) { var v = G.vHalf(cfg), o = G.vertOff(S, p, h); return Math.exp(-0.7 * Math.pow(o / Math.max(1, v), 2)); };
 
   // ---- Echo association (spec 6, one rule) --------------------------------------------------------------------
-  // echoes: [[d_mm, strength], ...] per sensor. Returns {x,y,iA,iB,flag} ; flag 0 = good.
-  // opts: {A,B poses with .off, hand {zwork,strMin,strMax}, plane, bg {A:[d..], B:[d..]}, prev {x,y}, maxJump, masks}
+  // echoes: [[d_mm, strength], ...] per sensor. Returns {x,y,ux,uy,iA,iB,flag} ; flag 0 = good. x,y are clamped to the
+  // plane; ux,uy are the raw fix (the track must follow the raw one, or a hand at the edge gets pinned there).
+  // opts: {A,B poses with .off, hand {zwork,strMin,strMax,envRef,envK,envDb}, plane, bg {A:[[d,s]..], B:[..]}, prev {x,y}, maxJump, masks, nearWin}
+  // Hand strength envelope: a hand at range d returns about envRef * (300 / d) ^ envK. An echo more than envDb away from
+  // that is not a hand at that range (a metal wall is far above it, a second bounce far below). envRef 0 = off.
+  G.strengthInEnvelope = function (hand, d, s) {
+    if (!(hand.envRef > 0) || !(s > 0) || !(d > 0)) return true;
+    var expct = hand.envRef * Math.pow(300 / d, hand.envK == null ? 2 : hand.envK), db = 20 * Math.log10(s / expct);
+    return Math.abs(db) <= (hand.envDb == null ? 12 : hand.envDb);
+  };
   G.associate = function (eA, eB, opts) {
     var A = opts.A, B = opts.B, hand = opts.hand, plane = opts.plane, bg = opts.bg || {}, tol = 15;
     // Learned still objects: [[d, strength], ...]. An echo is background when it sits within tol of one and is
     // not clearly stronger than it (a hand passing at that distance still shows, because it is stronger).
     var isBg = function (list, d, s) { if (!list) return false; for (var i = 0; i < list.length; i++) { var e = list[i], bd = Array.isArray(e) ? e[0] : e, bs = Array.isArray(e) ? e[1] : 0; if (Math.abs(bd - d) <= tol && s < bs * 1.8 + 1) return true; } return false; };
-    var okStr = function (s) { return s >= hand.strMin && s <= hand.strMax; };
+    var okStr = function (e) { return e[1] >= hand.strMin && e[1] <= hand.strMax && G.strengthInEnvelope(hand, e[0], e[1]); };
     var candA = [], candB = [], i, j, anyStrengthFail = false;
-    for (i = 0; i < eA.length; i++) { if (!okStr(eA[i][1])) { anyStrengthFail = true; continue; } if (isBg(bg.A, eA[i][0], eA[i][1])) continue; candA.push(i); }
-    for (j = 0; j < eB.length; j++) { if (!okStr(eB[j][1])) { anyStrengthFail = true; continue; } if (isBg(bg.B, eB[j][0], eB[j][1])) continue; candB.push(j); }
+    for (i = 0; i < eA.length; i++) { if (!okStr(eA[i])) { anyStrengthFail = true; continue; } if (isBg(bg.A, eA[i][0], eA[i][1])) continue; candA.push(i); }
+    for (j = 0; j < eB.length; j++) { if (!okStr(eB[j])) { anyStrengthFail = true; continue; } if (isBg(bg.B, eB[j][0], eB[j][1])) continue; candB.push(j); }
     if (!candA.length || !candB.length) return { flag: (eA.length || eB.length) ? (anyStrengthFail ? RS.FLAG.STRENGTH : RS.FLAG.NO_HAND) : RS.FLAG.NO_HAND };
     var best = null, margin = 30, anyOutside = false, anyMasked = false, pairs = [];
     // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
     for (i = 0; i < candA.length; i++) for (j = 0; j < candB.length; j++) {
       var rA = eA[candA[i]][0] - (A.off || 0), rB = eB[candB[j]][0] - (B.off || 0);
       if (!G.pairFeasible(rA, rB, A, B, hand.zwork)) continue;
-      var p = G.locate(rA, rB, A, B, hand.zwork, opts.prev || null, plane);
+      var p = G.locate(rA, rB, A, B, hand.zwork, null, plane);
       if (p.x < -margin || p.x > plane.w + margin || p.y < -margin || p.y > plane.d + margin || p.res > 60) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
       pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB });
     }
-    // Nearest-echo gate, applied to the surviving pairs only (a reflector in a dead area must not hide a real hand):
-    // a hand is the first thing a sensor meets; table bounces and bodies come back later.
+    if (!pairs.length) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
+    // First-arrival rule (nearWin). The direct path is the shortest path a radar pulse can take, so on each sensor the
+    // nearest surviving echo is the hand and anything much further is a bounce off the sink or a body behind it. With an
+    // established track the reference is the pair nearest the track instead, so a cup set down nearer the sensor than the
+    // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
     var limA = Infinity, limB = Infinity;
-    if (opts.nearWin > 0 && pairs.length) {
-      var mxA = 0, mxB = 0, refA = Infinity, refB = Infinity;
-      pairs.forEach(function (q) { mxA = Math.max(mxA, eA[q.ia][1]); mxB = Math.max(mxB, eB[q.ib][1]); });
-      pairs.forEach(function (q) {   // a faint blip does not set the reference
-        if (eA[q.ia][1] >= 0.25 * mxA && eA[q.ia][0] < refA) refA = eA[q.ia][0];
-        if (eB[q.ib][1] >= 0.25 * mxB && eB[q.ib][0] < refB) refB = eB[q.ib][0];
-      });
+    if (opts.nearWin > 0) {
+      var refA = Infinity, refB = Infinity;
+      if (opts.prev) { var k0 = null, bd = Infinity; pairs.forEach(function (q) { var dd = U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y); if (dd < bd) { bd = dd; k0 = q; } }); refA = eA[k0.ia][0]; refB = eB[k0.ib][0]; }
+      else pairs.forEach(function (q) { refA = Math.min(refA, eA[q.ia][0]); refB = Math.min(refB, eB[q.ib][0]); });
       limA = refA + opts.nearWin; limB = refB + opts.nearWin;
     }
     pairs.forEach(function (q) {
       if (eA[q.ia][0] > limA || eB[q.ib][0] > limB) return;
       var score = q.rA + q.rB;                       // nearer pair wins (ghosts are always further away)
       if (opts.prev) score += 2.5 * U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y);   // an established track is not stolen by a sporadic echo
-      if (!best || score < best.score) best = { x: U.clamp(q.p.x, 0, plane.w), y: U.clamp(q.p.y, 0, plane.d), iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB };
+      if (!best || score < best.score) best = { x: U.clamp(q.p.x, 0, plane.w), y: U.clamp(q.p.y, 0, plane.d), ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB };
     });
     if (!best) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
-    if (opts.prev && opts.maxJump && U.hypot(best.x - opts.prev.x, best.y - opts.prev.y) > opts.maxJump) { best.flag = RS.FLAG.JUMP; return best; }
+    if (opts.prev && opts.maxJump > 0 && U.hypot(best.ux - opts.prev.x, best.uy - opts.prev.y) > opts.maxJump) { best.flag = RS.FLAG.JUMP; return best; }
     best.flag = RS.FLAG.NONE;
     return best;
   };
@@ -157,6 +157,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
   G.Tracker = function (alpha, beta) { this.a = alpha || 0.6; this.b = beta || 0.15; this.reset(); };
   G.Tracker.prototype.setAlpha = function (a) { this.a = U.clamp(a, 0.05, 1); this.b = 0.25 * this.a; };
   G.Tracker.prototype.reset = function () { this.x = null; this.y = null; this.vx = 0; this.vy = 0; this.t = 0; };
+  // Where the track should be at time t, without updating it
+  G.Tracker.prototype.predict = function (t) { var dt = U.clamp((t - this.t) / 1000, 0, 0.5); return { x: this.x + this.vx * dt, y: this.y + this.vy * dt }; };
   G.Tracker.prototype.update = function (x, y, t) {
     if (this.x === null) { this.x = x; this.y = y; this.vx = 0; this.vy = 0; this.t = t; return { x: x, y: y, speed: 0 }; }
     var dt = Math.max(0.001, (t - this.t) / 1000); this.t = t;

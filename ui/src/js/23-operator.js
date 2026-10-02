@@ -234,7 +234,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     ['A_swapSdaScl', 'Sensor A: SDA and SCL swapped (not found)', 'W1'], ['B_noPower', 'Sensor B: no power', 'W6 / W1'], ['B_rstOff', 'Sensor B: reset wire off', 'W4'], ['rstSwapped', 'Reset wires swapped', 'W4'],
     ['wrongFw', 'Sensor B: presence firmware still loaded', 'F1'], ['statusErr', 'Sensor A: setup error flag', 'F2'], ['B_foil', 'Foil in front of sensor B', 'S1 / S5'], ['A_yaw30', 'Sensor A turned 30° outward', 'P4'],
     ['noisy', 'Noisy readings (loose ground)', 'S4'], ['cupInSink', 'A cup left in the sink', 'B1'], ['bgDrift', 'Background has drifted', 'B3'], ['personFront', 'Person leaning at the front edge', 'B6'],
-    ['multipath', 'Strong multipath ghost echoes', 'N2'], ['A_loose', 'Sensor A: loose wire (intermittent)', 'W2'], ['swapAB', 'Sensors A and B swapped', 'W3'], ['calNeeded', 'Sensor A asks for recalibration', 'B8']
+    ['multipath', 'Strong multipath ghost echoes', 'N2'], ['metalSink', 'Stainless bowl: wall reflections of the hand', 'N2'], ['A_loose', 'Sensor A: loose wire (intermittent)', 'W2'], ['swapAB', 'Sensors A and B swapped', 'W3'], ['calNeeded', 'Sensor A asks for recalibration', 'B8']
   ];
   RS.faultsPanel = function () {
     RS.app.modal(function (box) {
