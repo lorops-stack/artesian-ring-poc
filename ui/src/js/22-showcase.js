@@ -30,7 +30,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     this.onResize = function () { self.resize(); }; window.addEventListener('resize', this.onResize);
     this.parts = []; this.ripples = []; this.pulses = []; this.pings = []; this.vortex = []; this.lastPulse = 0; this.lastRipple = 0; this.hudT = 0;
     this.t0 = U.now(); this.lastT = 0; this.latchAt = -1e9; this.soapFlashUntil = 0; this.flashZone = null; this.stillMsgUntil = 0; this.lastUserT = U.now(); this.userHand = null;
-    this.vis = { x: null, y: null }; this.frame = null; this.ghostSim = null; this.ghostStart = 0; this.attract = false; this.liveTotals = { off: 0, flow: 0, lastStatusT: 0 };
+    this.vis = { x: null, y: null }; this.frame = null; this.lastDeviceFrameT = null; this.ghostSim = null; this.ghostStart = 0; this.attract = false; this.liveTotals = { off: 0, flow: 0, lastStatusT: 0 };
     this.bg = this.makeBackground(); this.basinTex = this.makeBasin();
     this.leds = rrPoints(RX + 13, RY + 13, RW - 26, RH - 26, RR - 13, (S.cfg().tuning.ledCount || 132));
     this.icons = {}; Object.keys(FN).forEach(function (k) { self.icons[k] = new Path2D(FN[k].icon); });
@@ -71,8 +71,12 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (this.attract && !f.g && (f.hx != null || f.st !== ST.IDLE) && L.mode !== 'sim') this.stopAttract();   // a real hand always wins
     if (f.g && !this.attract) return;                                                                          // stale ghost frame
     this.frame = f;
-    var flowing = f.st === ST.ACTIVE && f.fn && FN[f.fn] && FN[f.fn].water, base = RS.BASELINE_GPM * RS.GPM_TO_MLS, flow = (S.profile().flowGpm || 1.5) * RS.GPM_TO_MLS, dt = 0.045;
-    if (!f.g) { if (flowing) this.liveTotals.flow += (base - flow) * dt; else if (f.st !== ST.IDLE && f.st !== ST.CLEAN) this.liveTotals.off += base * dt; }
+    var flowing = f.st === ST.ACTIVE && f.fn && FN[f.fn] && FN[f.fn].water, base = RS.BASELINE_GPM * RS.GPM_TO_MLS, flow = (S.profile().flowGpm || 1.5) * RS.GPM_TO_MLS, dt = 0;
+    if (!f.g && f.t != null) {
+      if (this.lastDeviceFrameT != null) { var dms = f.t - this.lastDeviceFrameT; if (dms < 0) dms += 4294967296; dt = U.clamp(dms / 1000, 0, 0.5); }
+      this.lastDeviceFrameT = f.t;
+    }
+    if (!f.g && dt > 0) { if (flowing) this.liveTotals.flow += (base - flow) * dt; else if (f.st !== ST.IDLE && f.st !== ST.CLEAN) this.liveTotals.off += base * dt; }
   };
   SC.onEvent = function (e) {
     if (e.g && !this.attract) return;
