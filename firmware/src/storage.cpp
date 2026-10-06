@@ -20,10 +20,12 @@ void begin() {
   prefs.getString("calName", g.calName, sizeof g.calName); prefs.getString("calWhen", g.calWhen, sizeof g.calWhen);
 }
 void loadSecrets() {
-  prefs.getString("pass", g.wifiPass, sizeof g.wifiPass); prefs.getString("pin", g.pin, sizeof g.pin);
-  g.setupNeeded = strlen(g.wifiPass) < 8 || strlen(g.pin) < 4;
+  prefs.getString("pass", g.wifiPass, sizeof g.wifiPass);
+  // Ring Studio uses the WPA2 AP password as its access boundary. Legacy studio PINs are ignored.
+  g.pin[0] = 0;
+  g.setupNeeded = strlen(g.wifiPass) < 8;
 }
-void saveSecrets() { prefs.putString("pass", g.wifiPass); prefs.putString("pin", g.pin); }
+void saveSecrets() { prefs.putString("pass", g.wifiPass); prefs.remove("pin"); g.pin[0] = 0; }
 void saveTotals() { prefs.putUInt("sess", g.totals.sess); prefs.putFloat("ml", g.totals.ml); prefs.putFloat("savedOff", g.totals.savedOff); prefs.putFloat("savedFlow", g.totals.savedFlow); g.totalsDirty = false; }
 
 static bool readJsonFile(const char* path, JsonDocument& doc) {
