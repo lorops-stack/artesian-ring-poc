@@ -140,3 +140,17 @@ test('baseline check: brackets the sensor spacing and flags a wrong one', () => 
   assert.equal(RS.fit.baselineBracket(samples, wrong2).status, 'low');
   assert.equal(RS.fit.baselineBracket(samples.slice(0, 10), c).status, 'few');
 });
+
+test('geometry uncertainty rises near the sensor baseline', () => {
+  const c = RS.presetConfig('flat'), A=c.sensors.A, B=c.sensors.B, h=c.hand.zwork;
+  const back=RS.geo.geometryUncertainty(A,B,c.plane.w/2,20,h,8), front=RS.geo.geometryUncertainty(A,B,c.plane.w/2,c.plane.d*0.8,h,8);
+  assert.ok(back > front, 'back '+back+' front '+front); assert.ok(front > 0 && Number.isFinite(front));
+});
+
+test('robust wand fit resists a large multipath outlier and reports validation quality', () => {
+  const c=RS.presetConfig('flat'), rnd=RS.util.rng(77), holes=RS.geo.templateHoles(c.plane), truth={A:{x:7,y:-4,z:0,off:18},B:{x:577,y:5,z:0,off:23}}, samples=[];
+  for(const H of holes) for(const depth of RS.calDepths(c)){ const s={hole:H.n,depth}; for(const k of ['A','B']) s[k]=[RS.geo.range(truth[k],H.x,H.y,depth)+truth[k].off-20+2*rnd.gauss(),1200]; samples.push(s); }
+  samples.find(s=>s.hole===6).A[0]+=140;
+  const fit=RS.fit.wandFit(samples,c); assert.ok(fit.fits.A.outliers.length>=1); assert.ok(Math.abs(fit.fits.A.off-truth.A.off)<12,'offset '+fit.fits.A.off);
+  assert.ok(fit.validationRms!==null && fit.validation.length>=14); assert.ok(['excellent','good','marginal'].includes(fit.quality),'quality '+fit.quality);
+});
