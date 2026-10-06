@@ -94,7 +94,10 @@ test('dead areas: a masked pair is ignored, the next best pair wins, and a fully
   const c = RS.presetConfig('flat'), A = c.sensors.A, B = c.sensors.B, h = c.hand.zwork;
   const at = (x, y) => [RS.geo.range(A, x, y, h), RS.geo.range(B, x, y, h)];
   const [a1, b1] = at(430, 150), [a2, b2] = at(150, 400);
-  const eA = [[Math.round(a1), 3000], [Math.round(a2), 2500]], eB = [[Math.round(b1), 3000], [Math.round(b2), 2500]];
+  // Strength is linear amplitude and falls with range. Keep the synthetic reflector strength physically
+  // consistent across A/B so this test exercises masking rather than an impossible amplitude pattern.
+  const amp = (d, ref) => ref * Math.pow(300 / d, 2);
+  const eA = [[Math.round(a1), amp(a1, 70)], [Math.round(a2), amp(a2, 60)]], eB = [[Math.round(b1), amp(b1, 70)], [Math.round(b2), amp(b2, 60)]];
   const base = { A, B, hand: c.hand, plane: c.plane };
   const open = RS.geo.associate(eA, eB, base);
   assert.equal(open.flag, 0); assert.ok(RS.geo.maskHit({ m: { t: 'circle', x: 430, y: 150, r: 60 } }, open.x, open.y), 'unmasked, the clutter spot wins (a cross-pairing ghost lands next to it)');
