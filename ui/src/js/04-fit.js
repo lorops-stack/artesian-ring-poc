@@ -197,12 +197,19 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var strMin = Math.max(1, lo * 0.5), strMax = hi * 2.0;   // measured XM125 hand echoes run 5 to 170, so no absolute floor
     // Strength-vs-range envelope: ln(s) = ln(envRef) - k ln(d / 300), least squares over every sample from both sensors.
     // k is held to 1..4 (point targets fall as d^-2 in amplitude); fewer than 6 samples keep k = 2 and fit envRef alone.
-    var envRef = cfg.hand.envRef || 0, envK = cfg.hand.envK || 2, ev = env.filter(function (e) { return e[0] > 0 && e[1] > 0; });
+    var envRef = cfg.hand.envRef || 0, envK = cfg.hand.envK || 2, envDb = cfg.hand.envDb || 12, ev = env.filter(function (e) { return e[0] > 0 && e[1] > 0; });
     if (ev.length >= 3) {
-      var xs = ev.map(function (e) { return Math.log(e[0] / 300); }), ys = ev.map(function (e) { return Math.log(e[1]); }), mx = U.mean(xs), my = U.mean(ys), sxx = 0, sxy = 0;
-      for (var q = 0; q < xs.length; q++) { sxx += (xs[q] - mx) * (xs[q] - mx); sxy += (xs[q] - mx) * (ys[q] - my); }
-      if (ev.length >= 6 && sxx > 0.05) envK = U.clamp(-sxy / sxx, 1, 4); else envK = 2;
-      envRef = Math.exp(my + envK * mx);
+      var xs = ev.map(function (e) { return Math.log(e[0] / 300); }), ys = ev.map(function (e) { return Math.log(e[1]); }), weights = new Array(ev.length).fill(1), slope = -2, intercept = 0;
+      for (var it=0;it<8;it++) {
+        var sw=0,sx=0,sy=0; for(var q=0;q<ev.length;q++){sw+=weights[q];sx+=weights[q]*xs[q];sy+=weights[q]*ys[q];}
+        var mx=sx/sw,my=sy/sw,sxx=0,sxy=0; for(q=0;q<ev.length;q++){sxx+=weights[q]*(xs[q]-mx)*(xs[q]-mx);sxy+=weights[q]*(xs[q]-mx)*(ys[q]-my);}
+        slope=sxx>0.02?sxy/sxx:-2; slope=-U.clamp(-slope,1,4); intercept=my-slope*mx;
+        var ar=[];for(q=0;q<ev.length;q++)ar.push(Math.abs(ys[q]-(intercept+slope*xs[q])));var sc=Math.max(0.08,U.median(ar)/0.6745),hh=1.5*sc;
+        for(q=0;q<ev.length;q++)weights[q]=ar[q]<=hh?1:hh/ar[q];
+      }
+      envK=-slope; envRef=Math.exp(intercept);
+      var dbres=ev.map(function(e){var expect=envRef*Math.pow(300/e[0],envK);return Math.abs(20*Math.log10(e[1]/expect));}).sort(function(a,b){return a-b;});
+      envDb=U.clamp(dbres[Math.min(dbres.length-1,Math.floor(dbres.length*0.95))]*1.35,6,20);
     }
     // Stillness threshold: between the static object's spread and a still hand's movement
     var handMove = null;
@@ -216,7 +223,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       if (handMove < stat * 1.6) codes.push('H4');
       stillThr = U.round(Math.max(3, Math.min(handMove * 0.5, stat * 2.5 + (handMove - stat) * 0.4)), 1);
     }
-    return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, envRef: U.round(envRef, 1), envK: U.round(envK, 2), handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
+    return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, envRef: U.round(envRef, 1), envK: U.round(envK, 2), envDb: U.round(envDb, 1), handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
   };
   // Commissioning boundary stress: evaluate points immediately either side of every internal zone boundary.
   // Returns a safety-weighted margin summary; disposal/hot mistakes carry higher weight than benign water-zone confusion.
