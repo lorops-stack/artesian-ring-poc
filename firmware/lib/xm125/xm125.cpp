@@ -57,7 +57,7 @@ bool Sensor::configure(const Settings& s, uint32_t timeoutMs) {
   ok_ = false;
   if (!waitNotBusy(500)) return false;
   bool w = true;
-  w &= writeReg(REG_START, s.startMm); w &= writeReg(REG_END, s.endMm); w &= writeReg(REG_THRESHOLD_METHOD, s.thresholdMethod);
+  w &= writeReg(REG_START, s.startMm); w &= writeReg(REG_END, s.endMm); w &= writeReg(REG_MAX_STEP_LENGTH, s.maxStepLength); w &= writeReg(REG_THRESHOLD_METHOD, s.thresholdMethod);
   w &= writeReg(REG_NUM_FRAMES_RECORDED, s.numFramesRecorded); w &= writeReg(REG_THRESHOLD_SENSITIVITY, s.sensitivityX1000); w &= writeReg(REG_PEAK_SORTING, s.peakSorting);
   w &= writeReg(REG_CLOSE_RANGE_LEAKAGE, s.closeRangeLeakage); w &= writeReg(REG_MAX_PROFILE, s.maxProfile); w &= writeReg(REG_SIGNAL_QUALITY, s.signalQualityX1000); w &= writeReg(REG_REFLECTOR_SHAPE, s.reflectorShape);
   w &= writeReg(REG_MEASURE_ON_WAKEUP, 0);
