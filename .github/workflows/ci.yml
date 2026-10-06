@@ -32,6 +32,8 @@ jobs:
       - name: Native core tests
         working-directory: firmware
         run: pio test -e native
+      - name: XM125 register-driver host tests
+        run: bash tools/xm125_host_test.sh
       - name: Compile exact ESP32-S3 target
         working-directory: firmware
         run: pio run -e esp32s3
