@@ -127,6 +127,18 @@ void loop() {
 } }  // namespace app::net
 
 namespace app {
-void EventQueue::push(const char* s) { int next = (head + 1) % EVQ; if (next == tail) return; strncpy(buf[head], s, EVLEN - 1); buf[head][EVLEN - 1] = 0; head = next; }
-bool EventQueue::pop(char* out) { if (tail == head) return false; strncpy(out, buf[tail], EVLEN); tail = (tail + 1) % EVQ; return true; }
+void EventQueue::push(const char* s) {
+  portENTER_CRITICAL(&mux);
+  int next = (head + 1) % EVQ;
+  if (next == tail) { dropped++; portEXIT_CRITICAL(&mux); return; }
+  strncpy(buf[head], s, EVLEN - 1); buf[head][EVLEN - 1] = 0; head = next;
+  portEXIT_CRITICAL(&mux);
+}
+bool EventQueue::pop(char* out) {
+  portENTER_CRITICAL(&mux);
+  if (tail == head) { portEXIT_CRITICAL(&mux); return false; }
+  strncpy(out, buf[tail], EVLEN); out[EVLEN - 1] = 0; tail = (tail + 1) % EVQ;
+  portEXIT_CRITICAL(&mux); return true;
+}
+uint32_t EventQueue::droppedCount() { portENTER_CRITICAL(&mux); uint32_t n = dropped; portEXIT_CRITICAL(&mux); return n; }
 }
