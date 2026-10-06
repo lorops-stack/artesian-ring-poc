@@ -58,12 +58,13 @@ void test_reflection_filters() {
   for (auto& p : pts) { float x, y; locate(range(c.A, p[0], p[1], h), range(c.B, p[0], p[1], h), c.A, c.B, h, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.01, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.01, p[1], y); }
   { float x, y, res = locate(180, 190, c.A, c.B, 0, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(1e-4, 0, y); TEST_ASSERT_TRUE(res > 20 && res < 40); TEST_ASSERT_TRUE(x > 180 && x < 230); }
   { float x, y; locate(range(c.A, 203, -12, h), range(c.B, 203, -12, h), c.A, c.B, h, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_TRUE(y > 0); }
-  // back-edge lock is gone: a track pinned at y=0 does not drag the fix onto the edge; the raw fix keeps an overshoot
+  // back-edge lock is gone: a track pinned at y=0 does not drag the next valid fix onto the edge.
+  // A genuinely out-of-plane solve is rejected rather than clamped back onto the sink boundary.
   { Echo a[1] = { { roundf(range(c.A, 203, 100, h)), 60 } }, b[1] = { { roundf(range(c.B, 203, 100, h)), 60 } };
     AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, true, 203, 0, 220 }; o.nearWin = 120;
     Assoc r = associate(a, 1, b, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(2, 100, r.y);
     Echo a2[1] = { { roundf(range(c.A, -12, 150, h)), 60 } }, b2[1] = { { roundf(range(c.B, -12, 150, h)), 60 } }; o.hasPrev = false;
-    Assoc e = associate(a2, 1, b2, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, e.flag); TEST_ASSERT_EQUAL_FLOAT(0, e.x); TEST_ASSERT_TRUE(e.ux < -8); }
+    Assoc e = associate(a2, 1, b2, 1, o); TEST_ASSERT_EQUAL(FLAG_OUTSIDE, e.flag); }
   // first-arrival rule: bounces later than the hand are dropped, and a strong bounce cannot set the reference
   { float x = 200, y = 180, rA = roundf(range(c.A, x, y, h)), rB = roundf(range(c.B, x, y, h));
     Echo a[3] = { { rA, 55 }, { rA + 90, 70 }, { rA + 240, 30 } }, b[2] = { { rB, 48 }, { rB + 160, 60 } };
