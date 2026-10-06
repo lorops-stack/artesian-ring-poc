@@ -109,6 +109,7 @@ void step() {
   // not where it was last frame, so a hand in motion is followed and a bounce that moves the wrong way is rejected.
   float gateX = prevX, gateY = prevY; if (hasPrev && tracker.has()) tracker.predict(f.t, gateX, gateY);
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, gateX, gateY, 220, c.masks, c.nMasks, c.tuning.nearWin };
+  o.dt = 0.5f / fmaxf(1.0f, (f.A.hz + f.B.hz) * 0.5f); o.speed = hypotf(tracker.vx(), tracker.vy());
   int nEA = 0, nEB = 0; bool heldA = false, heldB = false;
   const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
   Assoc a = (f.A.alive && f.B.alive) ? associate(eA, nEA, eB, nEB, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
