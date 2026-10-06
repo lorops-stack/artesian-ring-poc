@@ -3,6 +3,7 @@
 #include "pins.h"
 #include "echo_hold.h"
 #include "defaults.h"
+#include "bounded_writer.h"
 #include <esp_task_wdt.h>
 
 using namespace ring;
@@ -37,8 +38,9 @@ static bool setupSensorImpl(xm125::Sensor& s, SensorInfo& inf) {
 // Works on a local record and publishes it in one copy, so core 0 never reads a half-filled one.
 static bool setupSensor(xm125::Sensor& s) {
   SensorInfo& pub = s.name()[0] == 'A' ? g.infoA : g.infoB;
-  SensorInfo inf; inf.setups = pub.setups + 1;
-  bool ok = setupSensorImpl(s, inf); pub = inf; return ok;
+  uint16_t priorSetups; { Lock lk; priorSetups = pub.setups; }
+  SensorInfo inf; inf.setups = priorSetups + 1;
+  bool ok = setupSensorImpl(s, inf); { Lock lk; pub = inf; } return ok;
 }
 void begin() {
   uint32_t hz = g.cfg.tuning.i2cKhz * 1000UL;
@@ -135,14 +137,14 @@ void step() {
   g.frame = f;
   // Phase 0 view: with no Ring Studio connected, print the echo lists on USB serial
   if (g.clients == 0 && f.t - lastSerial >= 45) {
-    lastSerial = f.t; char line[256]; int p = 0;
+    lastSerial = f.t; char line[256]; BoundedWriter w(line, sizeof line);
     for (int k = 0; k < 2; k++) {
-      const SensorFrame& S = k ? f.B : f.A; p += snprintf(line + p, sizeof line - p, "%s: %s%d echo%s ", k ? "B" : "A", S.alive ? "" : "(no answer) ", S.n, S.n == 1 ? " " : "s");
-      for (int i = 0; i < S.n && i < 3 && p < (int)sizeof line - 40; i++) p += snprintf(line + p, sizeof line - p, "%s%4.0f mm (str %.0f)", i ? ", " : "", S.e[i].d, S.e[i].s);
-      p += snprintf(line + p, sizeof line - p, "   ");
+      const SensorFrame& S = k ? f.B : f.A; w.append("%s: %s%d echo%s ", k ? "B" : "A", S.alive ? "" : "(no answer) ", S.n, S.n == 1 ? " " : "s");
+      for (int i = 0; i < S.n && i < 3 && !w.truncated(); i++) w.append("%s%4.0f mm (str %.0f)", i ? ", " : "", S.e[i].d, S.e[i].s);
+      w.append("   ");
     }
-    snprintf(line + p, sizeof line - p, "%.1f Hz  %s%s", (f.A.hz + f.B.hz) / 2, stateName(f.st), f.hasHand ? "" : "");
-    if (f.hasHand) { char pos[48]; snprintf(pos, sizeof pos, "  hand x %.0f y %.0f", f.hx, f.hy); strncat(line, pos, sizeof line - strlen(line) - 1); }
+    w.append("%.1f Hz  %s", (f.A.hz + f.B.hz) / 2, stateName(f.st));
+    if (f.hasHand) w.append("  hand x %.0f y %.0f", f.hx, f.hy);
     Serial.println(line);
   }
 }
