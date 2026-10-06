@@ -88,6 +88,22 @@ var RS = globalThis.RS || (globalThis.RS = {});
       out.holes.push(rec); if (e !== null && (!worst || e > worst.err)) worst = rec;
     });
     out.worstHole = worst;
+    // Independent validation: refit while withholding one hole at a time, then predict that hole.
+    // This prevents a low training RMS from disguising a calibration that does not generalise across the sink.
+    var cv = [];
+    holes.forEach(function(H) {
+      var held = samples.filter(function(s){return s.hole===H.n && s.A && s.B;}); if(!held.length) return;
+      var train = samples.filter(function(s){return s.hole!==H.n;}); var ff={};
+      ['A','B'].forEach(function(k){ var pts=[],meas=[]; train.forEach(function(s){if(!s[k])return;var P=holes[s.hole-1];pts.push({x:P.x,y:P.y,h:s.depth});meas.push(s[k][0]+ballR);}); ff[k]=pts.length>=6?F.fitSensor(pts,meas,cfg.sensors[k],null,null,{fixZ:flat}):null; });
+      if(!ff.A||!ff.B)return; var errs=[];
+      held.forEach(function(s){var p=G.locate(s.A[0]+ballR-ff.A.off,s.B[0]+ballR-ff.B.off,ff.A,ff.B,s.depth,{x:H.x,y:H.y},plane);errs.push(U.hypot(p.x-H.x,p.y-H.y));});
+      cv.push({n:H.n,err:U.mean(errs)});
+    });
+    out.validation = cv; out.validationRms = cv.length ? Math.sqrt(U.mean(cv.map(function(v){return v.err*v.err;}))) : null;
+    out.validationWorst = cv.length ? cv.reduce(function(a,b){return b.err>a.err?b:a;}) : null;
+    var outlierCount=(fits.A.outliers||[]).length+(fits.B.outliers||[]).length; out.outliers=outlierCount;
+    var vr=out.validationRms==null?999:out.validationRms, we=out.validationWorst?out.validationWorst.err:999;
+    out.quality = (!out.ok||vr>35||we>55)?'fail':(vr<=12&&we<=25&&outlierCount<=2?'excellent':(vr<=22&&we<=40?'good':'marginal'));
     var skipped = out.holes.filter(function (h) { return h.skipped; }).length;
     if (skipped > 2) { out.ok = false; out.codes.push('P2'); }
     if (rmsAll > CAL.fitPassMm) { out.ok = false; out.codes.push('P2'); }
