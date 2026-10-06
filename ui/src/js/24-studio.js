@@ -595,7 +595,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     function stop() { send({ c: 'cal', step: 'c7', a: 'stop' }); }
     function apply() {
-      var r = st.result; if (!r || !r.fits || !r.fits.A || !r.fits.B) return;
+      var r = st.result; if (!r || !r.fits || !r.fits.A || !r.fits.B || !r.ok || r.quality === 'fail') { RS.app.toast('Calibration failed independent validation; it was not applied', 'bad'); return; }
       var sens = {}; ['A', 'B'].forEach(function (k) { var f = r.fits[k]; sens[k] = { x: U.round(f.x, 1), y: U.round(f.y, 1), z: U.round(f.z, 1), off: U.round(f.off, 1) }; });
       send({ c: 'cal', step: 'c7', a: 'apply', sensors: sens }).then(function (ack) { if (ack) { st.applied = true; setProgress('c7', 'done'); RS.app.toast('Fitted positions and offsets applied', 'ok'); renderReport(); pm.dirty = true; } });
     }
