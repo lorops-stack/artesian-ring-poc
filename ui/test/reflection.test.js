@@ -37,7 +37,7 @@ test('back-edge lock is gone: a track pinned at y=0 does not drag the next fix o
   assert.equal(r.flag, 0); assert.ok(Math.abs(r.y - 100) < 2, 'y follows the ranges, got ' + r.y);
   assert.ok(Math.abs(r.uy - r.y) < 1e-6 && Math.abs(r.ux - r.x) < 1e-6, 'raw fix inside the plane equals the clamped one');
   const edge = G().associate([[Math.round(G().range(A, -12, 150, h)), 60]], [[Math.round(G().range(B, -12, 150, h)), 60]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
-  assert.equal(edge.flag, 0); assert.equal(edge.x, 0, 'published x is clamped'); assert.ok(edge.ux < -8, 'raw x keeps the overshoot for the track: ' + edge.ux);
+  assert.equal(edge.flag, RS.FLAG.OUTSIDE, 'an out-of-plane fix is rejected instead of being clamped onto the edge');
   // behind the baseline there is no information: the solver always returns the sink-side root
   const back = G().locate(G().range(A, 203, -12, h), G().range(B, 203, -12, h), A, B, h, null, c.plane);
   assert.ok(back.y > 0, 'mirror root is never returned');
