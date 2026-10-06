@@ -144,8 +144,8 @@ void step() {
     for (int i = 0; i < f.A.n && i < 3 && !w.truncated(); i++) w.append("%s%.0f/%.0f", i ? "," : " ", f.A.e[i].d, f.A.e[i].s);
     w.append(" B%d", f.B.n);
     for (int i = 0; i < f.B.n && i < 3 && !w.truncated(); i++) w.append("%s%.0f/%.0f", i ? "," : " ", f.B.e[i].d, f.B.e[i].s);
-    w.append(" pick=%d/%d assoc=%s", a.iA, a.iB, flagName(a.flag));
-    if (a.flag != FLAG_NO_HAND) w.append(" raw=%.0f,%.0f r=%.1f u=%.1f", a.ux, a.uy, a.resid, a.uncertainty);
+    w.append(" pick=%d/%d assoc=%u", a.iA, a.iB, (unsigned)a.flag);
+    if (a.flag != FLAG_NO_HAND) w.append(" raw=%.0f,%.0f r=%.1f u=%.1f", a.ux, a.uy, a.res, a.uncertainty);
     if (f.hasHand) w.append(" track=%.0f,%.0f spd=%.0f", f.hx, f.hy, f.spd);
     else w.append(" track=none");
     Serial.println(line);
