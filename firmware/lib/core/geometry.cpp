@@ -125,12 +125,26 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   // established track the reference is the pair nearest the track instead, so a cup set down nearer the sensor than the
   // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
   float limA = 1e9f, limB = 1e9f;
-  // First-arrival gating is useful only AFTER acquisition. On an untracked scene, short clutter from different
-  // reflectors can otherwise prevent a perfectly valid farther hand pair from ever being considered.
-  if (o.nearWin > 0 && o.hasPrev) {
-    int k0 = 0; float bd = 1e9f;
-    for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
-    limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
+  if (o.nearWin > 0) {
+    if (o.hasPrev) {
+      // Once acquired, anchor first-arrival gating to the pair nearest the predicted hand.
+      int k0 = 0; float bd = 1e9f;
+      for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
+      limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
+    } else {
+      // Acquisition: prefer the earliest *geometrically valid pair*, not the shortest raw echo on each sensor.
+      // Bench evidence shows the normal scene contains a hand/object in front of a user's torso. Both can form valid
+      // A/B fixes, but the direct hand path is shorter on BOTH radars. Taking the Pareto-nearest valid pair prevents
+      // the torso from becoming the initial track without letting unrelated one-sided near clutter veto a real hand.
+      int k0 = 0;
+      for (int k = 1; k < np; k++) {
+        bool dominates = pr[k].rA <= pr[k0].rA && pr[k].rB <= pr[k0].rB &&
+                         (pr[k].rA < pr[k0].rA || pr[k].rB < pr[k0].rB);
+        if (dominates || (!(pr[k0].rA <= pr[k].rA && pr[k0].rB <= pr[k].rB) &&
+                          pr[k].rA + pr[k].rB < pr[k0].rA + pr[k0].rB)) k0 = k;
+      }
+      limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
+    }
   }
   for (int k = 0; k < np; k++) {
     const Pair& q = pr[k];
