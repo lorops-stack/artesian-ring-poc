@@ -1,4 +1,4 @@
-/* Ring Studio · first-run setup (Wi-Fi password and studio PIN) and the presentation-mode PIN lock. */
+/* Ring Studio · first-run network setup. */
 var RS = globalThis.RS || (globalThis.RS = {});
 (function () {
   'use strict';
@@ -28,25 +28,4 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }, { locked: true, onClose: function () { SU.open = false; } });
   };
 
-  // PIN lock screen for a locked route (studio, tests, settings) in presentation mode
-  SU.lock = function (route) {
-    var A = RS.app, el = A.el; U.empty(el);
-    if (A.active && A.active.unmount) { A.active.unmount(); A.active = null; A.route = null; }
-    el.appendChild(A.topbar(route));
-    var entered = '', dots = h('div.pindots'), msg = h('div.sub', { style: { minHeight: '20px', textAlign: 'center' } }, 'Enter the studio PIN');
-    var render = function () { U.empty(dots); for (var i = 0; i < Math.max(4, entered.length); i++) dots.appendChild(h('i' + (i < entered.length ? '.on' : ''))); };
-    var submit = function () {
-      if (entered.length < 4) return;
-      L.send({ c: 'auth', pin: entered }).then(function (ack) { if (ack && ack.ok === false) throw new Error('Wrong PIN'); S.unlockStudio(); A.route = null; A.render(); })
-        .catch(function (e) { msg.textContent = e.message || 'Wrong PIN'; msg.style.color = 'var(--bad)'; entered = ''; render(); });
-    };
-    var pad = h('div.pinpad');
-    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'OK'].forEach(function (k) {
-      pad.appendChild(h('button', { onclick: function () { if (k === '⌫') entered = entered.slice(0, -1); else if (k === 'OK') return submit(); else if (entered.length < 8) entered += k; render(); if (entered.length === 8) submit(); } }, k));
-    });
-    var card = h('div.card.solid', { style: { width: 'min(420px, 100%)', padding: '34px 30px' } }, h('div.col.gap-l', { style: { alignItems: 'center' } }, RS.logo(40), h('h2', { style: { margin: 0 } }, 'Studio locked'), msg, dots, pad, h('div.row', h('button.btn.ghost.sm', { onclick: function () { A.go('show'); } }, 'Back to the Showcase'), h('button.btn.ghost.sm', { onclick: function () { S.set('presentation', false); A.route = null; A.render(); } }, 'Leave presentation mode'))));
-    el.appendChild(h('div.screen', h('div.center', card)));
-    render();
-    document.addEventListener('keydown', function onKey(e) { if (!document.body.contains(pad)) return document.removeEventListener('keydown', onKey); if (/^\d$/.test(e.key) && entered.length < 8) { entered += e.key; render(); } else if (e.key === 'Backspace') { entered = entered.slice(0, -1); render(); } else if (e.key === 'Enter') submit(); });
-  };
 })();
