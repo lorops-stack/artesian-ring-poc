@@ -102,7 +102,14 @@ void begin() {
     if (!requireHttpAuth(r)) return;
     JsonObjectConst d = json.as<JsonObjectConst>();
     char e[96] = ""; bool ok;
-    { Lock lk; ok = configApplySet(g.cfg, d["set"].as<JsonObjectConst>(), e, sizeof e); if (ok) { g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); } }
+    { Lock lk;
+      uint16_t oldKhz = g.cfg.tuning.i2cKhz, oldStart = g.cfg.tuning.rangeStart, oldEnd = g.cfg.tuning.rangeEnd; float oldSens = g.cfg.tuning.threshSens;
+      ok = configApplySet(g.cfg, d["set"].as<JsonObjectConst>(), e, sizeof e);
+      if (ok) {
+        if (g.cfg.tuning.i2cKhz != oldKhz || g.cfg.tuning.rangeStart != oldStart || g.cfg.tuning.rangeEnd != oldEnd || g.cfg.tuning.threshSens != oldSens) g.sensorsReconfig = true;
+        g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis();
+      }
+    }
     if (ok) { sendCfg(); r->send(200, "application/json", "{\"ok\":true}"); }
     else { JsonDocument out; out["err"] = e[0] ? e : "invalid configuration"; String s; serializeJson(out, s); r->send(400, "application/json", s); }
   });
@@ -112,7 +119,7 @@ void begin() {
     JsonObjectConst d = json.as<JsonObjectConst>(); if (d["cfg"].isNull()) { r->send(400, "application/json", "{\"err\":\"not a calibration file\"}"); return; }
     Config candidate; { Lock lk; candidate = g.cfg; }
     char e[96] = ""; if (!configFromJson(d["cfg"].as<JsonObjectConst>(), candidate) || !validateConfig(candidate, e, sizeof e)) { JsonDocument out; out["err"] = e[0] ? e : "invalid configuration"; String s; serializeJson(out, s); r->send(400, "application/json", s); return; }
-    { Lock lk; g.cfg = candidate; g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
+    { Lock lk; g.cfg = candidate; g.sm->setConfig(&g.cfg); g.sensorsReconfig = true; g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     sendCfg(); r->send(200, "application/json", "{\"ok\":true}");
   });
   calImport->setMethod(HTTP_POST); calImport->setMaxContentLength(MAX_JSON_BODY); server.addHandler(calImport);
