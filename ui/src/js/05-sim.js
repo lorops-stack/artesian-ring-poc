@@ -66,7 +66,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var atten = (k === 'B' && f.B_foil) ? 0.02 : 1;
     var rec = this.recorded[k], self = this;
     // The recorded threshold: an echo near a recorded background distance must beat that background to show
-    var passes = function (d, s) { var sens = Math.max(0.3, self.cfg.tuning.threshSens || 1); for (var i = 0; i < rec.length; i++) if (Math.abs(rec[i][0] - d) <= 20) return s > rec[i][1] * 1.35 / sens; return s > 60 / sens; };
+    var passes = function (d, s) { for (var i = 0; i < rec.length; i++) if (Math.abs(rec[i][0] - d) <= 20) return s > rec[i][1] * (self.cfg.tuning.threshSens || 1) * 1.35; return s > 60 * (self.cfg.tuning.threshSens || 1); };
     var push = function (d, s) { if (d >= self.cfg.tuning.rangeStart && d <= self.cfg.tuning.rangeEnd && passes(d, s)) list.push([Math.round(d), Math.round(s)]); };
     if (target) {
       var d = G.range(pose, target.x, target.y, target.h) + pose.off + NOISE_MM * this.rnd.gauss();
