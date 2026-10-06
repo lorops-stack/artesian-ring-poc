@@ -148,9 +148,15 @@ var RS = globalThis.RS || (globalThis.RS = {});
     // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
     var limA = Infinity, limB = Infinity;
     if (opts.nearWin > 0) {
-      var refA = Infinity, refB = Infinity;
-      if (opts.prev) { var k0 = null, bd = Infinity; pairs.forEach(function (q) { var dd = U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y); if (dd < bd) { bd = dd; k0 = q; } }); refA = eA[k0.ia][0]; refB = eB[k0.ib][0]; }
-      else pairs.forEach(function (q) { refA = Math.min(refA, eA[q.ia][0]); refB = Math.min(refB, eB[q.ib][0]); });
+      var refA = Infinity, refB = Infinity, k0 = null;
+      if (opts.prev) {
+        var bd = Infinity; pairs.forEach(function (q) { var dd = U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y); if (dd < bd) { bd = dd; k0 = q; } });
+      } else {
+        // Use one coherent pair as the acquisition reference. Independent A/B minima can belong to different
+        // reflectors and make a near window that no valid pair can satisfy.
+        var bs = Infinity; pairs.forEach(function (q) { var sc = q.rA + q.rB + 4 * q.p.res + 0.35 * q.unc; if (sc < bs) { bs = sc; k0 = q; } });
+      }
+      refA = eA[k0.ia][0]; refB = eB[k0.ib][0];
       limA = refA + opts.nearWin; limB = refB + opts.nearWin;
     }
     pairs.forEach(function (q) {
