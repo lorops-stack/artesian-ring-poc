@@ -53,7 +53,8 @@ test('measured 19.25in bench: degenerate near pair is rejected before it can poi
   // This exact shape occurred on hardware: short clutter on both sides plus a valid longer pair. Independent
   // per-sensor minima used to create a near window that no pair could pass; acquisition must now remain possible.
   const mixed = G().associate([[228, 45], [408, 141]], [[222, 33], [457, 136]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
-  assert.equal(mixed.flag, RS.FLAG.NONE);
+  assert.equal(mixed.flag, RS.FLAG.NONE); assert.equal(mixed.iA, 1); assert.equal(mixed.iB, 1);
+  assert.ok(Math.abs(mixed.x - 201) < 3); assert.ok(Math.abs(mixed.y - 355) < 3);
 });
 
 test('first-arrival rule: a metal-sink bounce later than the hand is dropped on both sensors', () => {
