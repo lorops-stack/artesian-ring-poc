@@ -70,10 +70,15 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
   JsonObject ack = reply["ack"].to<JsonObject>(); ack["c"] = cmd; ack["id"] = id;
   auto err = [&](const char* msg) { reply.clear(); JsonObject e = reply["err"].to<JsonObject>(); e["c"] = cmd; e["id"] = id; e["msg"] = msg; return false; };
   auto needAuth = [&]() { return g.pin[0] && !authed; };
+  // Authorization policy is fail-closed: after initial setup, every state-mutating
+  // command requires an authenticated WebSocket session. Read-only commands are
+  // explicitly allow-listed here so new commands cannot accidentally become public.
+  const bool readOnly = !strcmp(cmd, "hello") || !strcmp(cmd, "auth") || !strcmp(cmd, "get") || !strcmp(cmd, "list");
+  const bool initialSetup = !strcmp(cmd, "setup") && g.setupNeeded;
+  if (!readOnly && !initialSetup && needAuth()) return err("PIN required");
   if (!strcmp(cmd, "hello")) { net::sendStatus(); net::sendCfg(); return true; }
   if (!strcmp(cmd, "auth")) { bool ok = !g.pin[0] || !strcmp(c["pin"] | "", g.pin); ack["ok"] = ok; return true; }
   if (!strcmp(cmd, "setup")) {
-    if (!g.setupNeeded && needAuth()) return err("PIN required");
     const char* pass = c["pass"] | ""; const char* pin = c["pin"] | "";
     if (!validPass(pass)) return err("Password must be 8 to 63 characters"); if (!validPin(pin)) return err("PIN must be 4 to 8 digits");
     strncpy(g.wifiPass, pass, sizeof g.wifiPass - 1); strncpy(g.pin, pin, sizeof g.pin - 1); g.setupNeeded = false; storage::saveSecrets(); ack["restart"] = true; needRestart = true; return true;
@@ -89,19 +94,18 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
   if (!strcmp(cmd, "led")) { const char* t = c["test"] | "off"; g.ledTest = !strcmp(t, "white") ? 1 : !strcmp(t, "rgb") ? 2 : !strcmp(t, "count") ? 3 : 0; g.ledTestN = c["n"] | g.cfg.tuning.ledCount; return true; }
   if (!strcmp(cmd, "save")) { const char* name = c["name"] | ""; if (!name[0]) return err("name required"); if (!storage::saveCal(name, c["notes"] | "")) return err("could not save"); net::sendCals(); net::sendStatus(); return true; }
   if (!strcmp(cmd, "load")) { if (!storage::loadCal(c["name"] | "")) return err("no such calibration"); { Lock lk; g.sm->setConfig(&g.cfg); } net::sendCfg(); net::sendStatus(); return true; }
-  if (!strcmp(cmd, "delete")) { if (needAuth()) return err("PIN required"); storage::deleteCal(c["name"] | ""); net::sendCals(); return true; }
+  if (!strcmp(cmd, "delete")) { storage::deleteCal(c["name"] | ""); net::sendCals(); return true; }
   if (!strcmp(cmd, "list")) { net::sendCals(); return true; }
-  if (!strcmp(cmd, "wifi")) { if (needAuth()) return err("PIN required"); const char* pass = c["pass"] | ""; if (!validPass(pass)) return err("Password must be 8 to 63 characters"); strncpy(g.wifiPass, pass, sizeof g.wifiPass - 1); storage::saveSecrets(); ack["restart"] = true; needRestart = true; return true; }
-  if (!strcmp(cmd, "pin")) { if (needAuth()) return err("PIN required"); const char* pin = c["pin"] | ""; if (!validPin(pin)) return err("PIN must be 4 to 8 digits"); strncpy(g.pin, pin, sizeof g.pin - 1); storage::saveSecrets(); return true; }
+  if (!strcmp(cmd, "wifi")) { const char* pass = c["pass"] | ""; if (!validPass(pass)) return err("Password must be 8 to 63 characters"); strncpy(g.wifiPass, pass, sizeof g.wifiPass - 1); storage::saveSecrets(); ack["restart"] = true; needRestart = true; return true; }
+  if (!strcmp(cmd, "pin")) { const char* pin = c["pin"] | ""; if (!validPin(pin)) return err("PIN must be 4 to 8 digits"); strncpy(g.pin, pin, sizeof g.pin - 1); storage::saveSecrets(); return true; }
   if (!strcmp(cmd, "get")) { const char* w = c["what"] | "status"; if (!strcmp(w, "cfg")) net::sendCfg(); else if (!strcmp(w, "health")) { JsonDocument d; healthJson(d["health"].to<JsonObject>()); String s; serializeJson(d, s); net::broadcast(s.c_str()); } else if (!strcmp(w, "cal")) { JsonDocument d; calib::toJson(d["cal"].to<JsonObject>()); String s; serializeJson(d, s); net::broadcast(s.c_str()); } else net::sendStatus(); return true; }
   if (!strcmp(cmd, "reset")) {
-    if (needAuth()) return err("PIN required");
     if (!strcmp(c["what"] | "", "totals")) { Lock lk; g.totals = Totals(); g.sm->totals() = Totals(); g.totalsDirty = true; }
     else { { Lock lk; storage::factoryReset(); g.sm->setConfig(&g.cfg); sensing::clearBg(); } net::sendCfg(); }
     net::sendStatus(); return true;
   }
   if (!strcmp(cmd, "sensors")) { if (!strcmp(c["a"] | "", "recheck")) { g.sensorsReconfig = true; return true; } return err("unknown sensors action"); }
-  if (!strcmp(cmd, "reboot")) { if (needAuth()) return err("PIN required"); g.reboot = true; return true; }
+  if (!strcmp(cmd, "reboot")) { g.reboot = true; return true; }
   return err("unknown command");
 }
 
