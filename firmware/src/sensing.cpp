@@ -14,7 +14,7 @@ static xm125::Sensor sB(Wire1, PIN_B_SDA, PIN_B_SCL, PIN_B_RST, "B");
 static EchoHold holdA(ECHO_HOLD_FRAMES), holdB(ECHO_HOLD_FRAMES);
 static Tracker tracker; static bool hasPrev = false; static float prevX = 0, prevY = 0; static int miss = 0, jumps = 0; static float jumpX = 0, jumpY = 0; static uint32_t jumpT = 0;
 static Echo bgA[8], bgB[8]; static int nBgA = 0, nBgB = 0;          // still objects learned by the stillness rule
-static uint32_t lastA = 0, lastB = 0; static float hzA = 0, hzB = 0; static uint32_t frameN = 0;
+static uint32_t lastA = 0, lastB = 0; static float hzA = 0, hzB = 0; static uint32_t frameN = 0, lastFusionT = 0;
 static uint32_t idleSince = 0; static bool relearnDone = false; static uint32_t lastSerial = 0; static uint32_t lastDiagSerial = 0; static uint32_t lastRecal = 0;
 static float spreadBuf[24]; static int spreadN = 0;
 
@@ -56,7 +56,7 @@ void reconfigure() {
   Serial.println("[sensors] range/threshold changed: resetting and re-configuring (keep the sink empty for 3 s)");
   sA.hardReset(); esp_task_wdt_reset(); sB.hardReset(); esp_task_wdt_reset();
   setupSensor(sA); esp_task_wdt_reset(); setupSensor(sB);
-  g.checkFailing = !(sA.ok() && sB.ok()); nBgA = nBgB = 0; hasPrev = false; tracker.reset(); idleSince = millis(); relearnDone = false;
+  g.checkFailing = !(sA.ok() && sB.ok()); nBgA = nBgB = 0; hasPrev = false; tracker.reset(); holdA.reset(); holdB.reset(); lastFusionT = 0; idleSince = millis(); relearnDone = false;
 }
 bool sensorPresent(char w) { return sensor(w).present(); }
 uint32_t sensorVersion(char w) { return sensor(w).version(); }
@@ -109,10 +109,14 @@ void step() {
   // not where it was last frame, so a hand in motion is followed and a bounce that moves the wrong way is rejected.
   float gateX = prevX, gateY = prevY; if (hasPrev && tracker.has()) tracker.predict(f.t, gateX, gateY);
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, gateX, gateY, 220, c.masks, c.nMasks, c.tuning.nearWin };
-  o.dt = 0.5f / fmaxf(1.0f, (f.A.hz + f.B.hz) * 0.5f); o.speed = hypotf(tracker.vx(), tracker.vy());
+  o.dt = lastFusionT ? (f.t - lastFusionT) / 1000.0f : 0.045f; if (o.dt < 0.001f) o.dt = 0.001f; if (o.dt > 0.5f) o.dt = 0.5f; lastFusionT = f.t; o.speed = hypotf(tracker.vx(), tracker.vy());
   int nEA = 0, nEB = 0; bool heldA = false, heldB = false;
   const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
   Assoc a = (f.A.alive && f.B.alive) ? associate(eA, nEA, eB, nEB, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
+  // Held echoes may bridge a one-sided dropout only for an established track. Never create a new track from stale evidence,
+  // and never advance a track when both sides are stale.
+  if (a.flag == FLAG_NONE && ((heldA && heldB) || (!hasPrev && (heldA || heldB)))) a.flag = FLAG_NO_HAND;
+  if (a.flag == FLAG_NONE && a.uncertainty > 120.0f) a.flag = FLAG_OUTSIDE;  // reject ill-conditioned edge/baseline fixes
   if (heldA) a.iA = -1; if (heldB) a.iB = -1;   // a held echo has no index in this frame's list
   bool hasPos = false; float x = 0, y = 0, speed = 0;
   if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; f.A.p = a.iA; f.B.p = a.iB; }   // prev is the raw fix: a clamped one would pin the track to the edge
@@ -144,7 +148,7 @@ void step() {
     for (int i = 0; i < f.A.n && i < 3 && !w.truncated(); i++) w.append("%s%.0f/%.0f", i ? "," : " ", f.A.e[i].d, f.A.e[i].s);
     w.append(" B%d", f.B.n);
     for (int i = 0; i < f.B.n && i < 3 && !w.truncated(); i++) w.append("%s%.0f/%.0f", i ? "," : " ", f.B.e[i].d, f.B.e[i].s);
-    w.append(" pick=%d/%d assoc=%u", a.iA, a.iB, (unsigned)a.flag);
+    w.append(" pick=%d/%d%s%s assoc=%u", a.iA, a.iB, heldA ? " holdA" : "", heldB ? " holdB" : "", (unsigned)a.flag);
     if (a.flag != FLAG_NO_HAND) w.append(" raw=%.0f,%.0f r=%.1f u=%.1f", a.ux, a.uy, a.res, a.uncertainty);
     if (f.hasHand) w.append(" track=%.0f,%.0f spd=%.0f", f.hx, f.hy, f.spd);
     else w.append(" track=none");
