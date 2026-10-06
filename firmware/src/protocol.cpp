@@ -92,7 +92,7 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
   if (!strcmp(cmd, "cal")) { char e[64] = ""; if (!calib::command(c["step"] | "", c["a"] | "", c, e, sizeof e)) return err(e); return true; }
   if (!strcmp(cmd, "led")) { const char* t = c["test"] | "off"; g.ledTest = !strcmp(t, "white") ? 1 : !strcmp(t, "rgb") ? 2 : !strcmp(t, "count") ? 3 : 0; g.ledTestN = c["n"] | g.cfg.tuning.ledCount; return true; }
   if (!strcmp(cmd, "save")) { const char* name = c["name"] | ""; if (!name[0]) return err("name required"); if (!storage::saveCal(name, c["notes"] | "")) return err("could not save"); net::sendCals(); net::sendStatus(); return true; }
-  if (!strcmp(cmd, "load")) { if (!storage::loadCal(c["name"] | "")) return err("no such calibration"); { Lock lk; g.sm->setConfig(&g.cfg); } net::sendCfg(); net::sendStatus(); return true; }
+  if (!strcmp(cmd, "load")) { if (!storage::loadCal(c["name"] | "")) return err("no such calibration"); { Lock lk; g.sm->setConfig(&g.cfg); g.sensorsReconfig = true; } net::sendCfg(); net::sendStatus(); return true; }
   if (!strcmp(cmd, "delete")) { storage::deleteCal(c["name"] | ""); net::sendCals(); return true; }
   if (!strcmp(cmd, "list")) { net::sendCals(); return true; }
   if (!strcmp(cmd, "wifi")) { const char* pass = c["pass"] | ""; if (!validPass(pass)) return err("Password must be 8 to 63 characters"); strncpy(g.wifiPass, pass, sizeof g.wifiPass - 1); storage::saveSecrets(); ack["restart"] = true; needRestart = true; return true; }
@@ -100,7 +100,7 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
   if (!strcmp(cmd, "get")) { const char* w = c["what"] | "status"; if (!strcmp(w, "cfg")) net::sendCfg(); else if (!strcmp(w, "health")) { JsonDocument d; healthJson(d["health"].to<JsonObject>()); String s; serializeJson(d, s); net::broadcast(s.c_str()); } else if (!strcmp(w, "cal")) { JsonDocument d; calib::toJson(d["cal"].to<JsonObject>()); String s; serializeJson(d, s); net::broadcast(s.c_str()); } else net::sendStatus(); return true; }
   if (!strcmp(cmd, "reset")) {
     if (!strcmp(c["what"] | "", "totals")) { Lock lk; g.totals = Totals(); g.sm->totals() = Totals(); g.totalsDirty = true; }
-    else { { Lock lk; storage::factoryReset(); g.sm->setConfig(&g.cfg); sensing::clearBg(); } net::sendCfg(); }
+    else { { Lock lk; storage::factoryReset(); g.sm->setConfig(&g.cfg); sensing::clearBg(); g.sensorsReconfig = true; } net::sendCfg(); }
     net::sendStatus(); return true;
   }
   if (!strcmp(cmd, "sensors")) { if (!strcmp(c["a"] | "", "recheck")) { g.sensorsReconfig = true; return true; } return err("unknown sensors action"); }
