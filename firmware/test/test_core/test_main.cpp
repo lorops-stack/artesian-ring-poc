@@ -130,6 +130,16 @@ void test_config_json_roundtrip_and_set() {
   TEST_ASSERT_TRUE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(210, c.tuning.settleMs); TEST_ASSERT_FLOAT_WITHIN(0.01, 17.5, c.A.off); TEST_ASSERT_NULL(c.findLayout("bathroom")); TEST_ASSERT_EQUAL(2, c.nLayouts);
 }
 
+void test_config_validation_rejects_bad_values_atomically() {
+  Config c; setDefaults(c); char err[96] = "";
+  JsonDocument sd; JsonObject set = sd.to<JsonObject>(); set["tuning.wifiCh"] = 99;
+  TEST_ASSERT_FALSE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(6, c.tuning.wifiCh); TEST_ASSERT_TRUE(strlen(err) > 0);
+  sd.clear(); set = sd.to<JsonObject>(); set["tuning.rangeStart"] = 900; set["tuning.rangeEnd"] = 850;
+  TEST_ASSERT_FALSE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(60, c.tuning.rangeStart); TEST_ASSERT_EQUAL(850, c.tuning.rangeEnd);
+  sd.clear(); set = sd.to<JsonObject>(); set["tuning.smooth"] = 0.4;
+  TEST_ASSERT_TRUE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_FLOAT_WITHIN(0.001, 0.4, c.tuning.smooth);
+}
+
 // ---- fixtures through the state machine ---------------------------------------------------------------------------------------------
 struct Rec { std::string ev, fn, a, why; int lat; float used, savedOff, savedFlow; };
 static std::vector<Rec> g_events;
@@ -213,7 +223,7 @@ static void test_echo_hold() {
 
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
+  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set); RUN_TEST(test_config_validation_rejects_bad_values_atomically);
   RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();
 }
