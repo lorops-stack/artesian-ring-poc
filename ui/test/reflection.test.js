@@ -74,8 +74,11 @@ test('first-arrival rule: a metal-sink bounce later than the hand is dropped on 
 test('track-aware reference: a cup set down nearer sensor A than the hand does not steal an established track', () => {
   const c = rig(), A = c.sensors.A, B = c.sensors.B, h = c.hand.zwork;
   const hand = { x: 150, y: 200 }, cup = { x: 100, y: 80 };
-  const eA = [[Math.round(G().range(A, cup.x, cup.y, h)), 40], [Math.round(G().range(A, hand.x, hand.y, h)), 20]];
-  const eB = [[Math.round(G().range(B, hand.x, hand.y, h)), 20], [Math.round(G().range(B, cup.x, cup.y, h)), 40]];
+  const cA = G().range(A, cup.x, cup.y, h), cB = G().range(B, cup.x, cup.y, h);
+  const hA = G().range(A, hand.x, hand.y, h), hB = G().range(B, hand.x, hand.y, h);
+  const amp = (d, ref) => ref * Math.pow(300 / d, 2);
+  const eA = [[Math.round(cA), amp(cA, 40)], [Math.round(hA), amp(hA, 20)]];
+  const eB = [[Math.round(hB), amp(hB, 20)], [Math.round(cB), amp(cB, 40)]];
   const r = G().associate(eA, eB, { A, B, hand: c.hand, plane: c.plane, prev: hand, maxJump: 220, nearWin: 120 });
   assert.equal(r.flag, 0); assert.ok(Math.hypot(r.x - hand.x, r.y - hand.y) < 5, `stayed on the hand: ${r.x.toFixed(0)},${r.y.toFixed(0)}`);
   // with no track the nearest pair is taken, which is the cup: that is the acquisition rule and is expected
