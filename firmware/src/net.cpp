@@ -85,7 +85,7 @@ void begin() {
     if (!requireHttpAuth(r)) return;
     JsonObjectConst d = json.as<JsonObjectConst>(); if (d["cfg"].isNull()) { r->send(400, "application/json", "{\"err\":\"not a calibration file\"}"); return; }
     Config candidate; { Lock lk; candidate = g.cfg; }
-    if (!configFromJson(d["cfg"].as<JsonObjectConst>(), candidate)) { r->send(400, "application/json", "{\"err\":\"invalid configuration\"}"); return; }
+    char e[96] = ""; if (!configFromJson(d["cfg"].as<JsonObjectConst>(), candidate) || !validateConfig(candidate, e, sizeof e)) { JsonDocument out; out["err"] = e[0] ? e : "invalid configuration"; String s; serializeJson(out, s); r->send(400, "application/json", s); return; }
     { Lock lk; g.cfg = candidate; g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     sendCfg(); r->send(200, "application/json", "{\"ok\":true}");
   });
