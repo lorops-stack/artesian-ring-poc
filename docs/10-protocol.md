@@ -79,7 +79,7 @@ The whole configuration object (see `firmware/include/defaults.h`; the schema is
            "led":90,"rssi":-40,"heap":180000,"rst":"POWERON","temp":41.2}}
 ```
 
-Per-sensor wiring fields (Hardware check screen): `sda`/`scl` line idle level read with a brief pull-down (high only if the module's own pull-ups are powered), `pres` answers at 0x52, `cfg` distance detector configured, `ver` and `st` version and detector status registers, `bus` last Wire error code (0 ok, 2 no ACK, 5 timeout), `stop` I2C STOP mode in use, `setups` how many times the sensor has been set up. A reading whose result register has the measure-error bit (bit 10) set counts as an error and is not used.
+`eventDrops` is the number of cross-core event messages discarded because the bounded queue was full. `stations` is the number of clients associated with the device AP.\n\nPer-sensor wiring fields (Hardware check screen): `sda`/`scl` line idle level read with a brief pull-down (high only if the module's own pull-ups are powered), `pres` answers at 0x52, `cfg` distance detector configured, `ver` and `st` version and detector status registers, `bus` last Wire error code (0 ok, 2 no ACK, 5 timeout), `stop` I2C STOP mode in use, `setups` how many times the sensor has been set up. A reading whose result register has the measure-error bit (bit 10) set counts as an error and is not used.
 
 ### `cal` · calibration progress
 
@@ -100,12 +100,12 @@ Per-sensor wiring fields (Hardware check screen): `sda`/`scl` line idle level re
 
 ## Ring Studio → device
 
-Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence number, echoed in the `ack` or `err`; no command uses `id` for anything else.
+Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence number, echoed in the `ack` or `err`; no command uses `id` for anything else. WebSocket commands larger than 4096 bytes are rejected. After five failed PIN attempts, authentication is delayed for 30 seconds.
 
 | `c` | Keys | Does |
 |---|---|---|
 | `hello` | `ui` version | first message; the device replies with `status`, `cfg` and `health` |
-| `auth` | `pin` | unlocks the protected commands for this connection. With a PIN set, `wifi`, `pin`, `delete`, `reset` and `reboot` need it; everything else is open on the private Wi-Fi, and Ring Studio locks its own screens in presentation mode |
+| `auth` | `pin` | unlocks the protected commands for this connection. After first-run setup, every state-mutating command requires it. Only `hello`, `auth`, `get` and `list` are read-only/public on the private Wi-Fi. Ring Studio requires a live device-session unlock before protected/operator screens and clears that unlock when the WebSocket reconnects |
 | `setup` | `pass` (8 to 63 chars), `pin` (4 to 8 digits) | first-run setup; the AP restarts with the new password |
 | `layout` | `layout` | switch layout by id (any state → IDLE) |
 | `clean` | `a`: `start` or `end` | clean mode |
@@ -129,11 +129,11 @@ Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence numbe
 |---|---|
 | `GET /` and static files | Ring Studio (gzip-compressed files in LittleFS) |
 | `GET /api/status`, `GET /api/cfg`, `GET /api/health` | same objects as the WebSocket messages |
-| `POST /api/cfg` | body `{"set":{...}}` |
+| `POST /api/cfg` | PIN-authenticated (`X-Ring-PIN`); body `{"set":{...}}`; maximum JSON body 8 KiB |
 | `GET /api/cal/export` | the current calibration as a file |
-| `POST /api/cal/import` | a calibration file |
-| `POST /api/update` | firmware `.bin` (multipart), then reboot (F18) |
-| `GET /api/log` | the last 200 log lines |
+| `POST /api/cal/import` | PIN-authenticated (`X-Ring-PIN`); a calibration file; maximum JSON body 8 KiB |
+| `POST /api/update` | **disabled by default in hardening builds**. If explicitly compiled back in it remains PIN-authenticated; production OTA additionally needs signed-image/secure-boot review |
+| `GET /api/log` | placeholder directing the operator to USB serial; firmware does not retain 200 log lines |
 
 ## Configuration
 
