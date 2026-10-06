@@ -45,15 +45,17 @@ void statusJson(JsonObject o) {
   o["sess"] = g.totals.sess; o["ml"] = (int)g.totals.ml; o["savedOff"] = (int)g.totals.savedOff; o["savedFlow"] = (int)g.totals.savedFlow;
 }
 void healthJson(JsonObject o) {
-  const Frame& f = g.frame;
+  Frame f; SensorInfo infoA, infoB; Health health; uint8_t ledBright;
+  { Lock lk; f = g.frame; infoA = g.infoA; infoB = g.infoB; health = g.health; ledBright = g.cfg.tuning.ledBright; }
   auto sensor = [&](const char* key, const SensorFrame& sf, const SensorInfo& inf) {
     JsonObject a = o[key].to<JsonObject>(); a["hz"] = sf.hz; a["er"] = sf.er; a["calNeeded"] = sf.calNeeded; a["str"] = (int)sf.topStr; a["alive"] = sf.alive;
     a["sda"] = inf.sda; a["scl"] = inf.scl; a["pres"] = inf.present; a["cfg"] = inf.cfgOk; a["ver"] = inf.ver; a["st"] = inf.status; a["bus"] = inf.busErr; a["stop"] = inf.stop; a["setups"] = inf.setups;
   };
-  sensor("A", f.A, g.infoA); sensor("B", f.B, g.infoB);
-  o["bgDrift"] = g.health.bgDrift; o["ghosts"] = g.health.ghosts; o["front"] = g.health.front; o["trigNoHand"] = g.health.trigNoHand;
-  o["falseOff"] = 0; o["heldOn"] = 0;   // the state machine's counters are mirrored into the frame's lat/flag; detailed counts come with Phase 2 health
-  o["led"] = g.cfg.tuning.ledBright; o["rssi"] = WiFi.softAPgetStationNum(); o["heap"] = ESP.getFreeHeap(); o["rst"] = resetReason(); o["temp"] = g.health.temp;
+  sensor("A", f.A, infoA); sensor("B", f.B, infoB);
+  o["bgDrift"] = health.bgDrift; o["ghosts"] = health.ghosts; o["front"] = health.front; o["trigNoHand"] = health.trigNoHand;
+  o["eventDrops"] = g.events.droppedCount();
+  o["falseOff"] = 0; o["heldOn"] = 0;
+  o["led"] = ledBright; o["stations"] = WiFi.softAPgetStationNum(); o["heap"] = ESP.getFreeHeap(); o["rst"] = resetReason(); o["temp"] = health.temp;
 }
 
 // ---- commands -----------------------------------------------------------------------------------------------------------------------
@@ -82,7 +84,7 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
   if (!strcmp(cmd, "clean")) { Lock lk; if (!strcmp(c["a"] | "start", "end")) g.sm->endClean(); else g.sm->startClean("ui"); return true; }
   if (!strcmp(cmd, "cfg")) {
     JsonObjectConst set = c["set"]; if (set.isNull()) return err("nothing to set");
-    char e[64]; { Lock lk; uint16_t oldKhz = g.cfg.tuning.i2cKhz; float oS = g.cfg.tuning.rangeStart, oE = g.cfg.tuning.rangeEnd, oT = g.cfg.tuning.threshSens; if (!configApplySet(g.cfg, set, e, sizeof e)) return err(e); if (g.cfg.tuning.rangeStart != oS || g.cfg.tuning.rangeEnd != oE || g.cfg.tuning.threshSens != oT) g.sensorsReconfig = true; g.sm->setConfig(&g.cfg); if (!g.cfg.findLayout(g.cfg.layout) && g.cfg.nLayouts) strncpy(g.cfg.layout, g.cfg.layouts[0].id, sizeof g.cfg.layout - 1); if (g.cfg.tuning.i2cKhz != oldKhz) sensing::setBusSpeed(g.cfg.tuning.i2cKhz * 1000UL); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
+    char e[64]; { Lock lk; uint16_t oldKhz = g.cfg.tuning.i2cKhz; float oS = g.cfg.tuning.rangeStart, oE = g.cfg.tuning.rangeEnd, oT = g.cfg.tuning.threshSens; if (!configApplySet(g.cfg, set, e, sizeof e)) return err(e); if (g.cfg.tuning.rangeStart != oS || g.cfg.tuning.rangeEnd != oE || g.cfg.tuning.threshSens != oT) g.sensorsReconfig = true; g.sm->setConfig(&g.cfg); if (!g.cfg.findLayout(g.cfg.layout) && g.cfg.nLayouts) strncpy(g.cfg.layout, g.cfg.layouts[0].id, sizeof g.cfg.layout - 1); if (g.cfg.tuning.i2cKhz != oldKhz) g.sensorsReconfig = true; g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     net::sendCfg(); return true;
   }
   if (!strcmp(cmd, "cal")) { char e[64] = ""; if (!calib::command(c["step"] | "", c["a"] | "", c, e, sizeof e)) return err(e); return true; }
