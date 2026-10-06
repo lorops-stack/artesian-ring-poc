@@ -151,7 +151,7 @@ Every command is `{"c": name, "id": n, ...}`. `id` is the message sequence numbe
             "bathroom":{...},"accessible":{...}},
  "tuning":{"settleMs":150,"settleSpeed":250,"startSpeed":60,"goneFrames":3,"exitMs":1000,"stillOffMs":10000,
            "presentFrames":2,"disposalHoldMs":1000,"disposalRunMs":15000,"cleanMs":60000,"cleanHoldMs":3000,
-           "rangeStart":60,"rangeEnd":850,"threshSens":1.0,"i2cKhz":400,"log":false,"wifiCh":6,
+           "rangeStart":60,"rangeEnd":850,"threshSens":1.5,"i2cKhz":400,"log":false,"wifiCh":6,
            "ledCount":132,"ledBright":90,"ledOrder":"GRB","hyst":20,"nearWin":120,"smooth":0.35},
  "profile":"default",
  "profiles":{"default":{"name":"Default","hotF":110,"hotCapF":120,"warmF":100,"cupMl":350,"soapMl":0.8,"flowGpm":1.5,
