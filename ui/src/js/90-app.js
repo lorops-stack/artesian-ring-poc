@@ -8,7 +8,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   A.route = null; A.active = null; A.el = null;
 
   var NAV = [['show', 'Showcase'], ['operator', 'Operator'], ['hw', 'Hardware'], ['studio', 'Calibrate'], ['aim', 'Aim'], ['bench', 'Bench log'], ['tests', 'Tests'], ['dashboard', 'Dashboard'], ['settings', 'Settings']];
-  var LOCKED = { studio: 1, aim: 1, hw: 1, bench: 1, tests: 1, settings: 1, dashboard: 0, operator: 0, show: 0 };
+  var LOCKED = { studio: 1, aim: 1, hw: 1, bench: 1, tests: 1, settings: 1, dashboard: 0, operator: 1, show: 0 };
 
   // ---- toasts and modals ---------------------------------------------------------------------------------------------------------------
   A.toast = function (msg, kind, ms) {
