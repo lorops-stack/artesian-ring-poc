@@ -51,7 +51,7 @@ bool command(const char* s, const char* a, JsonVariantConst extra, char* err, in
     JsonObjectConst sens = extra["sensors"]; JsonObjectConst hand = extra["hand"];
     auto poseSet = [&](JsonObjectConst o, SensorPose& p) { if (o.isNull()) return; if (!o["x"].isNull()) p.x = o["x"]; if (!o["y"].isNull()) p.y = o["y"]; if (!o["z"].isNull()) p.z = o["z"]; if (!o["off"].isNull()) p.off = o["off"]; };
     if (!sens.isNull()) { poseSet(sens["A"], candidate.A); poseSet(sens["B"], candidate.B); }
-    if (!hand.isNull()) { if (!hand["zwork"].isNull()) candidate.hand.zwork = hand["zwork"]; if (!hand["strMin"].isNull()) candidate.hand.strMin = hand["strMin"]; if (!hand["strMax"].isNull()) candidate.hand.strMax = hand["strMax"]; if (!hand["stillThr"].isNull()) candidate.hand.stillThr = hand["stillThr"]; if (!hand["envRef"].isNull()) candidate.hand.envRef = hand["envRef"]; if (!hand["envK"].isNull()) candidate.hand.envK = hand["envK"]; }
+    if (!hand.isNull()) { if (!hand["zwork"].isNull()) candidate.hand.zwork = hand["zwork"]; if (!hand["strMin"].isNull()) candidate.hand.strMin = hand["strMin"]; if (!hand["strMax"].isNull()) candidate.hand.strMax = hand["strMax"]; if (!hand["stillThr"].isNull()) candidate.hand.stillThr = hand["stillThr"]; if (!hand["envRef"].isNull()) candidate.hand.envRef = hand["envRef"]; if (!hand["envK"].isNull()) candidate.hand.envK = hand["envK"]; if (!hand["envDb"].isNull()) candidate.hand.envDb = hand["envDb"]; }
     if (!validateConfig(candidate, err, errLen)) return false;
     { Lock lk; g.cfg = candidate; g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     net::sendCfg(); return true;
