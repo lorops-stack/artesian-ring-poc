@@ -139,8 +139,10 @@ void step() {
   Snapshot s = g.sm->step(in);
   if (!wasSession && g.sm->session() && !hasPos) g.health.trigNoHand++;
   f.st = s.st; f.fn = s.fn; if (s.zone) strncpy(f.zn, s.zone->id, sizeof f.zn - 1); f.hasHand = hasPos; f.hx = x; f.hy = y; f.spd = speed; f.set = s.settle; f.ex = s.exitRem; f.dsp = s.dispSec; f.cup = s.cupMl; f.still = s.still; f.cln = s.cleanSec; f.lk = s.lk; f.flag = s.flag; f.lat = s.lat;
-  // Idle re-learn of the recorded threshold (spec 4.4): IDLE, no session, nothing in the hand window for 30 s
-  bool quiet = s.st == IDLE && !g.sm->session() && a.flag == FLAG_NO_HAND;
+  // Idle re-learn of the recorded threshold is allowed only when BOTH sensors report a truly empty scene.
+  // FLAG_NO_HAND is not enough: it also means "echoes existed but could not be fused". Re-recording in that state
+  // can teach an untracked real hand into the XM125's recorded threshold and make it disappear.
+  bool quiet = s.st == IDLE && !g.sm->session() && f.A.alive && f.B.alive && f.A.n == 0 && f.B.n == 0;
   if (!quiet) { idleSince = f.t; relearnDone = false; }
   if (quiet && !relearnDone && f.t - idleSince > c.tuning.bgRelearnIdleMs && f.t - lastRecal > 60000) { relearnDone = true; lastRecal = f.t; Serial.println("[bg] idle 30 s: re-recording the empty-sink threshold"); sA.calibrate(); esp_task_wdt_reset(); sB.calibrate(); nBgA = nBgB = 0; }
   else if (quiet && (f.A.calNeeded || f.B.calNeeded) && f.t - lastRecal > 20000) { lastRecal = f.t; if (f.A.calNeeded) sA.recalibrate(); if (f.B.calNeeded) sB.recalibrate(); }
