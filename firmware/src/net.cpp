@@ -4,6 +4,7 @@
 #include "defaults.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
 #include <LittleFS.h>
 #include <Update.h>
 
@@ -71,18 +72,24 @@ void begin() {
   server.on("/api/health", HTTP_GET, [](AsyncWebServerRequest* r) { JsonDocument d; proto::healthJson(d.to<JsonObject>()); String s; serializeJson(d, s); r->send(200, "application/json", s); });
   server.on("/api/cfg", HTTP_GET, [](AsyncWebServerRequest* r) { JsonDocument d; { Lock lk; configToJson(g.cfg, d.to<JsonObject>()); } String s; serializeJson(d, s); r->send(200, "application/json", s); });
   server.on("/api/cal/export", HTTP_GET, [](AsyncWebServerRequest* r) { JsonDocument d; d["kind"] = "ring-calibration"; d["fw"] = RING_FW_VERSION; d["name"] = g.calName; { Lock lk; configToJson(g.cfg, d["cfg"].to<JsonObject>()); } String s; serializeJson(d, s); AsyncWebServerResponse* resp = r->beginResponse(200, "application/json", s); resp->addHeader("Content-Disposition", "attachment; filename=ring-calibration.json"); r->send(resp); });
-  server.on("/api/cfg", HTTP_POST, [](AsyncWebServerRequest* r) {}, nullptr, [](AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
-    static String body; if (!requireHttpAuth(r)) return; if (total > MAX_JSON_BODY) { r->send(413, "application/json", "{\"err\":\"request too large\"}"); return; } if (index == 0) { body = ""; body.reserve(total); } body.concat((const char*)data, len); if (index + len < total) return;
-    JsonDocument d; if (deserializeJson(d, body)) { r->send(400, "application/json", "{\"err\":\"bad json\"}"); return; }
-    char e[64] = ""; bool ok; { Lock lk; ok = configApplySet(g.cfg, d["set"].as<JsonObjectConst>(), e, sizeof e); if (ok) { g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); } }
-    if (ok) { sendCfg(); r->send(200, "application/json", "{\"ok\":true}"); } else { String m = String("{\"err\":\"") + e + "\"}"; r->send(400, "application/json", m); }
+  auto* cfgPost = new AsyncCallbackJsonWebHandler("/api/cfg", [](AsyncWebServerRequest* r, JsonVariant& json) {
+    if (!requireHttpAuth(r)) return;
+    JsonObjectConst d = json.as<JsonObjectConst>();
+    char e[96] = ""; bool ok;
+    { Lock lk; ok = configApplySet(g.cfg, d["set"].as<JsonObjectConst>(), e, sizeof e); if (ok) { g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); } }
+    if (ok) { sendCfg(); r->send(200, "application/json", "{\"ok\":true}"); }
+    else { JsonDocument out; out["err"] = e[0] ? e : "invalid configuration"; String s; serializeJson(out, s); r->send(400, "application/json", s); }
   });
-  server.on("/api/cal/import", HTTP_POST, [](AsyncWebServerRequest* r) {}, nullptr, [](AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
-    static String body; if (!requireHttpAuth(r)) return; if (total > MAX_JSON_BODY) { r->send(413, "application/json", "{\"err\":\"request too large\"}"); return; } if (index == 0) { body = ""; body.reserve(total); } body.concat((const char*)data, len); if (index + len < total) return;
-    JsonDocument d; if (deserializeJson(d, body) || d["cfg"].isNull()) { r->send(400, "application/json", "{\"err\":\"not a calibration file\"}"); return; }
-    { Lock lk; configFromJson(d["cfg"].as<JsonObjectConst>(), g.cfg); g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
+  cfgPost->setMethod(HTTP_POST); cfgPost->setMaxContentLength(MAX_JSON_BODY); server.addHandler(cfgPost);
+  auto* calImport = new AsyncCallbackJsonWebHandler("/api/cal/import", [](AsyncWebServerRequest* r, JsonVariant& json) {
+    if (!requireHttpAuth(r)) return;
+    JsonObjectConst d = json.as<JsonObjectConst>(); if (d["cfg"].isNull()) { r->send(400, "application/json", "{\"err\":\"not a calibration file\"}"); return; }
+    Config candidate; { Lock lk; candidate = g.cfg; }
+    if (!configFromJson(d["cfg"].as<JsonObjectConst>(), candidate)) { r->send(400, "application/json", "{\"err\":\"invalid configuration\"}"); return; }
+    { Lock lk; g.cfg = candidate; g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     sendCfg(); r->send(200, "application/json", "{\"ok\":true}");
   });
+  calImport->setMethod(HTTP_POST); calImport->setMaxContentLength(MAX_JSON_BODY); server.addHandler(calImport);
   server.on("/api/log", HTTP_GET, [](AsyncWebServerRequest* r) { r->send(200, "text/plain", "see USB serial"); });
   // OTA is intentionally disabled until the authenticated update path is hardened.
 #if RING_ENABLE_OTA
