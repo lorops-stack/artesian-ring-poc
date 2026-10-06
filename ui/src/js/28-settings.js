@@ -1,4 +1,4 @@
-/* Ring Studio · Settings: connection, profiles (F14, F23), display, the ring (Wi-Fi password, PIN, LEDs), firmware
+/* Ring Studio · Settings: connection, profiles (F14, F23), display, the ring (Wi-Fi password, LEDs), firmware
    (status, over-the-air update F18, reboot, resets) and about. Calibration save/load lives in the studio (C13). */
 var RS = globalThis.RS || (globalThis.RS = {});
 (function () {
@@ -75,7 +75,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     box.appendChild(h('div.col', h('div.row.between', h('span.sub', 'Temperature'), segOf('unit', [['F', '°F'], ['C', '°C']])), h('div.row.between', h('span.sub', 'Lengths'), segOf('lenUnit', [['in', 'inches'], ['mm', 'mm']])),
       h('div.row.between', h('span.sub', 'Hand marker'), segOf('marker', RS.MARKERS.map(function (m) { return [m.id, m.name]; }))),
       h('div.row.between', h('span.sub', 'Sound'), h('div.seg', h('button' + (S.get('sound') === 'on' ? '.on' : ''), { onclick: function () { RS.sound.enable(true); } }, 'On'), h('button' + (S.get('sound') !== 'on' ? '.on' : ''), { onclick: function () { RS.sound.enable(false); } }, 'Off'))),
-      sw('Radar pulses in the Showcase', 'radar'), sw('Demo loop after 8 s idle (ghost hand, never counted)', 'demoLoop'), sw('Presentation mode: hide the Showcase controls, PIN-lock the studio', 'presentation'),
+      sw('Radar pulses in the Showcase', 'radar'), sw('Demo loop after 8 s idle (ghost hand, never counted)', 'demoLoop'), sw('Presentation mode: hide the Showcase controls', 'presentation'),
       h('div.small.faint', U.reducedMotion() ? 'Your device asks for reduced motion; animations are off.' : 'Press F for full screen. Keys 1 to 6 switch screens.')));
   };
 
@@ -83,9 +83,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
   SET.renderRing = function () {
     var box = this.ring, cfg = S.cfg(); U.empty(box);
     box.appendChild(h('h3', 'The ring'));
-    var pass = h('input', { type: 'password', placeholder: '8 to 63 characters', autocomplete: 'new-password' }), pin = h('input', { type: 'password', placeholder: '4 to 8 digits', inputmode: 'numeric' });
-    box.appendChild(h('div.col', field('New Wi-Fi password (ArtesianRing)', pass), h('div.row.end', h('button.btn.sm', { onclick: function () { if (pass.value.length < 8 || pass.value.length > 63) return RS.app.toast('The password must be 8 to 63 characters', 'bad'); RS.app.confirm('Change the Wi-Fi password?', 'Every device must rejoin ArtesianRing with the new password. Write it down first. Forgotten later: hold BOOT for 10 s (troubleshooting U4).', 'Change').then(function (ok) { if (!ok) return; L.send({ c: 'wifi', pass: pass.value }).then(function () { RS.app.toast('Password changed. Rejoin the Wi-Fi with the new password.', 'ok', 8000); pass.value = ''; }); }); } }, 'Change password')),
-      field('New studio PIN', pin), h('div.row.end', h('button.btn.sm', { onclick: function () { if (!/^\d{4,8}$/.test(pin.value)) return RS.app.toast('The PIN must be 4 to 8 digits', 'bad'); L.send({ c: 'pin', pin: pin.value }).then(function () { RS.app.toast('PIN changed', 'ok'); pin.value = ''; }); } }, 'Change PIN'))));
+    var pass = h('input', { type: 'password', placeholder: '8 to 63 characters', autocomplete: 'new-password' });
+    box.appendChild(h('div.col', field('New Wi-Fi password (ArtesianRing)', pass), h('div.row.end', h('button.btn.sm', { onclick: function () { if (pass.value.length < 8 || pass.value.length > 63) return RS.app.toast('The password must be 8 to 63 characters', 'bad'); RS.app.confirm('Change the Wi-Fi password?', 'Every device must rejoin ArtesianRing with the new password. Write it down first. Forgotten later: hold BOOT for 10 s (troubleshooting U4).', 'Change').then(function (ok) { if (!ok) return; L.send({ c: 'wifi', pass: pass.value }).then(function () { RS.app.toast('Password changed. Rejoin the Wi-Fi with the new password.', 'ok', 8000); pass.value = ''; }); }); } }, 'Change password'))));
     var count = num(cfg.tuning.ledCount, 1, 300), bright = num(cfg.tuning.ledBright, 10, 255, 5);
     box.appendChild(h('hr.sep'));
     box.appendChild(h('div.grid.c2', field('LED count', count, 'LEDs'), field('LED brightness cap', bright, '/255')));
@@ -101,7 +100,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     box.appendChild(h('div.mt', h('div.field', h('label', 'Over-the-air update'), h('div.small.warn', 'Disabled in this hardening build until the authenticated update path and firmware verification are complete.'))));
     box.appendChild(h('div.row.wrap.mt', h('button.btn.sm', { onclick: function () { RS.app.confirm('Restart the ring?', 'Water stops and the Wi-Fi drops for about 10 seconds.', 'Restart').then(function (ok) { if (ok) L.send({ c: 'reboot' }); }); } }, 'Restart'),
       h('button.btn.sm', { onclick: function () { RS.app.confirm('Reset the running totals?', 'Sessions and water counters on the ring go back to zero. Recordings in this browser stay.', 'Reset').then(function (ok) { if (ok) L.send({ c: 'reset', what: 'totals' }); }); } }, 'Reset totals'),
-      h('button.btn.sm.danger', { onclick: function () { RS.app.confirm('Factory reset?', 'Calibration, layouts, profiles and tuning go back to defaults. Saved calibrations are kept. The Wi-Fi password and PIN are kept (hold BOOT 10 s to reset those).', 'Factory reset', true).then(function (ok) { if (ok) L.send({ c: 'reset', what: 'factory' }); }); } }, 'Factory reset')));
+      h('button.btn.sm.danger', { onclick: function () { RS.app.confirm('Factory reset?', 'Calibration, layouts, profiles and tuning go back to defaults. Saved calibrations are kept. The Wi-Fi password is kept (hold BOOT 10 s to reset it).', 'Factory reset', true).then(function (ok) { if (ok) L.send({ c: 'reset', what: 'factory' }); }); } }, 'Factory reset')));
   };
   SET.ota = function (file) {
     var host = (L.wsHost || '').replace(/^ws:\/\//, '').replace(/\/ws$/, '') || location.host, fd = new FormData(); fd.append('update', file, file.name);
