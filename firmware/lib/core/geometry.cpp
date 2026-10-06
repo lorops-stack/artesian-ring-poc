@@ -95,7 +95,7 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   if (!ca || !cb) { out.flag = (nA || nB) ? (strengthFail ? FLAG_STRENGTH : FLAG_NO_HAND) : FLAG_NO_HAND; return out; }
   bool have = false, anyOutside = false, anyMasked = false; float bestScore = 0;
   // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
-  struct Pair { int a, b; float x, y, res, rA, rB; }; Pair pr[100]; int np = 0;
+  struct Pair { int a, b; float x, y, res, rA, rB, unc; }; Pair pr[100]; int np = 0;
   float gx = o.plane->w / 2, gy = o.plane->d / 2;                                  // the sink side of the baseline
   for (int i = 0; i < ca; i++) for (int j = 0; j < cb; j++) {
     float rA = eA[candA[i]].d - o.A->off, rB = eB[candB[j]].d - o.B->off;
@@ -103,8 +103,12 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     float x, y; float res = locate(rA, rB, *o.A, *o.B, o.hand->zwork, gx, gy, x, y);
     // Hard interaction-plane boundary: an out-of-sink solution is never a hand candidate. Do not clamp it back onto an edge.
     if (x < 0 || x > o.plane->w || y < 0 || y > o.plane->d || res > 60) { anyOutside = true; continue; }
+    // Reject ill-conditioned fixes BEFORE the first-arrival rule. A near pair on/close to the sensor baseline has
+    // essentially infinite Y uncertainty; letting it establish nearWin can hide a later, well-conditioned hand echo.
+    float unc = geometryUncertainty(*o.A, *o.B, x, y, o.hand->zwork);
+    if (unc > 120.0f) { anyOutside = true; continue; }
     if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
-    pr[np++] = { candA[i], candB[j], x, y, res, rA, rB };
+    pr[np++] = { candA[i], candB[j], x, y, res, rA, rB, unc };
   }
   if (!np) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
   // First-arrival rule (nearWin). The direct path is the shortest path a radar pulse can take, so on each sensor the
@@ -122,7 +126,7 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     const Pair& q = pr[k];
     if (eA[q.a].d > limA || eB[q.b].d > limB) continue;
     float trackErr = o.hasPrev ? hypotf(q.x - o.prevX, q.y - o.prevY) : 0;
-    float unc = geometryUncertainty(*o.A, *o.B, q.x, q.y, o.hand->zwork);
+    float unc = q.unc;
     // Score evidence, not just range. Residual rejects inconsistent circle pairs; prediction rejects echoes moving
     // unlike the established hand; uncertainty mildly disfavors intrinsically ill-conditioned fixes.
     float score = q.rA + q.rB + 4.0f * q.res + 0.35f * (unc > 200 ? 200 : unc);
