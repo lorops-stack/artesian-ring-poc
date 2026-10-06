@@ -2,6 +2,7 @@
 // C7 wand readings and C8 hand readings. The fits (C7, C8) run in the browser from the samples sent here.
 #include "app.h"
 #include "xm125.h"
+#include "config_json.h"
 
 using namespace ring;
 namespace app { namespace calib {
@@ -46,11 +47,13 @@ bool command(const char* s, const char* a, JsonVariantConst extra, char* err, in
   Step want = !strcmp(s, "c0") ? C0 : !strcmp(s, "identify") ? IDENT : !strcmp(s, "c6") ? C6 : !strcmp(s, "c7") ? C7 : !strcmp(s, "c8") ? C8 : NONE;
   if (!strcmp(a, "stop")) { cur = NONE; st = IDLE_; g.pauseSensing = false; g.calTargetHole = 0; mark(); return true; }
   if (!strcmp(a, "apply")) {
-    { Lock lk; JsonObjectConst sens = extra["sensors"]; JsonObjectConst hand = extra["hand"];
+    Config candidate; { Lock lk; candidate = g.cfg; }
+    JsonObjectConst sens = extra["sensors"]; JsonObjectConst hand = extra["hand"];
     auto poseSet = [&](JsonObjectConst o, SensorPose& p) { if (o.isNull()) return; if (!o["x"].isNull()) p.x = o["x"]; if (!o["y"].isNull()) p.y = o["y"]; if (!o["z"].isNull()) p.z = o["z"]; if (!o["off"].isNull()) p.off = o["off"]; };
-    if (!sens.isNull()) { poseSet(sens["A"], g.cfg.A); poseSet(sens["B"], g.cfg.B); }
-    if (!hand.isNull()) { if (!hand["zwork"].isNull()) g.cfg.hand.zwork = hand["zwork"]; if (!hand["strMin"].isNull()) g.cfg.hand.strMin = hand["strMin"]; if (!hand["strMax"].isNull()) g.cfg.hand.strMax = hand["strMax"]; if (!hand["stillThr"].isNull()) g.cfg.hand.stillThr = hand["stillThr"]; if (!hand["envRef"].isNull()) g.cfg.hand.envRef = hand["envRef"]; if (!hand["envK"].isNull()) g.cfg.hand.envK = hand["envK"]; }
-    g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
+    if (!sens.isNull()) { poseSet(sens["A"], candidate.A); poseSet(sens["B"], candidate.B); }
+    if (!hand.isNull()) { if (!hand["zwork"].isNull()) candidate.hand.zwork = hand["zwork"]; if (!hand["strMin"].isNull()) candidate.hand.strMin = hand["strMin"]; if (!hand["strMax"].isNull()) candidate.hand.strMax = hand["strMax"]; if (!hand["stillThr"].isNull()) candidate.hand.stillThr = hand["stillThr"]; if (!hand["envRef"].isNull()) candidate.hand.envRef = hand["envRef"]; if (!hand["envK"].isNull()) candidate.hand.envK = hand["envK"]; }
+    if (!validateConfig(candidate, err, errLen)) return false;
+    { Lock lk; g.cfg = candidate; g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
     net::sendCfg(); return true;
   }
   if (want == NONE) { snprintf(err, errLen, "unknown step"); return false; }
