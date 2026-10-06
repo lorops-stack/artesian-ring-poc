@@ -322,11 +322,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
       drawSensorDot(ctx, g, 'A', cfg.sensors.A, COL.A); drawSensorDot(ctx, g, 'B', cfg.sensors.B, COL.B); planeLabel(ctx, g, plane);
     } });
     var fW = lenField('Width (x, left to right)', d, 'w', changed), fD = lenField('Depth (y, back to front)', d, 'd', changed), preset = h('div.seg');
-    function isPoc() { return Math.abs(d.w - 584.2) < 0.6 && Math.abs(d.d - 533.4) < 0.6; }
+    function isBench() { return Math.abs(d.w - 488.95) < 0.6 && Math.abs(d.d - 533.4) < 0.6; }
+    function isProduction() { return Math.abs(d.w - 584.2) < 0.6 && Math.abs(d.d - 533.4) < 0.6; }
     function refreshPreset() {
       U.empty(preset);
-      preset.appendChild(h('button' + (isPoc() ? '.on' : ''), { onclick: function () { d.w = 584.2; d.d = 533.4; fW.refresh(); fD.refresh(); changed(); } }, '23 × 21 in (PoC rig)'));
-      preset.appendChild(h('button' + (!isPoc() ? '.on' : ''), { onclick: function () { fW.input.focus(); fW.input.select(); } }, 'Custom'));
+      preset.appendChild(h('button' + (isBench() ? '.on' : ''), { onclick: function () { d.w = 488.95; d.d = 533.4; fW.refresh(); fD.refresh(); changed(); } }, '19¼ × 21 in (current bench)'));
+      preset.appendChild(h('button' + (isProduction() ? '.on' : ''), { onclick: function () { d.w = 584.2; d.d = 533.4; fW.refresh(); fD.refresh(); changed(); } }, '23 × 21 in (production target)'));
+      preset.appendChild(h('button' + (!isBench() && !isProduction() ? '.on' : ''), { onclick: function () { fW.input.focus(); fW.input.select(); } }, 'Custom'));
     }
     function changed() { st.dirty = true; pm.dirty = true; refreshPreset(); }
     var apply = btn('Apply', function () {
