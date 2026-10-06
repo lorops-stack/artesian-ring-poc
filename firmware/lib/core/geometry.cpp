@@ -125,11 +125,14 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   // established track the reference is the pair nearest the track instead, so a cup set down nearer the sensor than the
   // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
   float limA = 1e9f, limB = 1e9f;
-  if (o.nearWin > 0) {
-    if (o.hasPrev) {
-      // Once acquired, anchor first-arrival gating to the pair nearest the predicted hand.
-      int k0 = 0; float bd = 1e9f;
-      for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
+  // After acquisition, first-arrival gating follows the valid pair nearest the predicted hand. During acquisition
+  // keep all geometrically valid pairs: a short one-sided reflector must not veto a farther real hand pair.
+  if (o.nearWin > 0 && o.hasPrev) {
+    int k0 = 0; float bd = 1e9f;
+    for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
+    limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
+  }
+  for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
       limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
     } else {
       // Acquisition: prefer the earliest *geometrically valid pair*, not the shortest raw echo on each sensor.
@@ -155,6 +158,12 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     // unlike the established hand; uncertainty mildly disfavors intrinsically ill-conditioned fixes.
     float score = q.rA + q.rB + 4.0f * q.res + 0.35f * (unc > 200 ? 200 : unc) + 12.0f * fminf(30.0f, q.ampDb);
     if (o.hasPrev) score += 2.5f * trackErr;
+    else {
+      // A hand/object in front of a torso produces a shorter valid A/B pair on both radars. Penalize a candidate
+      // only when another *valid* pair is nearer on both sensors. This rejects the torso without allowing invalid
+      // one-sided near clutter or a degenerate baseline pair to block acquisition.
+      for (int m = 0; m < np; m++) if (m != k && pr[m].rA + 1 < q.rA && pr[m].rB + 1 < q.rB) { score += 1000.0f; break; }
+    }
     if (!have || score < bestScore) {
       have = true; bestScore = score; out.ux = q.x; out.uy = q.y;
       out.x = q.x; out.y = q.y;
