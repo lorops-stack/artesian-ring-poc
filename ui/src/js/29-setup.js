@@ -8,15 +8,14 @@ var RS = globalThis.RS || (globalThis.RS = {});
   SU.firstRun = function () {
     if (SU.open) return; SU.open = true;
     RS.app.modal(function (box, close) {
-      var pass = h('input', { type: 'password', placeholder: '8 to 63 characters', autocomplete: 'new-password' }), pass2 = h('input', { type: 'password', placeholder: 'again' }), pin = h('input', { type: 'password', placeholder: '4 to 8 digits', inputmode: 'numeric' }), err = h('div.small', { style: { color: 'var(--bad)', minHeight: '18px' } });
+      var pass = h('input', { type: 'password', placeholder: '8 to 63 characters', autocomplete: 'new-password' }), pass2 = h('input', { type: 'password', placeholder: 'again' }), err = h('div.small', { style: { color: 'var(--bad)', minHeight: '18px' } });
       box.appendChild(h('div.row', RS.logo(34), h('h2', { style: { margin: 0 } }, 'Set up your ring')));
-      box.appendChild(h('p.sub', 'This ring still has its temporary password. Choose the Wi-Fi password every device will use to join ArtesianRing, and a PIN that locks the calibration studio in presentation mode. Write both down and keep them private.'));
-      box.appendChild(h('div.col', h('div.field', h('label', 'Wi-Fi password'), h('div.in', pass)), h('div.field', h('label', 'Repeat the password'), h('div.in', pass2)), h('div.field', h('label', 'Studio PIN'), h('div.in', pin)), err));
+      box.appendChild(h('p.sub', 'This ring still has its temporary password. Choose the Wi-Fi password every device will use to join ArtesianRing. Access to Ring Studio is protected by this private WPA2 network.'));
+      box.appendChild(h('div.col', h('div.field', h('label', 'Wi-Fi password'), h('div.in', pass)), h('div.field', h('label', 'Repeat the password'), h('div.in', pass2)), err));
       box.appendChild(h('div.row.end.mt', h('button.btn.primary', { onclick: function () {
         if (pass.value.length < 8 || pass.value.length > 63) return (err.textContent = 'The password must be 8 to 63 characters.');
         if (pass.value !== pass2.value) return (err.textContent = 'The two passwords differ.');
-        if (!/^\d{4,8}$/.test(pin.value)) return (err.textContent = 'The PIN must be 4 to 8 digits.');
-        L.send({ c: 'setup', pass: pass.value, pin: pin.value }).then(function (ack) {
+        L.send({ c: 'setup', pass: pass.value }).then(function (ack) {
           close(); SU.open = false;
           RS.app.modal(function (b2, c2) {
             b2.appendChild(h('h2', { style: { margin: '0 0 8px' } }, 'Saved'));
