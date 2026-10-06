@@ -59,7 +59,7 @@ static void startAp() {
   if (g.setupNeeded) { Serial.println("[wifi] ===================================================="); Serial.printf("[wifi]  TEMPORARY Wi-Fi password: %s\n", g.tempPass); Serial.println("[wifi]  Join ArtesianRing, open http://192.168.4.1 and set your own."); Serial.println("[wifi] ===================================================="); }
 }
 static bool clientWritable(AsyncWebSocketClient* c) { return c && c->status() == WS_CONNECTED && c->canSend(); }
-static void broadcast(const char* json, bool droppable = false) {
+static void broadcastImpl(const char* json, bool droppable) {
   if (!ws.count()) return;
   for (auto& s : sessions) {
     if (!s.used) continue;
@@ -68,6 +68,7 @@ static void broadcast(const char* json, bool droppable = false) {
     c->text(json);
   }
 }
+void broadcast(const char* json) { broadcastImpl(json, false); }
 void sendCfg() { JsonDocument d; { Lock lk; configToJson(g.cfg, d["cfg"].to<JsonObject>()); } String s; serializeJson(d, s); broadcast(s.c_str()); }
 void sendStatus() { JsonDocument d; proto::statusJson(d["status"].to<JsonObject>()); String s; serializeJson(d, s); broadcast(s.c_str()); }
 void sendCals() { JsonDocument d; storage::listCals(d["cals"].to<JsonArray>()); String s; serializeJson(d, s); broadcast(s.c_str()); }
@@ -143,7 +144,7 @@ void loop() {
   if (f.n != lastN && now - lastFrameSent >= FRAME_INTERVAL_MS) {
     lastN = f.n; lastFrameSent = now;
     proto::frameJson(f, frameBuf, sizeof frameBuf);
-    broadcast(frameBuf, true);
+    broadcastImpl(frameBuf, true);
   }
   char ev[EVLEN]; int guard = 0; while (g.events.pop(ev) && guard++ < 8) broadcast(ev);
   if (now - lastStatus > 5000) { lastStatus = now; sendStatus(); }
