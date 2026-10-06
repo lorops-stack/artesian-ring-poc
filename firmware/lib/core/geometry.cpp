@@ -132,23 +132,6 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
     limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
   }
-  for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
-      limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
-    } else {
-      // Acquisition: prefer the earliest *geometrically valid pair*, not the shortest raw echo on each sensor.
-      // Bench evidence shows the normal scene contains a hand/object in front of a user's torso. Both can form valid
-      // A/B fixes, but the direct hand path is shorter on BOTH radars. Taking the Pareto-nearest valid pair prevents
-      // the torso from becoming the initial track without letting unrelated one-sided near clutter veto a real hand.
-      int k0 = 0;
-      for (int k = 1; k < np; k++) {
-        bool dominates = pr[k].rA <= pr[k0].rA && pr[k].rB <= pr[k0].rB &&
-                         (pr[k].rA < pr[k0].rA || pr[k].rB < pr[k0].rB);
-        if (dominates || (!(pr[k0].rA <= pr[k].rA && pr[k0].rB <= pr[k].rB) &&
-                          pr[k].rA + pr[k].rB < pr[k0].rA + pr[k0].rB)) k0 = k;
-      }
-      limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
-    }
-  }
   for (int k = 0; k < np; k++) {
     const Pair& q = pr[k];
     if (eA[q.a].d > limA || eB[q.b].d > limB) continue;
