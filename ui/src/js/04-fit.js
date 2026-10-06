@@ -28,12 +28,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // centre (reading + ballR); s0: tape-measured pose {x,y,z}. Prior sd 15 mm, noise sd 8 mm.
   F.fitSensor = function (pts, meas, s0, priorSd, noiseSd, opts) {
     priorSd = priorSd || 15; noiseSd = noiseSd || 8; opts = opts || {};
-    var q = [s0.x, s0.y, s0.z, 0], wp = noiseSd / priorSd, i, it;
+    var q = [s0.x, s0.y, s0.z, 0], wp = noiseSd / priorSd, i, it, weights = new Array(pts.length).fill(1);
     for (it = 0; it < 40; it++) {
       var J = [], r = [];
       for (i = 0; i < pts.length; i++) {
         var dx = q[0] - pts[i].x, dy = q[1] - pts[i].y, dz = q[2] + pts[i].h, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
-        J.push([dx / d, dy / d, dz / d, 1]); r.push(d + q[3] - meas[i]);
+        var rr = d + q[3] - meas[i], sw = Math.sqrt(weights[i]);
+        J.push([sw * dx / d, sw * dy / d, sw * dz / d, sw]); r.push(sw * rr);
       }
       J.push([wp, 0, 0, 0]); r.push(wp * (q[0] - s0.x));
       J.push([0, wp, 0, 0]); r.push(wp * (q[1] - s0.y));
@@ -41,11 +42,17 @@ var RS = globalThis.RS || (globalThis.RS = {});
       J.push([0, 0, wz, 0]); r.push(wz * (q[2] - s0.z));
       var step = solveNormal(J, r, 4), mx = 0;
       for (i = 0; i < 4; i++) { q[i] -= step[i]; mx = Math.max(mx, Math.abs(step[i])); }
+      // Huber IRLS: preserve normal measurements while preventing one multipath return from dragging the installation fit.
+      var absr = []; for (i = 0; i < pts.length; i++) { var ax=q[0]-pts[i].x, ay=q[1]-pts[i].y, az=q[2]+pts[i].h; absr.push(Math.abs(Math.sqrt(ax*ax+ay*ay+az*az)+q[3]-meas[i])); }
+      var mad = U.median(absr), scale = Math.max(2, mad / 0.6745), huber = 1.5 * scale;
+      for (i = 0; i < pts.length; i++) weights[i] = absr[i] <= huber ? 1 : huber / absr[i];
       if (mx < 1e-4) break;
     }
     var resid = [];
     for (i = 0; i < pts.length; i++) { var ddx = q[0] - pts[i].x, ddy = q[1] - pts[i].y, ddz = q[2] + pts[i].h; resid.push(Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz) + q[3] - meas[i]); }
-    return { x: q[0], y: q[1], z: q[2], off: q[3], rms: U.rms(resid), resid: resid };
+    var absFinal=resid.map(Math.abs), med=U.median(absFinal), sc=Math.max(2,med/0.6745), outliers=[];
+    for(i=0;i<resid.length;i++) if(Math.abs(resid[i])>Math.max(12,3*sc)) outliers.push(i);
+    return { x: q[0], y: q[1], z: q[2], off: q[3], rms: U.rms(resid), robustRms: U.rms(resid.filter(function(_,ix){return outliers.indexOf(ix)<0;})), resid: resid, outliers: outliers, scale: sc };
   };
 
   // Full C7 evaluation. samples: [{hole:n, depth:60|160, A:[d,str]|null, B:[d,str]|null}] (readings to the ball surface).
