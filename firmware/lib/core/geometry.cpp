@@ -117,9 +117,15 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
   float limA = 1e9f, limB = 1e9f;
   if (o.nearWin > 0) {
-    float refA = 1e9f, refB = 1e9f;
-    if (o.hasPrev) { int k0 = 0; float bd = 1e9f; for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } } refA = eA[pr[k0].a].d; refB = eB[pr[k0].b].d; }
-    else for (int k = 0; k < np; k++) { if (eA[pr[k].a].d < refA) refA = eA[pr[k].a].d; if (eB[pr[k].b].d < refB) refB = eB[pr[k].b].d; }
+    float refA = 1e9f, refB = 1e9f; int k0 = 0;
+    if (o.hasPrev) {
+      float bd = 1e9f; for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
+    } else {
+      // The reference must be one REAL PAIR. Taking the minimum A and minimum B independently can combine echoes
+      // from different targets and create limits that no geometrically valid pair can satisfy.
+      float bs = 1e9f; for (int k = 0; k < np; k++) { float s = pr[k].rA + pr[k].rB + 4.0f * pr[k].res + 0.35f * pr[k].unc; if (s < bs) { bs = s; k0 = k; } }
+    }
+    refA = eA[pr[k0].a].d; refB = eB[pr[k0].b].d;
     limA = refA + o.nearWin; limB = refB + o.nearWin;
   }
   for (int k = 0; k < np; k++) {
