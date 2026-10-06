@@ -109,6 +109,14 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var expct = hand.envRef * Math.pow(300 / d, hand.envK == null ? 2 : hand.envK), db = 20 * Math.log10(s / expct);
     return Math.abs(db) <= (hand.envDb == null ? 12 : hand.envDb);
   };
+  G.geometryUncertainty = function (A, B, x, y, h, sigma) {
+    sigma = sigma == null ? 8 : sigma;
+    var rA=G.range(A,x,y,h), rB=G.range(B,x,y,h); if(rA<1||rB<1) return 999;
+    var j00=(x-A.x)/rA,j01=(y-A.y)/rA,j10=(x-B.x)/rB,j11=(y-B.y)/rB,det=j00*j11-j01*j10;
+    if(Math.abs(det)<1e-4) return 999;
+    var i00=j11/det,i01=-j01/det,i10=-j10/det,i11=j00/det;
+    return Math.hypot(sigma*Math.hypot(i00,i01),sigma*Math.hypot(i10,i11));
+  };
   G.associate = function (eA, eB, opts) {
     var A = opts.A, B = opts.B, hand = opts.hand, plane = opts.plane, bg = opts.bg || {}, tol = 15;
     // Learned still objects: [[d, strength], ...]. An echo is background when it sits within tol of one and is
@@ -143,12 +151,18 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     pairs.forEach(function (q) {
       if (eA[q.ia][0] > limA || eB[q.ib][0] > limB) return;
-      var score = q.rA + q.rB;                       // nearer pair wins (ghosts are always further away)
-      if (opts.prev) score += 2.5 * U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y);   // an established track is not stolen by a sporadic echo
-      if (!best || score < best.score) best = { x: U.clamp(q.p.x, 0, plane.w), y: U.clamp(q.p.y, 0, plane.d), ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB };
+      var trackErr = opts.prev ? U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y) : 0;
+      var unc = G.geometryUncertainty(A, B, q.p.x, q.p.y, hand.zwork, opts.rangeSigma || 8);
+      var score = q.rA + q.rB + 4 * q.p.res + 0.35 * Math.min(200, unc);
+      if (opts.prev) score += 2.5 * trackErr;
+      var evidence = q.p.res + (opts.prev ? 0.35 * trackErr : 0) + 0.15 * Math.min(200, unc);
+      if (!best || score < best.score) best = { x: U.clamp(q.p.x, 0, plane.w), y: U.clamp(q.p.y, 0, plane.d), ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB, uncertainty: unc, confidence: 1 / (1 + evidence / 25) };
     });
     if (!best) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
-    if (opts.prev && opts.maxJump > 0 && U.hypot(best.ux - opts.prev.x, best.uy - opts.prev.y) > opts.maxJump) { best.flag = RS.FLAG.JUMP; return best; }
+    if (opts.prev && opts.maxJump > 0) {
+      var dynamicJump = opts.maxJump + Math.min(180, Math.abs(opts.speed || 0) * Math.max(0, opts.dt || 0.045) * 1.5) + Math.min(100, best.uncertainty || 0);
+      if (U.hypot(best.ux - opts.prev.x, best.uy - opts.prev.y) > dynamicJump) { best.flag = RS.FLAG.JUMP; return best; }
+    }
     best.flag = RS.FLAG.NONE;
     return best;
   };
