@@ -91,7 +91,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
       }, 'primary');
       var saveCard = h('div.card', h('h2', 'Bench log'), h('div.sub', 'A dated record of how the rig was set up and how it behaved. Save one after each change that mattered, so you can see which setup gave the good run, put it back, or paste it to Claude.'),
         h('div.grid.c2.mt', h('div.field', h('div.l', 'Name'), st.label), h('div.field', h('div.l', 'Note'), st.note)),
-        h('div.eyebrow.mt', 'Will be saved'), st.now, h('div.row.wrap.gap-s.mt', save));
+        h('div.eyebrow.mt', 'Will be saved'), st.now, h('div.row.wrap.gap-s.mt', save,
+          btn('Capture raw echoes (10 s)', function () { toast('Capturing both XM125 echo lists for 10 seconds…', 'info'); RS.rec.captureEcho(10, st.label.value || 'bench').then(function (x) { toast('Echo capture downloaded (' + x.frames.length + ' frames)', 'ok'); }); }, 'sm')));
       var listCard = h('div.card', h('div.row.between.wrap', h('h2', 'Saved snapshots'), h('div.row.wrap.gap-s', st.count,
         btn('Copy all as text', function () { var l = BN.list(); if (!l.length) return toast('Nothing to copy', 'info'); copyText(l.map(BN.text).join('\n\n----------------------------------------\n\n'), 'All snapshots as text'); }, 'sm'),
         btn('Download all', function () { var l = BN.list(); if (!l.length) return toast('Nothing to download', 'info'); U.download('ring-bench-log-' + U.fileStamp() + '.json', JSON.stringify({ kind: 'ring-bench-log', entries: l }, null, 2), 'application/json'); }, 'sm'),
