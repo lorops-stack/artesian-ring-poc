@@ -90,10 +90,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
   };
   SC.stopAttract = function () { this.attract = false; this.ghostSim = null; if (L.mode === 'sim' && L.sim) { L.sim.resetSession(); L.sim.setHand(this.userHand, false); } this.frame = null; this.lastUserT = U.now(); };
   SC.tickGhost = function (now) {
-    var idle = now - this.lastUserT > 8000 && !this.userHand && S.get('demoLoop') && L.mode !== 'replay';
+    // Never cover a live hardware fault/no-target condition with simulated motion. The ghost loop is automatic
+    // in the simulator; on a connected ring it is allowed only when the operator explicitly enabled Presentation mode.
+    var liveDemoAllowed = L.mode === 'sim' || (L.mode === 'ws' && L.connected && S.get('presentation'));
+    var idle = now - this.lastUserT > 8000 && !this.userHand && S.get('demoLoop') && liveDemoAllowed && L.mode !== 'replay';
     var deviceIdle = L.mode === 'sim' || !this.frame || this.frame.g || (this.frame.st === ST.IDLE && this.frame.hx == null && !(this.frame.dsp > 0));
     if (!this.attract && idle && deviceIdle && (L.mode === 'sim' ? L.sim && L.sim.sm.st === ST.IDLE && !L.sim.sm.disposalUntil : true)) this.startAttract(now);
-    if (this.attract && !idle) this.stopAttract();
+    if (this.attract && (!idle || !liveDemoAllowed)) this.stopAttract();
     if (!this.attract) return;
     var ts = (now - this.ghostStart) / 1000, cfg = S.cfg(), hand = RS.ghostHand(cfg.layout, ts, cfg.plane, cfg.hand.zwork);
     if (L.mode === 'sim') L.sim.setHand(hand, true);
