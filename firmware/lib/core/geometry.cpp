@@ -93,7 +93,7 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   for (int i = 0; i < nA && i < 10; i++) { if (eA[i].s < o.hand->strMin || eA[i].s > o.hand->strMax || !strengthInEnvelope(*o.hand, eA[i].d, eA[i].s)) { strengthFail = true; continue; } if (isBg(o.bgA, o.nBgA, eA[i].d, eA[i].s)) continue; candA[ca++] = i; }
   for (int j = 0; j < nB && j < 10; j++) { if (eB[j].s < o.hand->strMin || eB[j].s > o.hand->strMax || !strengthInEnvelope(*o.hand, eB[j].d, eB[j].s)) { strengthFail = true; continue; } if (isBg(o.bgB, o.nBgB, eB[j].d, eB[j].s)) continue; candB[cb++] = j; }
   if (!ca || !cb) { out.flag = (nA || nB) ? (strengthFail ? FLAG_STRENGTH : FLAG_NO_HAND) : FLAG_NO_HAND; return out; }
-  bool have = false, anyOutside = false, anyMasked = false; float bestScore = 0; const float margin = 30;
+  bool have = false, anyOutside = false, anyMasked = false; float bestScore = 0;
   // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
   struct Pair { int a, b; float x, y, res, rA, rB; }; Pair pr[100]; int np = 0;
   float gx = o.plane->w / 2, gy = o.plane->d / 2;                                  // the sink side of the baseline
@@ -101,7 +101,8 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     float rA = eA[candA[i]].d - o.A->off, rB = eB[candB[j]].d - o.B->off;
     if (!pairFeasible(rA, rB, *o.A, *o.B, o.hand->zwork)) continue;
     float x, y; float res = locate(rA, rB, *o.A, *o.B, o.hand->zwork, gx, gy, x, y);
-    if (x < -margin || x > o.plane->w + margin || y < -margin || y > o.plane->d + margin || res > 60) { anyOutside = true; continue; }
+    // Hard interaction-plane boundary: an out-of-sink solution is never a hand candidate. Do not clamp it back onto an edge.
+    if (x < 0 || x > o.plane->w || y < 0 || y > o.plane->d || res > 60) { anyOutside = true; continue; }
     if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
     pr[np++] = { candA[i], candB[j], x, y, res, rA, rB };
   }
@@ -128,7 +129,7 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     if (o.hasPrev) score += 2.5f * trackErr;
     if (!have || score < bestScore) {
       have = true; bestScore = score; out.ux = q.x; out.uy = q.y;
-      out.x = q.x < 0 ? 0 : (q.x > o.plane->w ? o.plane->w : q.x); out.y = q.y < 0 ? 0 : (q.y > o.plane->d ? o.plane->d : q.y);
+      out.x = q.x; out.y = q.y;
       out.iA = q.a; out.iB = q.b; out.rA = q.rA; out.rB = q.rB; out.res = q.res; out.uncertainty = unc;
       float evidence = q.res + (o.hasPrev ? 0.35f * trackErr : 0) + 0.15f * (unc > 200 ? 200 : unc);
       out.confidence = 1.0f / (1.0f + evidence / 25.0f);
