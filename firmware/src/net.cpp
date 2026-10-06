@@ -108,8 +108,9 @@ void begin() {
   // OTA is intentionally disabled until the authenticated update path is hardened.
 #if RING_ENABLE_OTA
   // Over-the-air firmware update (F18): multipart upload of the .bin, then restart
-  server.on("/api/update", HTTP_POST, [](AsyncWebServerRequest* r) { bool ok = !Update.hasError(); AsyncWebServerResponse* resp = r->beginResponse(ok ? 200 : 500, "text/plain", ok ? "OK, restarting" : Update.errorString()); resp->addHeader("Connection", "close"); r->send(resp); if (ok) g.reboot = true; },
+  server.on("/api/update", HTTP_POST, [](AsyncWebServerRequest* r) { if (!requireHttpAuth(r)) return; bool ok = !Update.hasError(); AsyncWebServerResponse* resp = r->beginResponse(ok ? 200 : 500, "text/plain", ok ? "OK, restarting" : Update.errorString()); resp->addHeader("Connection", "close"); r->send(resp); if (ok) g.reboot = true; },
     [](AsyncWebServerRequest* r, const String& filename, size_t index, uint8_t* data, size_t len, bool final) {
+      if (!httpAuthed(r)) return;
       if (index == 0) { Serial.printf("[ota] %s\n", filename.c_str()); g.pauseSensing = true; if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial); }
       if (!Update.hasError() && Update.write(data, len) != len) Update.printError(Serial);
       if (final) { if (Update.end(true)) Serial.printf("[ota] done, %u bytes\n", (unsigned)(index + len)); else Update.printError(Serial); g.pauseSensing = false; }
