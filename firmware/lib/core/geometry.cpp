@@ -72,8 +72,8 @@ static bool isBg(const Echo* bg, int n, float d, float s) {
   for (int i = 0; i < n; i++) if (fabsf(bg[i].d - d) <= 15 && s < bg[i].s * 1.8f + 1) return true;
   return false;
 }
-// Both XM125s view the same hand, so after compensating the expected range falloff their amplitudes should be
-// broadly compatible. This is deliberately a SOFT score, not a rejection: hand aspect can favour one sensor.
+// Both XM125s view the same hand, so their amplitudes should be broadly compatible. Before C8 calibration k=0
+// compares raw A/B amplitudes; after C8, k=envK applies the measured range falloff. This is a SOFT score only.
 static float pairStrengthMismatchDb(float rA, float sA, float rB, float sB, float k) {
   if (!(rA > 1) || !(rB > 1) || !(sA > 0) || !(sB > 0)) return 0;
   float a = sA * powf(rA / 300.0f, k), b = sB * powf(rB / 300.0f, k);
@@ -116,7 +116,7 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     float unc = geometryUncertainty(*o.A, *o.B, x, y, o.hand->zwork);
     if (unc > 120.0f) { anyOutside = true; continue; }
     if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
-    float ampDb = o.hand->envRef > 0 ? pairStrengthMismatchDb(rA, eA[candA[i]].s, rB, eB[candB[j]].s, o.hand->envK) : 0;
+    float ampDb = pairStrengthMismatchDb(rA, eA[candA[i]].s, rB, eB[candB[j]].s, o.hand->envRef > 0 ? o.hand->envK : 0);
     pr[np++] = { candA[i], candB[j], x, y, res, rA, rB, unc, ampDb };
   }
   if (!np) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
