@@ -86,7 +86,9 @@ void test_reflection_filters() {
     Assoc r2 = associate(a2, 2, b2, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r2.flag); TEST_ASSERT_EQUAL(0, r2.iA); TEST_ASSERT_EQUAL(0, r2.iB); }
   // track-aware reference: a cup nearer sensor A than the hand does not steal an established track
   { float hx = 150, hy = 200, cx = 100, cy = 80;
-    Echo a[2] = { { roundf(range(c.A, cx, cy, h)), 40 }, { roundf(range(c.A, hx, hy, h)), 20 } }, b[2] = { { roundf(range(c.B, hx, hy, h)), 20 }, { roundf(range(c.B, cx, cy, h)), 40 } };
+    float cA = range(c.A, cx, cy, h), cB = range(c.B, cx, cy, h), hA = range(c.A, hx, hy, h), hB = range(c.B, hx, hy, h);
+    auto amp = [](float d, float ref) { return ref * powf(300.0f / d, 2.0f); };
+    Echo a[2] = { { roundf(cA), amp(cA, 40) }, { roundf(hA), amp(hA, 20) } }, b[2] = { { roundf(hB), amp(hB, 20) }, { roundf(cB), amp(cB, 40) } };
     AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, true, hx, hy, 220 }; o.nearWin = 120;
     Assoc r = associate(a, 2, b, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_TRUE(hypotf(r.x - hx, r.y - hy) < 5);
     o.hasPrev = false; Assoc r0 = associate(a, 2, b, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r0.flag); TEST_ASSERT_TRUE(hypotf(r0.x - cx, r0.y - cy) < 5); }
@@ -123,7 +125,8 @@ void test_masks_and_flat_defaults() {
   TEST_ASSERT_EQUAL_FLOAT(0, c.A.tilt); TEST_ASSERT_EQUAL_FLOAT(0, c.hand.zwork); TEST_ASSERT_EQUAL_STRING("flat", c.rig.mount); TEST_ASSERT_EQUAL(0, c.nMasks);
   float h = c.hand.zwork;
   float a1 = range(c.A, 430, 150, h), b1 = range(c.B, 430, 150, h), a2 = range(c.A, 150, 400, h), b2 = range(c.B, 150, 400, h);
-  Echo eA[2] = { { roundf(a1), 3000 }, { roundf(a2), 2500 } }, eB[2] = { { roundf(b1), 3000 }, { roundf(b2), 2500 } };
+  auto amp = [](float d, float ref) { return ref * powf(300.0f / d, 2.0f); };
+  Echo eA[2] = { { roundf(a1), amp(a1, 70) }, { roundf(a2), amp(a2, 60) } }, eB[2] = { { roundf(b1), amp(b1, 70) }, { roundf(b2), amp(b2, 60) } };
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 };
   // add a circle by the config path, as the protocol does
   JsonDocument sd; JsonObject set = sd.to<JsonObject>(); JsonObject m1 = set["masks.m1"].to<JsonObject>(); m1["t"] = "circle"; m1["x"] = 430; m1["y"] = 150; m1["r"] = 60; char err[64] = "";
