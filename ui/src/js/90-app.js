@@ -8,8 +8,6 @@ var RS = globalThis.RS || (globalThis.RS = {});
   A.route = null; A.active = null; A.el = null;
 
   var NAV = [['show', 'Showcase'], ['operator', 'Operator'], ['hw', 'Hardware'], ['studio', 'Calibrate'], ['aim', 'Aim'], ['bench', 'Bench log'], ['tests', 'Tests'], ['dashboard', 'Dashboard'], ['settings', 'Settings']];
-  // Ring Studio is an engineering/commissioning UI. Do not gate local screens behind a presentation-mode PIN.
-  var LOCKED = { studio: 0, aim: 0, hw: 0, bench: 0, tests: 0, settings: 0, dashboard: 0, operator: 0, show: 0 };
 
   // ---- toasts and modals ---------------------------------------------------------------------------------------------------------------
   A.toast = function (msg, kind, ms) {
@@ -58,7 +56,6 @@ var RS = globalThis.RS || (globalThis.RS = {});
   function routeFromHash() { var m = /^#\/([a-z]+)/.exec(location.hash || ''); return m && RS.screens[m[1]] ? m[1] : (RS.screens[S.get('route')] ? S.get('route') : 'show'); }
   A.render = function () {
     var route = routeFromHash();
-    if (LOCKED[route] && S.studioLocked()) { RS.setup.lock(route); return; }
     if (A.route === route && A.active) { if (A.active.onHash) A.active.onHash(location.hash); return; }
     if (A.active && A.active.unmount) A.active.unmount();
     A.route = route; S.set('route', route);
