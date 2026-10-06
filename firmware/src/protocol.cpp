@@ -62,25 +62,18 @@ void healthJson(JsonObject o) {
 
 // ---- commands -----------------------------------------------------------------------------------------------------------------------
 static bool validPass(const char* p) { size_t n = p ? strlen(p) : 0; return n >= 8 && n <= 63; }
-static bool validPin(const char* p) { size_t n = p ? strlen(p) : 0; if (n < 4 || n > 8) return false; for (size_t i = 0; i < n; i++) if (p[i] < '0' || p[i] > '9') return false; return true; }
 
 bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& needRestart) {
   const char* cmd = c["c"] | ""; int id = c["id"] | 0;
   JsonObject ack = reply["ack"].to<JsonObject>(); ack["c"] = cmd; ack["id"] = id;
   auto err = [&](const char* msg) { reply.clear(); JsonObject e = reply["err"].to<JsonObject>(); e["c"] = cmd; e["id"] = id; e["msg"] = msg; return false; };
-  auto needAuth = [&]() { return g.pin[0] && !authed; };
-  // Authorization policy is fail-closed: after initial setup, every state-mutating
-  // command requires an authenticated WebSocket session. Read-only commands are
-  // explicitly allow-listed here so new commands cannot accidentally become public.
-  const bool readOnly = !strcmp(cmd, "hello") || !strcmp(cmd, "auth") || !strcmp(cmd, "get") || !strcmp(cmd, "list");
-  const bool initialSetup = !strcmp(cmd, "setup") && g.setupNeeded;
-  if (!readOnly && !initialSetup && needAuth()) return err("PIN required");
+  (void)authed;  // Access to Ring Studio is gated by the WPA2 ArtesianRing network, not a second UI PIN.
   if (!strcmp(cmd, "hello")) { net::sendStatus(); net::sendCfg(); return true; }
-  if (!strcmp(cmd, "auth")) { bool ok = !g.pin[0] || !strcmp(c["pin"] | "", g.pin); ack["ok"] = ok; return true; }
+  if (!strcmp(cmd, "auth")) { ack["ok"] = true; return true; }  // compatibility with older Ring Studio builds
   if (!strcmp(cmd, "setup")) {
-    const char* pass = c["pass"] | ""; const char* pin = c["pin"] | "";
-    if (!validPass(pass)) return err("Password must be 8 to 63 characters"); if (!validPin(pin)) return err("PIN must be 4 to 8 digits");
-    strncpy(g.wifiPass, pass, sizeof g.wifiPass - 1); strncpy(g.pin, pin, sizeof g.pin - 1); g.setupNeeded = false; storage::saveSecrets(); ack["restart"] = true; needRestart = true; return true;
+    const char* pass = c["pass"] | "";
+    if (!validPass(pass)) return err("Password must be 8 to 63 characters");
+    strncpy(g.wifiPass, pass, sizeof g.wifiPass - 1); g.pin[0] = 0; g.setupNeeded = false; storage::saveSecrets(); ack["restart"] = true; needRestart = true; return true;
   }
   if (!strcmp(cmd, "layout")) { const char* idl = c["layout"] | ""; { Lock lk; if (!g.cfg.findLayout(idl)) return err("unknown layout"); strncpy(g.cfg.layout, idl, sizeof g.cfg.layout - 1); g.sm->setLayout(idl); g.cfgDirty = true; g.cfgDirtyAt = millis(); } net::sendCfg(); return true; }
   if (!strcmp(cmd, "clean")) { Lock lk; if (!strcmp(c["a"] | "start", "end")) g.sm->endClean(); else g.sm->startClean("ui"); return true; }
@@ -96,7 +89,6 @@ bool handleCommand(JsonObjectConst c, bool authed, JsonDocument& reply, bool& ne
   if (!strcmp(cmd, "delete")) { storage::deleteCal(c["name"] | ""); net::sendCals(); return true; }
   if (!strcmp(cmd, "list")) { net::sendCals(); return true; }
   if (!strcmp(cmd, "wifi")) { const char* pass = c["pass"] | ""; if (!validPass(pass)) return err("Password must be 8 to 63 characters"); strncpy(g.wifiPass, pass, sizeof g.wifiPass - 1); storage::saveSecrets(); ack["restart"] = true; needRestart = true; return true; }
-  if (!strcmp(cmd, "pin")) { const char* pin = c["pin"] | ""; if (!validPin(pin)) return err("PIN must be 4 to 8 digits"); strncpy(g.pin, pin, sizeof g.pin - 1); storage::saveSecrets(); return true; }
   if (!strcmp(cmd, "get")) { const char* w = c["what"] | "status"; if (!strcmp(w, "cfg")) net::sendCfg(); else if (!strcmp(w, "health")) { JsonDocument d; healthJson(d["health"].to<JsonObject>()); String s; serializeJson(d, s); net::broadcast(s.c_str()); } else if (!strcmp(w, "cal")) { JsonDocument d; calib::toJson(d["cal"].to<JsonObject>()); String s; serializeJson(d, s); net::broadcast(s.c_str()); } else net::sendStatus(); return true; }
   if (!strcmp(cmd, "reset")) {
     if (!strcmp(c["what"] | "", "totals")) { Lock lk; g.totals = Totals(); g.sm->totals() = Totals(); g.totalsDirty = true; }
