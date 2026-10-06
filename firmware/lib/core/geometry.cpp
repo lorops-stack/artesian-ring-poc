@@ -116,7 +116,7 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     float unc = geometryUncertainty(*o.A, *o.B, x, y, o.hand->zwork);
     if (unc > 120.0f) { anyOutside = true; continue; }
     if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
-    float ampDb = pairStrengthMismatchDb(rA, eA[candA[i]].s, rB, eB[candB[j]].s, o.hand->envK);
+    float ampDb = o.hand->envRef > 0 ? pairStrengthMismatchDb(rA, eA[candA[i]].s, rB, eB[candB[j]].s, o.hand->envK) : 0;
     pr[np++] = { candA[i], candB[j], x, y, res, rA, rB, unc, ampDb };
   }
   if (!np) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
