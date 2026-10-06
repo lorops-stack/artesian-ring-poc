@@ -31,10 +31,14 @@ static constexpr size_t MAX_JSON_BODY = 8192;
 #ifndef RING_ENABLE_OTA
 #define RING_ENABLE_OTA 0
 #endif
+static uint8_t httpAuthFails = 0; static uint32_t httpAuthBlockedUntil = 0;
 static bool httpAuthed(AsyncWebServerRequest* r) {
   if (!g.pin[0]) return g.setupNeeded;
-  if (!r->hasHeader("X-Ring-PIN")) return false;
-  return r->getHeader("X-Ring-PIN")->value().equals(g.pin);
+  uint32_t now = millis(); if ((int32_t)(now - httpAuthBlockedUntil) < 0) return false;
+  bool ok = r->hasHeader("X-Ring-PIN") && r->getHeader("X-Ring-PIN")->value().equals(g.pin);
+  if (ok) { httpAuthFails = 0; httpAuthBlockedUntil = 0; return true; }
+  if (++httpAuthFails >= 5) { httpAuthFails = 0; httpAuthBlockedUntil = now + 30000; }
+  return false;
 }
 static bool requireHttpAuth(AsyncWebServerRequest* r) {
   if (httpAuthed(r)) return true;
