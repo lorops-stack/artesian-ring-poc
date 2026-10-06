@@ -27,7 +27,7 @@ constexpr uint32_t THRESH_FIXED_AMPLITUDE = 1, THRESH_RECORDED = 2, THRESH_CFAR 
 constexpr uint32_t SORT_CLOSEST = 1, SORT_STRONGEST = 2;
 constexpr uint8_t I2C_ADDR = 0x52;
 
-struct Settings { uint32_t startMm = 60, endMm = 850, maxStepLength = 0, thresholdMethod = THRESH_RECORDED, numFramesRecorded = 100, sensitivityX1000 = 500, peakSorting = SORT_CLOSEST, closeRangeLeakage = 1, maxProfile = 5, signalQualityX1000 = 15000, reflectorShape = 1; };
+struct Settings { uint32_t startMm = 60, endMm = 850, thresholdMethod = THRESH_RECORDED, numFramesRecorded = 100, sensitivityX1000 = 500, peakSorting = SORT_CLOSEST, closeRangeLeakage = 1, maxProfile = 5, signalQualityX1000 = 15000, reflectorShape = 1; };
 struct Result { uint8_t n = 0; bool nearStart = false, calNeeded = false, measureError = false; int16_t tempC = 0; uint32_t distMm[10]; int32_t strengthDb1000[10]; };
 
 class Sensor {
