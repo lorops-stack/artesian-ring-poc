@@ -65,6 +65,17 @@ void test_reflection_filters() {
     Assoc r = associate(a, 1, b, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(2, 100, r.y);
     Echo a2[1] = { { roundf(range(c.A, -12, 150, h)), 60 } }, b2[1] = { { roundf(range(c.B, -12, 150, h)), 60 } }; o.hasPrev = false;
     Assoc e = associate(a2, 1, b2, 1, o); TEST_ASSERT_EQUAL(FLAG_OUTSIDE, e.flag); }
+  // Measured 19.25 in bench evidence: a 228/222 mm pair is degenerate near the baseline and must be
+  // rejected before nearWin. A 408/457 mm pair is well-conditioned and resolves inside the sink.
+  { Config m = c; m.plane.w = 488.95f; m.plane.d = 533.4f; m.A.x = 0; m.A.y = 0; m.B.x = 488.95f; m.B.y = 0;
+    Echo badA[1] = { { 228, 45 } }, badB[1] = { { 222, 33 } };
+    AssocOpts o{ &m.A, &m.B, &m.hand, &m.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; o.nearWin = 120;
+    TEST_ASSERT_EQUAL(FLAG_OUTSIDE, associate(badA, 1, badB, 1, o).flag);
+    Echo goodA[1] = { { 408, 141 } }, goodB[1] = { { 457, 136 } };
+    Assoc good = associate(goodA, 1, goodB, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, good.flag);
+    TEST_ASSERT_FLOAT_WITHIN(3, 201, good.x); TEST_ASSERT_FLOAT_WITHIN(3, 355, good.y);
+    Echo mixA[2] = { { 228, 45 }, { 408, 141 } }, mixB[2] = { { 222, 33 }, { 457, 136 } };
+    TEST_ASSERT_EQUAL(FLAG_NONE, associate(mixA, 2, mixB, 2, o).flag); }
   // first-arrival rule: bounces later than the hand are dropped, and a strong bounce cannot set the reference
   { float x = 200, y = 180, rA = roundf(range(c.A, x, y, h)), rB = roundf(range(c.B, x, y, h));
     Echo a[3] = { { rA, 55 }, { rA + 90, 70 }, { rA + 240, 30 } }, b[2] = { { rB, 48 }, { rB + 160, 60 } };
