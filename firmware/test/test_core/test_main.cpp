@@ -38,6 +38,10 @@ void test_locate() {
   Config c; setDefaults(c); float pts[4][2] = { { 100, 100 }, { 292, 267 }, { 500, 480 }, { 60, 500 } };
   for (auto& p : pts) { float rA = range(c.A, p[0], p[1], c.hand.zwork), rB = range(c.B, p[0], p[1], c.hand.zwork), x, y; locate(rA, rB, c.A, c.B, c.hand.zwork, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.5, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.5, p[1], y); }
 }
+void test_geometry_uncertainty() {
+  Config c; setDefaults(c); float back = geometryUncertainty(c.A,c.B,c.plane.w/2,20,c.hand.zwork,8); float front = geometryUncertainty(c.A,c.B,c.plane.w/2,c.plane.d*0.8f,c.hand.zwork,8);
+  TEST_ASSERT_TRUE(back > front); TEST_ASSERT_TRUE(front > 0 && front < 100);
+}
 void test_tracker_smoothing() {
   // the same noisy readings: lower alpha gives a steadier dot
   float xs[8] = { 200, 214, 190, 212, 188, 210, 192, 205 }; float spread[2];
@@ -223,7 +227,7 @@ static void test_echo_hold() {
 
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set); RUN_TEST(test_config_validation_rejects_bad_values_atomically);
+  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_geometry_uncertainty); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set); RUN_TEST(test_config_validation_rejects_bad_values_atomically);
   RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();
 }
