@@ -103,7 +103,6 @@ var RS = globalThis.RS || (globalThis.RS = {});
     L.on('err', function (e) { if (e.msg) A.toast(e.msg, 'bad'); });
     L.on('event', function (e) { if (e.ev === 'button' && e.a === 'cal') { A.toast('BOOT button: opening the calibration studio', 'info'); A.go('studio'); } if (e.ev === 'button' && e.a === 'reset') A.toast('Wi-Fi password and PIN reset from the BOOT button. The ring restarts with a temporary password (see the serial monitor).', 'warn', 10000); });
     RS.rec.on('start', A.refreshChips); RS.rec.on('session', function () { A.refreshChips(); });
-    S.on('change:presentation', function () { if (!S.get('presentation')) S.sessionPin = false; });
     A.render();
     L.autoStart();
     requestAnimationFrame(loop);
