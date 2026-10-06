@@ -147,7 +147,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var unc0 = G.geometryUncertainty(A, B, p.x, p.y, hand.zwork, opts.rangeSigma || 8);
       if (unc0 > 120) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
-      var ampDb = G.pairStrengthMismatchDb(rA, eA[candA[i]][1], rB, eB[candB[j]][1], hand.envK);
+      var ampDb = hand.envRef > 0 ? G.pairStrengthMismatchDb(rA, eA[candA[i]][1], rB, eB[candB[j]][1], hand.envK) : 0;
       pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB, unc: unc0, ampDb: ampDb });
     }
     if (!pairs.length) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
