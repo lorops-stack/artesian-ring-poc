@@ -28,6 +28,7 @@ static void sessionSetAuth(uint32_t id, bool value) {
   }
 }
 static constexpr size_t MAX_JSON_BODY = 8192;
+static constexpr uint32_t FRAME_INTERVAL_MS = 100; // 10 Hz UI telemetry; sensing remains at full rate.
 #ifndef RING_ENABLE_OTA
 #define RING_ENABLE_OTA 0
 #endif
@@ -46,6 +47,7 @@ static bool requireHttpAuth(AsyncWebServerRequest* r) {
   return false;
 }
 static uint32_t lastFrameSent = 0, lastStatus = 0, lastHealth = 0, lastN = 0;
+static uint32_t wsBackpressureDrops = 0;
 static char frameBuf[1400];
 
 static void makeTempPass() { const char* al = "abcdefghjkmnpqrstuvwxyz23456789"; for (int i = 0; i < 10; i++) g.tempPass[i] = al[esp_random() % strlen(al)]; g.tempPass[10] = 0; }
@@ -56,7 +58,16 @@ static void startAp() {
   Serial.printf("[wifi] AP %s %s on channel %d, http://192.168.4.1\n", AP_SSID, ok ? "up" : "FAILED", g.cfg.tuning.wifiCh);
   if (g.setupNeeded) { Serial.println("[wifi] ===================================================="); Serial.printf("[wifi]  TEMPORARY Wi-Fi password: %s\n", g.tempPass); Serial.println("[wifi]  Join ArtesianRing, open http://192.168.4.1 and set your own."); Serial.println("[wifi] ===================================================="); }
 }
-void broadcast(const char* json) { if (ws.count()) ws.textAll(json); }
+static bool clientWritable(AsyncWebSocketClient* c) { return c && c->status() == WS_CONNECTED && c->canSend(); }
+static void broadcast(const char* json, bool droppable = false) {
+  if (!ws.count()) return;
+  for (auto& s : sessions) {
+    if (!s.used) continue;
+    AsyncWebSocketClient* c = ws.client(s.id);
+    if (!clientWritable(c)) { if (droppable) wsBackpressureDrops++; continue; }
+    c->text(json);
+  }
+}
 void sendCfg() { JsonDocument d; { Lock lk; configToJson(g.cfg, d["cfg"].to<JsonObject>()); } String s; serializeJson(d, s); broadcast(s.c_str()); }
 void sendStatus() { JsonDocument d; proto::statusJson(d["status"].to<JsonObject>()); String s; serializeJson(d, s); broadcast(s.c_str()); }
 void sendCals() { JsonDocument d; storage::listCals(d["cals"].to<JsonArray>()); String s; serializeJson(d, s); broadcast(s.c_str()); }
@@ -73,7 +84,7 @@ static void onWsEvent(AsyncWebSocket* srv, AsyncWebSocketClient* client, AwsEven
     JsonDocument reply; bool restart = false; bool isAuth = sessionAuth(client->id());
     bool ok = proto::handleCommand(doc.as<JsonObjectConst>(), isAuth, reply, restart);
     if (ok && !strcmp(doc["c"] | "", "auth")) sessionSetAuth(client->id(), reply["ack"]["ok"] | false);
-    String s; serializeJson(reply, s); client->text(s);
+    String s; serializeJson(reply, s); if (clientWritable(client)) client->text(s);
     if (restart) g.restartWifi = true;
   }
 }
@@ -105,9 +116,7 @@ void begin() {
   });
   calImport->setMethod(HTTP_POST); calImport->setMaxContentLength(MAX_JSON_BODY); server.addHandler(calImport);
   server.on("/api/log", HTTP_GET, [](AsyncWebServerRequest* r) { r->send(200, "text/plain", "see USB serial"); });
-  // OTA is intentionally disabled until the authenticated update path is hardened.
 #if RING_ENABLE_OTA
-  // Over-the-air firmware update (F18): multipart upload of the .bin, then restart
   server.on("/api/update", HTTP_POST, [](AsyncWebServerRequest* r) { if (!requireHttpAuth(r)) return; bool ok = !Update.hasError(); AsyncWebServerResponse* resp = r->beginResponse(ok ? 200 : 500, "text/plain", ok ? "OK, restarting" : Update.errorString()); resp->addHeader("Connection", "close"); r->send(resp); if (ok) g.reboot = true; },
     [](AsyncWebServerRequest* r, const String& filename, size_t index, uint8_t* data, size_t len, bool final) {
       if (!httpAuthed(r)) return;
@@ -120,7 +129,6 @@ void begin() {
 #endif
   server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("max-age=600");
   server.onNotFound([](AsyncWebServerRequest* r) { if (r->method() == HTTP_OPTIONS) r->send(200); else r->send(404, "text/plain", "Not found. Ring Studio files missing? Run tools/build_ui.py and Upload Filesystem Image."); });
-  // Ring Studio is served from this AP; cross-origin API access is intentionally not enabled.
   server.begin();
   Serial.println("[web] server started");
 }
@@ -130,12 +138,16 @@ void loop() {
   ws.cleanupClients();
   if (g.restartWifi) { g.restartWifi = false; delay(300); WiFi.softAPdisconnect(true); delay(200); startAp(); }
   if (!ws.count()) return;
-  // frames at the sensor rate (one message per new frame), capped at 30 Hz
   Frame f; { Lock lk; f = g.frame; }
-  if (f.n != lastN && now - lastFrameSent >= 33) { lastN = f.n; lastFrameSent = now; proto::frameJson(f, frameBuf, sizeof frameBuf); broadcast(frameBuf); }
+  // UI telemetry is lossy by design. Never queue stale frames behind a slow Wi-Fi client.
+  if (f.n != lastN && now - lastFrameSent >= FRAME_INTERVAL_MS) {
+    lastN = f.n; lastFrameSent = now;
+    proto::frameJson(f, frameBuf, sizeof frameBuf);
+    broadcast(frameBuf, true);
+  }
   char ev[EVLEN]; int guard = 0; while (g.events.pop(ev) && guard++ < 8) broadcast(ev);
   if (now - lastStatus > 5000) { lastStatus = now; sendStatus(); }
-  if (now - lastHealth > 1000) { lastHealth = now; JsonDocument d; proto::healthJson(d["health"].to<JsonObject>()); String s; serializeJson(d, s); broadcast(s.c_str()); }
+  if (now - lastHealth > 1000) { lastHealth = now; JsonDocument d; proto::healthJson(d["health"].to<JsonObject>()); d["health"]["wsDrops"] = wsBackpressureDrops; String s; serializeJson(d, s); broadcast(s.c_str()); }
   if (calib::changed()) sendCal();
 }
 
