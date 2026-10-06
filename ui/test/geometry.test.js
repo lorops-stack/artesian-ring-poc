@@ -154,3 +154,9 @@ test('robust wand fit resists a large multipath outlier and reports validation q
   const fit=RS.fit.wandFit(samples,c); assert.ok(fit.fits.A.outliers.length>=1); assert.ok(Math.abs(fit.fits.A.off-truth.A.off)<12,'offset '+fit.fits.A.off);
   assert.ok(fit.validationRms!==null && fit.validation.length>=14); assert.ok(['excellent','good','marginal'].includes(fit.quality),'quality '+fit.quality);
 });
+
+test('boundary commissioning prioritizes disposal and hot transitions', () => {
+  const c=RS.presetConfig('flat'), p=RS.fit.boundaryPlan(c,18); assert.ok(p.length>0); assert.equal(p[0].risk,5); assert.ok(p.some(x=>x.risk===3));
+  const obs=[]; p.forEach((x,i)=>x.tests.forEach((t,s)=>obs.push({id:i,side:s,actual:t.expect}))); const good=RS.fit.scoreBoundaryRun(p,obs); assert.equal(good.pass,true);
+  const hi=p.findIndex(x=>x.risk>1); obs.find(o=>o.id===hi).actual='neutral'; const bad=RS.fit.scoreBoundaryRun(p,obs); assert.equal(bad.pass,false); assert.ok(bad.safetyWrong>=1);
+});
