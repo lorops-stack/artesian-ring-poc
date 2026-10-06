@@ -20,7 +20,12 @@ static float spreadBuf[24]; static int spreadN = 0;
 
 xm125::Sensor& sensor(char which) { return which == 'A' ? sA : sB; }
 static xm125::Settings settingsFromCfg() {
-  xm125::Settings s; const Tuning& t = g.cfg.tuning; s.startMm = t.rangeStart; s.endMm = t.rangeEnd; s.sensitivityX1000 = (uint32_t)(500 * t.threshSens); return s;
+  xm125::Settings s; const Tuning& t = g.cfg.tuning;
+  s.startMm = t.rangeStart; s.endMm = t.rangeEnd;
+  // XM125 register 0x004A is 0..1000 and higher means a LOWER detector threshold (more sensitive).
+  float sens = 500.0f * t.threshSens; if (sens < 0) sens = 0; if (sens > 1000) sens = 1000;
+  s.sensitivityX1000 = (uint32_t)lroundf(sens);
+  return s;
 }
 static bool setupSensorImpl(xm125::Sensor& s, SensorInfo& inf) {
   s.lineLevels(inf.sda, inf.scl);
@@ -32,6 +37,11 @@ static bool setupSensorImpl(xm125::Sensor& s, SensorInfo& inf) {
   if (!ok) { Serial.printf("[%s] configure failed (status 0x%08lx), resetting and trying once more\n", s.name(), (unsigned long)s.lastStatus()); s.hardReset(); esp_task_wdt_reset(); ok = s.present() && s.configure(settingsFromCfg()); }
   inf.cfgOk = ok; inf.status = s.lastStatus(); inf.stop = s.stopMode();
   Serial.printf("[%s] configure %s (status 0x%08lx)\n", s.name(), ok ? "OK" : "FAILED", (unsigned long)s.lastStatus());
+  if (ok) {
+    uint32_t rs=0, re=0, sens=0, sq=0, step=0;
+    if (s.readReg(xm125::REG_START, rs) && s.readReg(xm125::REG_END, re) && s.readReg(xm125::REG_THRESHOLD_SENSITIVITY, sens) && s.readReg(xm125::REG_SIGNAL_QUALITY, sq) && s.readReg(xm125::REG_MAX_STEP_LENGTH, step))
+      Serial.printf("[%s] detector cfg start=%lu end=%lu sensitivity=%lu signalQ=%lu maxStep=%lu(auto=0)\n", s.name(), (unsigned long)rs, (unsigned long)re, (unsigned long)sens, (unsigned long)sq, (unsigned long)step);
+  }
   if (!ok) Serial.printf("[%s] hint: is this board flashed with i2c_distance_detector.bin (docs/05)? A board still on the presence firmware answers at 0x52 but fails here. Status 0x%08lx: bits 16-25 are error flags.\n", s.name(), (unsigned long)s.lastStatus());
   return ok;
 }
