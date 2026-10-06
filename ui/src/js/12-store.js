@@ -25,7 +25,10 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (fn === 'hot') return U.fmtTemp(p.hotF, u); if (fn === 'hotcap') return U.fmtTemp(p.hotCapF, u);
     if (fn === 'warm' || fn === 'waterfall') return U.fmtTemp(p.warmF, u); return 'mains';
   };
-  // Studio lock: in presentation mode the studio needs the PIN once per browser session
-  S.studioLocked = function () { return S.prefs.presentation && !S.sessionPin; };
+  // A live ring requires the device PIN before protected/mutating screens are used.
+  // Simulator/replay remain frictionless; authentication is per WebSocket connection.
+  S.studioLocked = function () { var st = S.status(); return L.mode === 'ws' && L.connected && st && !st.setup && !S.sessionPin; };
   S.unlockStudio = function () { S.sessionPin = true; S.emit('change', 'lock'); };
+  L.on('close', function () { S.sessionPin = false; });
+  L.on('open', function () { if (L.mode === 'ws') S.sessionPin = false; });
 })();

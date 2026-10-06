@@ -37,10 +37,24 @@ test('back-edge lock is gone: a track pinned at y=0 does not drag the next fix o
   assert.equal(r.flag, 0); assert.ok(Math.abs(r.y - 100) < 2, 'y follows the ranges, got ' + r.y);
   assert.ok(Math.abs(r.uy - r.y) < 1e-6 && Math.abs(r.ux - r.x) < 1e-6, 'raw fix inside the plane equals the clamped one');
   const edge = G().associate([[Math.round(G().range(A, -12, 150, h)), 60]], [[Math.round(G().range(B, -12, 150, h)), 60]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
-  assert.equal(edge.flag, 0); assert.equal(edge.x, 0, 'published x is clamped'); assert.ok(edge.ux < -8, 'raw x keeps the overshoot for the track: ' + edge.ux);
+  assert.equal(edge.flag, RS.FLAG.OUTSIDE, 'an out-of-plane fix is rejected instead of being clamped onto the edge');
   // behind the baseline there is no information: the solver always returns the sink-side root
   const back = G().locate(G().range(A, 203, -12, h), G().range(B, 203, -12, h), A, B, h, null, c.plane);
   assert.ok(back.y > 0, 'mirror root is never returned');
+});
+
+test('measured 19.25in bench: degenerate near pair is rejected before it can poison acquisition', () => {
+  const c = rig(); c.plane.w = 488.95; c.plane.d = 533.4; c.sensors.B.x = 488.95;
+  const A = c.sensors.A, B = c.sensors.B;
+  const bad = G().associate([[228, 45]], [[222, 33]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+  assert.equal(bad.flag, RS.FLAG.OUTSIDE, '228/222 mm is a near-baseline, ill-conditioned pair on the measured rig');
+  const good = G().associate([[408, 141]], [[457, 136]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+  assert.equal(good.flag, RS.FLAG.NONE); assert.ok(Math.abs(good.x - 201) < 3); assert.ok(Math.abs(good.y - 355) < 3);
+  // This exact shape occurred on hardware: short clutter on both sides plus a valid longer pair. Independent
+  // per-sensor minima used to create a near window that no pair could pass; acquisition must now remain possible.
+  const mixed = G().associate([[228, 45], [408, 141]], [[222, 33], [457, 136]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+  assert.equal(mixed.flag, RS.FLAG.NONE); assert.equal(mixed.iA, 1); assert.equal(mixed.iB, 1);
+  assert.ok(Math.abs(mixed.x - 201) < 3); assert.ok(Math.abs(mixed.y - 355) < 3);
 });
 
 test('first-arrival rule: a metal-sink bounce later than the hand is dropped on both sensors', () => {
@@ -60,8 +74,11 @@ test('first-arrival rule: a metal-sink bounce later than the hand is dropped on 
 test('track-aware reference: a cup set down nearer sensor A than the hand does not steal an established track', () => {
   const c = rig(), A = c.sensors.A, B = c.sensors.B, h = c.hand.zwork;
   const hand = { x: 150, y: 200 }, cup = { x: 100, y: 80 };
-  const eA = [[Math.round(G().range(A, cup.x, cup.y, h)), 40], [Math.round(G().range(A, hand.x, hand.y, h)), 20]];
-  const eB = [[Math.round(G().range(B, hand.x, hand.y, h)), 20], [Math.round(G().range(B, cup.x, cup.y, h)), 40]];
+  const cA = G().range(A, cup.x, cup.y, h), cB = G().range(B, cup.x, cup.y, h);
+  const hA = G().range(A, hand.x, hand.y, h), hB = G().range(B, hand.x, hand.y, h);
+  const amp = (d, ref) => ref * Math.pow(300 / d, 2);
+  const eA = [[Math.round(cA), amp(cA, 40)], [Math.round(hA), amp(hA, 20)]];
+  const eB = [[Math.round(hB), amp(hB, 20)], [Math.round(cB), amp(cB, 40)]];
   const r = G().associate(eA, eB, { A, B, hand: c.hand, plane: c.plane, prev: hand, maxJump: 220, nearWin: 120 });
   assert.equal(r.flag, 0); assert.ok(Math.hypot(r.x - hand.x, r.y - hand.y) < 5, `stayed on the hand: ${r.x.toFixed(0)},${r.y.toFixed(0)}`);
   // with no track the nearest pair is taken, which is the cup: that is the acquisition rule and is expected

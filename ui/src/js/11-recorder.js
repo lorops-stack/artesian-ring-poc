@@ -70,6 +70,19 @@ var RS = globalThis.RS || (globalThis.RS = {});
   };
   R.clearHistory = function () { R.history = []; save('rec.history', R.history); R.heat = {}; save('rec.heat', R.heat); R.emit('change'); };
 
+  // Explicit raw radar capture for bench work. Unlike session recording this also works with an empty sink,
+  // so background/multipath/hostile-object evidence can be saved before any tuning decision is made.
+  R.captureEcho = function (seconds, label) {
+    seconds = U.clamp(+seconds || 10, 1, 60); var frames = [], started = new Date().toISOString();
+    return new Promise(function (resolve) {
+      var off = L.on('frame', function (f) { if (!f.g && L.mode !== 'replay') frames.push(U.deepClone(f)); });
+      setTimeout(function () {
+        off(); var out = { kind: 'ring-echo-capture', proto: RS.PROTO, fw: L.info.fw, when: started, label: label || 'echo capture', seconds: seconds, cfg: L.latest.cfg ? U.deepClone(L.latest.cfg) : null, health: L.latest.health ? U.deepClone(L.latest.health) : null, frames: frames };
+        U.download('ring-echo-' + U.fileStamp() + '.json', JSON.stringify(out), 'application/json'); resolve(out);
+      }, seconds * 1000);
+    });
+  };
+
   // ---- accuracy runs (F16) ---------------------------------------------------------------------------------------------------------------
   R.saveAccuracy = function (run) { R.accuracy.push(run); while (R.accuracy.length > 50) R.accuracy.shift(); save('rec.accuracy', R.accuracy); R.emit('change'); };
   R.accuracyCsv = function (run) {

@@ -15,7 +15,7 @@ int main() {
     xm125::Settings st; st.startMm = 60; st.endMm = 850;
     CHECK(s.configure(st));
     CHECK(s.ok());
-    CHECK(w.reg[0x0040] == 60 && w.reg[0x0041] == 850 && w.reg[0x0046] == 2 && w.reg[0x0047] == 1);
+    CHECK(w.reg[0x0040] == 60 && w.reg[0x0041] == 850 && w.reg.count(0x0042) == 0 && w.reg[0x0044] == 25000 && w.reg[0x0046] == 2 && w.reg[0x0047] == 1);
     w.distResult = (24u << 16) | (1u << 8) | 2;       // 24 C, near-start flag, 2 peaks
     w.dist = { 412, 655 }; w.str = { (uint32_t)(int32_t)74000, (uint32_t)(int32_t)-12000 };
     xm125::Result r; CHECK(s.measure(r));

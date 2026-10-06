@@ -7,6 +7,7 @@
 namespace ring {
 void configToJson(const Config& c, JsonObject out);
 bool configFromJson(const JsonObjectConst in, Config& c);       // merges onto c; unknown keys ignored
+bool validateConfig(const Config& c, char* err, int errLen);
 // Apply {"dotted.path": value} sets (protocol `cfg`). A null value deletes the key. Returns false on a bad path.
 bool configApplySet(Config& c, const JsonObjectConst set, char* err, int errLen);
 }

@@ -38,6 +38,10 @@ void test_locate() {
   Config c; setDefaults(c); float pts[4][2] = { { 100, 100 }, { 292, 267 }, { 500, 480 }, { 60, 500 } };
   for (auto& p : pts) { float rA = range(c.A, p[0], p[1], c.hand.zwork), rB = range(c.B, p[0], p[1], c.hand.zwork), x, y; locate(rA, rB, c.A, c.B, c.hand.zwork, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.5, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.5, p[1], y); }
 }
+void test_geometry_uncertainty() {
+  Config c; setDefaults(c); float back = geometryUncertainty(c.A,c.B,c.plane.w/2,20,c.hand.zwork,8); float front = geometryUncertainty(c.A,c.B,c.plane.w/2,c.plane.d*0.8f,c.hand.zwork,8);
+  TEST_ASSERT_TRUE(back > front); TEST_ASSERT_TRUE(front > 0 && front < 100);
+}
 void test_tracker_smoothing() {
   // the same noisy readings: lower alpha gives a steadier dot
   float xs[8] = { 200, 214, 190, 212, 188, 210, 192, 205 }; float spread[2];
@@ -54,12 +58,25 @@ void test_reflection_filters() {
   for (auto& p : pts) { float x, y; locate(range(c.A, p[0], p[1], h), range(c.B, p[0], p[1], h), c.A, c.B, h, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(0.01, p[0], x); TEST_ASSERT_FLOAT_WITHIN(0.01, p[1], y); }
   { float x, y, res = locate(180, 190, c.A, c.B, 0, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_FLOAT_WITHIN(1e-4, 0, y); TEST_ASSERT_TRUE(res > 20 && res < 40); TEST_ASSERT_TRUE(x > 180 && x < 230); }
   { float x, y; locate(range(c.A, 203, -12, h), range(c.B, 203, -12, h), c.A, c.B, h, c.plane.w / 2, c.plane.d / 2, x, y); TEST_ASSERT_TRUE(y > 0); }
-  // back-edge lock is gone: a track pinned at y=0 does not drag the fix onto the edge; the raw fix keeps an overshoot
+  // back-edge lock is gone: a track pinned at y=0 does not drag the next valid fix onto the edge.
+  // A genuinely out-of-plane solve is rejected rather than clamped back onto the sink boundary.
   { Echo a[1] = { { roundf(range(c.A, 203, 100, h)), 60 } }, b[1] = { { roundf(range(c.B, 203, 100, h)), 60 } };
     AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, true, 203, 0, 220 }; o.nearWin = 120;
     Assoc r = associate(a, 1, b, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_FLOAT_WITHIN(2, 100, r.y);
     Echo a2[1] = { { roundf(range(c.A, -12, 150, h)), 60 } }, b2[1] = { { roundf(range(c.B, -12, 150, h)), 60 } }; o.hasPrev = false;
-    Assoc e = associate(a2, 1, b2, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, e.flag); TEST_ASSERT_EQUAL_FLOAT(0, e.x); TEST_ASSERT_TRUE(e.ux < -8); }
+    Assoc e = associate(a2, 1, b2, 1, o); TEST_ASSERT_EQUAL(FLAG_OUTSIDE, e.flag); }
+  // Measured 19.25 in bench evidence: a 228/222 mm pair is degenerate near the baseline and must be
+  // rejected before nearWin. A 408/457 mm pair is well-conditioned and resolves inside the sink.
+  { Config m = c; m.plane.w = 488.95f; m.plane.d = 533.4f; m.A.x = 0; m.A.y = 0; m.B.x = 488.95f; m.B.y = 0;
+    Echo badA[1] = { { 228, 45 } }, badB[1] = { { 222, 33 } };
+    AssocOpts o{ &m.A, &m.B, &m.hand, &m.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; o.nearWin = 120;
+    TEST_ASSERT_EQUAL(FLAG_OUTSIDE, associate(badA, 1, badB, 1, o).flag);
+    Echo goodA[1] = { { 408, 141 } }, goodB[1] = { { 457, 136 } };
+    Assoc good = associate(goodA, 1, goodB, 1, o); TEST_ASSERT_EQUAL(FLAG_NONE, good.flag);
+    TEST_ASSERT_FLOAT_WITHIN(3, 201, good.x); TEST_ASSERT_FLOAT_WITHIN(3, 355, good.y);
+    Echo mixA[2] = { { 228, 45 }, { 408, 141 } }, mixB[2] = { { 222, 33 }, { 457, 136 } };
+    Assoc mix = associate(mixA, 2, mixB, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, mix.flag); TEST_ASSERT_EQUAL(1, mix.iA); TEST_ASSERT_EQUAL(1, mix.iB);
+    TEST_ASSERT_FLOAT_WITHIN(3, 201, mix.x); TEST_ASSERT_FLOAT_WITHIN(3, 355, mix.y); }
   // first-arrival rule: bounces later than the hand are dropped, and a strong bounce cannot set the reference
   { float x = 200, y = 180, rA = roundf(range(c.A, x, y, h)), rB = roundf(range(c.B, x, y, h));
     Echo a[3] = { { rA, 55 }, { rA + 90, 70 }, { rA + 240, 30 } }, b[2] = { { rB, 48 }, { rB + 160, 60 } };
@@ -69,7 +86,9 @@ void test_reflection_filters() {
     Assoc r2 = associate(a2, 2, b2, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r2.flag); TEST_ASSERT_EQUAL(0, r2.iA); TEST_ASSERT_EQUAL(0, r2.iB); }
   // track-aware reference: a cup nearer sensor A than the hand does not steal an established track
   { float hx = 150, hy = 200, cx = 100, cy = 80;
-    Echo a[2] = { { roundf(range(c.A, cx, cy, h)), 40 }, { roundf(range(c.A, hx, hy, h)), 20 } }, b[2] = { { roundf(range(c.B, hx, hy, h)), 20 }, { roundf(range(c.B, cx, cy, h)), 40 } };
+    float cA = range(c.A, cx, cy, h), cB = range(c.B, cx, cy, h), hA = range(c.A, hx, hy, h), hB = range(c.B, hx, hy, h);
+    auto amp = [](float d, float ref) { return ref * powf(300.0f / d, 2.0f); };
+    Echo a[2] = { { roundf(cA), amp(cA, 40) }, { roundf(hA), amp(hA, 20) } }, b[2] = { { roundf(hB), amp(hB, 20) }, { roundf(cB), amp(cB, 40) } };
     AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, true, hx, hy, 220 }; o.nearWin = 120;
     Assoc r = associate(a, 2, b, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r.flag); TEST_ASSERT_TRUE(hypotf(r.x - hx, r.y - hy) < 5);
     o.hasPrev = false; Assoc r0 = associate(a, 2, b, 2, o); TEST_ASSERT_EQUAL(FLAG_NONE, r0.flag); TEST_ASSERT_TRUE(hypotf(r0.x - cx, r0.y - cy) < 5); }
@@ -104,9 +123,18 @@ void test_associate() {
 void test_masks_and_flat_defaults() {
   Config c; setDefaults(c);
   TEST_ASSERT_EQUAL_FLOAT(0, c.A.tilt); TEST_ASSERT_EQUAL_FLOAT(0, c.hand.zwork); TEST_ASSERT_EQUAL_STRING("flat", c.rig.mount); TEST_ASSERT_EQUAL(0, c.nMasks);
+  TEST_ASSERT_FLOAT_WITHIN(0.01, 488.95f, c.plane.w); TEST_ASSERT_FLOAT_WITHIN(0.01, 482.60f, c.plane.d);
+  // Bench body-only evidence: 559/602 mm solves to about (193,524), beyond the measured 19 in front edge.
+  // It must be rejected, while the simultaneous near wood/hand pair remains a valid in-plane target.
+  Echo bodyA[1] = { { 559, 73 } }, bodyB[1] = { { 602, 72 } };
+  AssocOpts bodyO{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; bodyO.nearWin = 120;
+  TEST_ASSERT_EQUAL(FLAG_OUTSIDE, associate(bodyA, 1, bodyB, 1, bodyO).flag);
+  Echo handA[1] = { { 395, 100 } }, handB[1] = { { 405, 100 } };
+  TEST_ASSERT_EQUAL(FLAG_NONE, associate(handA, 1, handB, 1, bodyO).flag);
   float h = c.hand.zwork;
   float a1 = range(c.A, 430, 150, h), b1 = range(c.B, 430, 150, h), a2 = range(c.A, 150, 400, h), b2 = range(c.B, 150, 400, h);
-  Echo eA[2] = { { roundf(a1), 3000 }, { roundf(a2), 2500 } }, eB[2] = { { roundf(b1), 3000 }, { roundf(b2), 2500 } };
+  auto amp = [](float d, float ref) { return ref * powf(300.0f / d, 2.0f); };
+  Echo eA[2] = { { roundf(a1), amp(a1, 70) }, { roundf(a2), amp(a2, 60) } }, eB[2] = { { roundf(b1), amp(b1, 70) }, { roundf(b2), amp(b2, 60) } };
   AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 };
   // add a circle by the config path, as the protocol does
   JsonDocument sd; JsonObject set = sd.to<JsonObject>(); JsonObject m1 = set["masks.m1"].to<JsonObject>(); m1["t"] = "circle"; m1["x"] = 430; m1["y"] = 150; m1["r"] = 60; char err[64] = "";
@@ -128,6 +156,16 @@ void test_config_json_roundtrip_and_set() {
   Config d; setDefaults(d); d.tuning.settleMs = 999; configFromJson(root, d); TEST_ASSERT_EQUAL(150, d.tuning.settleMs);
   JsonDocument sd; JsonObject set = sd.to<JsonObject>(); set["tuning.settleMs"] = 210; set["sensors.A.off"] = 17.5; set["layouts.bathroom"] = nullptr; char err[64] = "";
   TEST_ASSERT_TRUE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(210, c.tuning.settleMs); TEST_ASSERT_FLOAT_WITHIN(0.01, 17.5, c.A.off); TEST_ASSERT_NULL(c.findLayout("bathroom")); TEST_ASSERT_EQUAL(2, c.nLayouts);
+}
+
+void test_config_validation_rejects_bad_values_atomically() {
+  Config c; setDefaults(c); char err[96] = "";
+  JsonDocument sd; JsonObject set = sd.to<JsonObject>(); set["tuning.wifiCh"] = 99;
+  TEST_ASSERT_FALSE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(6, c.tuning.wifiCh); TEST_ASSERT_TRUE(strlen(err) > 0);
+  sd.clear(); set = sd.to<JsonObject>(); set["tuning.rangeStart"] = 900; set["tuning.rangeEnd"] = 850;
+  TEST_ASSERT_FALSE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_EQUAL(60, c.tuning.rangeStart); TEST_ASSERT_EQUAL(850, c.tuning.rangeEnd);
+  sd.clear(); set = sd.to<JsonObject>(); set["tuning.smooth"] = 0.4;
+  TEST_ASSERT_TRUE(configApplySet(c, set, err, sizeof err)); TEST_ASSERT_FLOAT_WITHIN(0.001, 0.4, c.tuning.smooth);
 }
 
 // ---- fixtures through the state machine ---------------------------------------------------------------------------------------------
@@ -213,7 +251,7 @@ static void test_echo_hold() {
 
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set);
+  RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_geometry_uncertainty); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set); RUN_TEST(test_config_validation_rejects_bad_values_atomically);
   RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();
 }
