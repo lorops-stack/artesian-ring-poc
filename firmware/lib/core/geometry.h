@@ -41,7 +41,7 @@ float locate(float rA, float rB, const SensorPose& A, const SensorPose& B, float
 
 struct Echo { float d; float s; };
 struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; const Mask* masks = nullptr; int nMasks = 0; float nearWin = 0; float dt = 0.045f; float speed = 0; };   // nearWin: mm; 0 = off
-struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; float ux = 0, uy = 0; float uncertainty = 0, confidence = 0; };   // x,y clamped to the plane; ux,uy the raw fix
+struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; float ux = 0, uy = 0; float uncertainty = 0, confidence = 0; };   // accepted x,y are inside the plane; ux,uy retain the raw solve for diagnostics/gating
 bool strengthInEnvelope(const HandModel& h, float d, float s);
 float geometryUncertainty(const SensorPose& A, const SensorPose& B, float x, float y, float h, float rangeSigma = 8.0f);
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o);
