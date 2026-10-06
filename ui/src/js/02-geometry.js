@@ -134,8 +134,12 @@ var RS = globalThis.RS || (globalThis.RS = {});
       if (!G.pairFeasible(rA, rB, A, B, hand.zwork)) continue;
       var p = G.locate(rA, rB, A, B, hand.zwork, null, plane);
       if (p.x < 0 || p.x > plane.w || p.y < 0 || p.y > plane.d || p.res > 60) { anyOutside = true; continue; }
+      // Reject baseline/edge-degenerate pairs before they can become the first-arrival reference and hide a
+      // later valid hand echo. This mirrors firmware's 120 mm uncertainty safety gate.
+      var unc0 = G.geometryUncertainty(A, B, p.x, p.y, hand.zwork, opts.rangeSigma || 8);
+      if (unc0 > 120) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
-      pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB });
+      pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB, unc: unc0 });
     }
     if (!pairs.length) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
     // First-arrival rule (nearWin). The direct path is the shortest path a radar pulse can take, so on each sensor the
@@ -152,7 +156,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     pairs.forEach(function (q) {
       if (eA[q.ia][0] > limA || eB[q.ib][0] > limB) return;
       var trackErr = opts.prev ? U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y) : 0;
-      var unc = G.geometryUncertainty(A, B, q.p.x, q.p.y, hand.zwork, opts.rangeSigma || 8);
+      var unc = q.unc;
       var score = q.rA + q.rB + 4 * q.p.res + 0.35 * Math.min(200, unc);
       if (opts.prev) score += 2.5 * trackErr;
       var evidence = q.p.res + (opts.prev ? 0.35 * trackErr : 0) + 0.15 * Math.min(200, unc);
