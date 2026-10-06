@@ -127,6 +127,12 @@ void step() {
     if (agrees) { jumps = 0; float dt = (f.t - jumpT) / 1000.0f; if (dt < 0.02f) dt = 0.02f; float sp = hypotf(a.ux - jumpX, a.uy - jumpY) / dt; tracker.reset(); tracker.update(a.x, a.y, f.t, x, y, speed); speed = sp > 1500 ? 1500 : sp; hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; a.flag = FLAG_NONE; f.A.p = a.iA; f.B.p = a.iB; }
     else { jumps = 1; jumpX = a.ux; jumpY = a.uy; jumpT = f.t; if (hasPrev) { x = gateX; y = gateY; hasPos = true; speed = hypotf(tracker.vx(), tracker.vy()); } }
   } else { jumps = 0; if (++miss >= c.tuning.goneFrames) { tracker.reset(); hasPrev = false; } }
+  // The association is plane-gated, but the alpha-beta predictor can overshoot a boundary between updates.
+  // Never publish or actuate from a filter artefact outside the configured sink. Drop that frame and reset the
+  // predictor so the next valid in-plane measurement re-acquires cleanly instead of sticking to an edge.
+  if (hasPos && (x < 0 || x > c.plane.w || y < 0 || y > c.plane.d)) {
+    hasPos = false; a.flag = FLAG_OUTSIDE; tracker.reset(); hasPrev = false; miss = 0; jumps = 0;
+  }
   if (hasPos) { spreadBuf[spreadN % 24] = x; spreadN++; } else spreadN = 0;
   Input in{ f.t, hasPos, x, y, speed, a.flag };
   bool wasSession = g.sm->session();
