@@ -13,12 +13,20 @@ namespace app { namespace net {
 
 static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
-struct WsSession { uint32_t id = 0; bool used = false; bool authed = false; };
+struct WsSession { uint32_t id = 0; bool used = false; bool authed = false; uint8_t authFails = 0; uint32_t authBlockedUntil = 0; };
 static WsSession sessions[8];
 static bool sessionAuth(uint32_t id) { for (auto& s : sessions) if (s.used && s.id == id) return s.authed; return false; }
 static void sessionConnect(uint32_t id) { for (auto& s : sessions) if (!s.used) { s = {id, true, false}; return; } }
 static void sessionDisconnect(uint32_t id) { for (auto& s : sessions) if (s.used && s.id == id) { s = {}; return; } }
-static void sessionSetAuth(uint32_t id, bool value) { for (auto& s : sessions) if (s.used && s.id == id) { s.authed = value; return; } }
+static bool sessionCanAuth(uint32_t id) { uint32_t now = millis(); for (auto& s : sessions) if (s.used && s.id == id) return (int32_t)(now - s.authBlockedUntil) >= 0; return false; }
+static void sessionSetAuth(uint32_t id, bool value) {
+  for (auto& s : sessions) if (s.used && s.id == id) {
+    s.authed = value;
+    if (value) { s.authFails = 0; s.authBlockedUntil = 0; }
+    else if (++s.authFails >= 5) { s.authFails = 0; s.authBlockedUntil = millis() + 30000; }
+    return;
+  }
+}
 static constexpr size_t MAX_JSON_BODY = 8192;
 #ifndef RING_ENABLE_OTA
 #define RING_ENABLE_OTA 0
@@ -55,7 +63,9 @@ static void onWsEvent(AsyncWebSocket* srv, AsyncWebSocketClient* client, AwsEven
   else if (type == WS_EVT_DISCONNECT) { sessionDisconnect(client->id()); g.clients = srv->count(); Serial.printf("[ws] client %lu left\n", (unsigned long)client->id()); }
   else if (type == WS_EVT_DATA) {
     AwsFrameInfo* info = (AwsFrameInfo*)arg; if (!(info->final && info->index == 0 && info->len == len) || info->opcode != WS_TEXT) return;
-    JsonDocument doc; if (deserializeJson(doc, data, len)) return;
+    if (len > 4096) { client->text("{\"err\":{\"c\":\"\",\"id\":0,\"msg\":\"command too large\"}}"); return; }
+    JsonDocument doc; if (deserializeJson(doc, data, len)) { client->text("{\"err\":{\"c\":\"\",\"id\":0,\"msg\":\"bad json\"}}"); return; }
+    if (!strcmp(doc["c"] | "", "auth") && !sessionCanAuth(client->id())) { client->text("{\"err\":{\"c\":\"auth\",\"id\":0,\"msg\":\"too many PIN attempts; wait 30 seconds\"}}"); return; }
     JsonDocument reply; bool restart = false; bool isAuth = sessionAuth(client->id());
     bool ok = proto::handleCommand(doc.as<JsonObjectConst>(), isAuth, reply, restart);
     if (ok && !strcmp(doc["c"] | "", "auth")) sessionSetAuth(client->id(), reply["ack"]["ok"] | false);
