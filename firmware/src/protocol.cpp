@@ -40,9 +40,11 @@ void eventJson(const Event& e, char* out, int n) {
   if (e.type == Ev::Still) w.append(",\"x\":%.0f,\"y\":%.0f", e.x, e.y); if (e.type == Ev::HeldOn) w.append(",\"frames\":%d", e.frames); w.append("}");
 }
 void statusJson(JsonObject o) {
-  o["fw"] = RING_FW_VERSION; o["proto"] = RING_PROTO; o["up"] = millis(); o["rst"] = resetReason(); o["setup"] = g.setupNeeded; o["heap"] = ESP.getFreeHeap(); o["clients"] = (int)g.clients;
-  JsonObject cal = o["cal"].to<JsonObject>(); cal["saved"] = g.calName[0] != 0; if (g.calName[0]) { cal["name"] = g.calName; cal["when"] = g.calWhen; }
-  o["sess"] = g.totals.sess; o["ml"] = (int)g.totals.ml; o["savedOff"] = (int)g.totals.savedOff; o["savedFlow"] = (int)g.totals.savedFlow;
+  bool setup; Totals totals; char calName[32], calWhen[24];
+  { Lock lk; setup = g.setupNeeded; totals = g.totals; strncpy(calName, g.calName, sizeof calName); calName[sizeof calName - 1] = 0; strncpy(calWhen, g.calWhen, sizeof calWhen); calWhen[sizeof calWhen - 1] = 0; }
+  o["fw"] = RING_FW_VERSION; o["proto"] = RING_PROTO; o["up"] = millis(); o["rst"] = resetReason(); o["setup"] = setup; o["heap"] = ESP.getFreeHeap(); o["clients"] = (int)g.clients;
+  JsonObject cal = o["cal"].to<JsonObject>(); cal["saved"] = calName[0] != 0; if (calName[0]) { cal["name"] = calName; cal["when"] = calWhen; }
+  o["sess"] = totals.sess; o["ml"] = (int)totals.ml; o["savedOff"] = (int)totals.savedOff; o["savedFlow"] = (int)totals.savedFlow;
 }
 void healthJson(JsonObject o) {
   Frame f; SensorInfo infoA, infoB; Health health; uint8_t ledBright;
