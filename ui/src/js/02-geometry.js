@@ -99,8 +99,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
   G.vertFactor = function (cfg, S, p, h) { var v = G.vHalf(cfg), o = G.vertOff(S, p, h); return Math.exp(-0.7 * Math.pow(o / Math.max(1, v), 2)); };
 
   // ---- Echo association (spec 6, one rule) --------------------------------------------------------------------
-  // echoes: [[d_mm, strength], ...] per sensor. Returns {x,y,ux,uy,iA,iB,flag} ; flag 0 = good. x,y are clamped to the
-  // plane; ux,uy are the raw fix (the track must follow the raw one, or a hand at the edge gets pinned there).
+  // echoes: [[d_mm, strength], ...] per sensor. Returns {x,y,ux,uy,iA,iB,flag}; flag 0 = good.
+  // A valid fix is already inside the plane; out-of-plane fixes are rejected, never clamped onto an edge.
   // opts: {A,B poses with .off, hand {zwork,strMin,strMax,envRef,envK,envDb}, plane, bg {A:[[d,s]..], B:[..]}, prev {x,y}, maxJump, masks, nearWin}
   // Hand strength envelope: a hand at range d returns about envRef * (300 / d) ^ envK. An echo more than envDb away from
   // that is not a hand at that range (a metal wall is far above it, a second bounce far below). envRef 0 = off.
@@ -127,13 +127,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
     for (i = 0; i < eA.length; i++) { if (!okStr(eA[i])) { anyStrengthFail = true; continue; } if (isBg(bg.A, eA[i][0], eA[i][1])) continue; candA.push(i); }
     for (j = 0; j < eB.length; j++) { if (!okStr(eB[j])) { anyStrengthFail = true; continue; } if (isBg(bg.B, eB[j][0], eB[j][1])) continue; candB.push(j); }
     if (!candA.length || !candB.length) return { flag: (eA.length || eB.length) ? (anyStrengthFail ? RS.FLAG.STRENGTH : RS.FLAG.NO_HAND) : RS.FLAG.NO_HAND };
-    var best = null, margin = 30, anyOutside = false, anyMasked = false, pairs = [];
+    var best = null, anyOutside = false, anyMasked = false, pairs = [];
     // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
     for (i = 0; i < candA.length; i++) for (j = 0; j < candB.length; j++) {
       var rA = eA[candA[i]][0] - (A.off || 0), rB = eB[candB[j]][0] - (B.off || 0);
       if (!G.pairFeasible(rA, rB, A, B, hand.zwork)) continue;
       var p = G.locate(rA, rB, A, B, hand.zwork, null, plane);
-      if (p.x < -margin || p.x > plane.w + margin || p.y < -margin || p.y > plane.d + margin || p.res > 60) { anyOutside = true; continue; }
+      if (p.x < 0 || p.x > plane.w || p.y < 0 || p.y > plane.d || p.res > 60) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
       pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB });
     }
@@ -156,7 +156,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var score = q.rA + q.rB + 4 * q.p.res + 0.35 * Math.min(200, unc);
       if (opts.prev) score += 2.5 * trackErr;
       var evidence = q.p.res + (opts.prev ? 0.35 * trackErr : 0) + 0.15 * Math.min(200, unc);
-      if (!best || score < best.score) best = { x: U.clamp(q.p.x, 0, plane.w), y: U.clamp(q.p.y, 0, plane.d), ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB, uncertainty: unc, confidence: 1 / (1 + evidence / 25) };
+      if (!best || score < best.score) best = { x: q.p.x, y: q.p.y, ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB, uncertainty: unc, confidence: 1 / (1 + evidence / 25) };
     });
     if (!best) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
     if (opts.prev && opts.maxJump > 0) {
