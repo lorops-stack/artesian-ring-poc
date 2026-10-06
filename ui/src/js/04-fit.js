@@ -218,6 +218,23 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, envRef: U.round(envRef, 1), envK: U.round(envK, 2), handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
   };
+  // Commissioning boundary stress: evaluate points immediately either side of every internal zone boundary.
+  // Returns a safety-weighted margin summary; disposal/hot mistakes carry higher weight than benign water-zone confusion.
+  F.boundaryPlan = function (cfg, inset) {
+    inset = inset || 18; var zones=G.zones(cfg.layout,cfg.layouts), P=cfg.plane, pts=[], seen={};
+    function risk(a,b){return (a==='disposal'||b==='disposal')?5:((a==='hot'||b==='hot')?3:1);}
+    zones.forEach(function(a){zones.forEach(function(b){if(a.id>=b.id)return;
+      var key, x,y;
+      if(Math.abs(a.x1-b.x0)<1e-6 && Math.max(a.y0,b.y0)<Math.min(a.y1,b.y1)){y=(Math.max(a.y0,b.y0)+Math.min(a.y1,b.y1))/2*P.d;x=a.x1*P.w;key='v/'+x.toFixed(1)+'/'+y.toFixed(1);if(!seen[key]){seen[key]=1;pts.push({axis:'x',x:x,y:y,a:a.fn,b:b.fn,risk:risk(a.fn,b.fn),tests:[{x:x-inset,y:y,expect:a.fn},{x:x+inset,y:y,expect:b.fn}]});}}
+      if(Math.abs(a.y1-b.y0)<1e-6 && Math.max(a.x0,b.x0)<Math.min(a.x1,b.x1)){x=(Math.max(a.x0,b.x0)+Math.min(a.x1,b.x1))/2*P.w;y=a.y1*P.d;key='h/'+x.toFixed(1)+'/'+y.toFixed(1);if(!seen[key]){seen[key]=1;pts.push({axis:'y',x:x,y:y,a:a.fn,b:b.fn,risk:risk(a.fn,b.fn),tests:[{x:x,y:y-inset,expect:a.fn},{x:x,y:y+inset,expect:b.fn}]});}}
+    });}); return pts.sort(function(a,b){return b.risk-a.risk;});
+  };
+  F.scoreBoundaryRun = function (plan, observations) {
+    var by={}, total=0, weighted=0, wrong=0, safetyWrong=0; (observations||[]).forEach(function(o){by[o.id+'/'+o.side]=o.actual;});
+    plan.forEach(function(p,pi){p.tests.forEach(function(t,si){var a=by[pi+'/'+si];if(a==null)return;total+=p.risk;weighted+=a===t.expect?p.risk:0;if(a!==t.expect){wrong++;if(p.risk>1)safetyWrong++;}});});
+    return {weightedAccuracy:total?weighted/total:null,wrong:wrong,safetyWrong:safetyWrong,pass:total>0&&safetyWrong===0&&weighted/total>=0.95};
+  };
+
   // ---- Self-calibration from a free sweep (Aim screen) -----------------------------------------------------------------------------------
   // Position needs only the sensor positions, not their angles; the aim only changes how strong the echoes are. So the aim can be
   // read from the strengths while a hand moves around the sink: the beam is strongest along its centre line.
