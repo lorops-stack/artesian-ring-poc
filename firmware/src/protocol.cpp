@@ -1,6 +1,7 @@
 // protocol.cpp - JSON for frames, events, status, health (docs/10-protocol.md) and the command dispatcher.
 #include "app.h"
 #include "config_json.h"
+#include "bounded_writer.h"
 #include <esp_system.h>
 #include <WiFi.h>
 
@@ -10,39 +11,33 @@ namespace app { namespace proto {
 static const char* resetReason() {
   switch (esp_reset_reason()) { case ESP_RST_POWERON: return "POWERON"; case ESP_RST_SW: return "SW_RESET"; case ESP_RST_PANIC: return "PANIC"; case ESP_RST_INT_WDT: return "INT_WDT"; case ESP_RST_TASK_WDT: return "TASK_WDT"; case ESP_RST_WDT: return "WDT"; case ESP_RST_BROWNOUT: return "BROWNOUT"; case ESP_RST_DEEPSLEEP: return "DEEPSLEEP"; case ESP_RST_EXT: return "EXT"; default: return "UNKNOWN"; }
 }
-static int sensorJson(const SensorFrame& s, char* out, int n) {
-  int p = snprintf(out, n, "{\"e\":[");
-  for (int i = 0; i < s.n && p < n - 24; i++) p += snprintf(out + p, n - p, "%s[%d,%d]", i ? "," : "", (int)s.e[i].d, (int)s.e[i].s);
-  p += snprintf(out + p, n - p, "]"); if (s.p >= 0) p += snprintf(out + p, n - p, ",\"p\":%d", s.p);
-  p += snprintf(out + p, n - p, ",\"hz\":%.1f,\"er\":%lu}", s.hz, (unsigned long)s.er); return p;
+static void sensorJson(const SensorFrame& s, BoundedWriter& w) {
+  w.append("{\"e\":[");
+  for (int i = 0; i < s.n && !w.truncated(); i++) w.append("%s[%d,%d]", i ? "," : "", (int)s.e[i].d, (int)s.e[i].s);
+  w.append("]"); if (s.p >= 0) w.append(",\"p\":%d", s.p);
+  w.append(",\"hz\":%.1f,\"er\":%lu}", s.hz, (unsigned long)s.er);
 }
 int frameJson(const Frame& f, char* out, int n) {
-  int p = snprintf(out, n, "{\"f\":{\"t\":%lu,\"n\":%lu,\"st\":%d", (unsigned long)f.t, (unsigned long)f.n, (int)f.st);
-  if (f.fn != Fn::None) p += snprintf(out + p, n - p, ",\"fn\":\"%s\"", fnName(f.fn));
-  if (f.zn[0]) p += snprintf(out + p, n - p, ",\"zn\":\"%s\"", f.zn);
-  if (f.hasHand) p += snprintf(out + p, n - p, ",\"hx\":%.1f,\"hy\":%.1f", f.hx, f.hy);
-  p += snprintf(out + p, n - p, ",\"spd\":%d,\"set\":%.3f,\"ex\":%.3f,\"dsp\":%.1f,\"cup\":%d,\"lk\":%d,\"flag\":%d,\"still\":%.1f", (int)f.spd, f.set, f.ex, f.dsp, (int)f.cup, f.lk, f.flag, f.still);
-  if (f.st == CLEAN) p += snprintf(out + p, n - p, ",\"cln\":%.1f", f.cln);
-  if (f.lat >= 0) p += snprintf(out + p, n - p, ",\"lat\":%d", f.lat);
-  p += snprintf(out + p, n - p, ",\"A\":"); p += sensorJson(f.A, out + p, n - p);
-  p += snprintf(out + p, n - p, ",\"B\":"); p += sensorJson(f.B, out + p, n - p);
-  p += snprintf(out + p, n - p, "}}"); return p;
+  if (!out || n <= 0) return 0; BoundedWriter w(out, (size_t)n);
+  w.append("{\"f\":{\"t\":%lu,\"n\":%lu,\"st\":%d", (unsigned long)f.t, (unsigned long)f.n, (int)f.st);
+  if (f.fn != Fn::None) w.append(",\"fn\":\"%s\"", fnName(f.fn));
+  if (f.zn[0]) w.append(",\"zn\":\"%s\"", f.zn);
+  if (f.hasHand) w.append(",\"hx\":%.1f,\"hy\":%.1f", f.hx, f.hy);
+  w.append(",\"spd\":%d,\"set\":%.3f,\"ex\":%.3f,\"dsp\":%.1f,\"cup\":%d,\"lk\":%d,\"flag\":%d,\"still\":%.1f", (int)f.spd, f.set, f.ex, f.dsp, (int)f.cup, f.lk, f.flag, f.still);
+  if (f.st == CLEAN) w.append(",\"cln\":%.1f", f.cln);
+  if (f.lat >= 0) w.append(",\"lat\":%d", f.lat);
+  w.append(",\"A\":"); sensorJson(f.A, w); w.append(",\"B\":"); sensorJson(f.B, w); w.append("}}");
+  return (int)w.size();
 }
 void eventJson(const Event& e, char* out, int n) {
-  const char* name = "";
+  if (!out || n <= 0) return; BoundedWriter w(out, (size_t)n); const char* name = "";
   switch (e.type) { case Ev::Session: name = "session"; break; case Ev::Latch: name = "latch"; break; case Ev::Soap: name = "soap"; break; case Ev::CupFull: name = "cupfull"; break; case Ev::Disp: name = "disp"; break; case Ev::Off: name = "off"; break; case Ev::Still: name = "still"; break; case Ev::Clean: name = "clean"; break; case Ev::FalseOff: name = "falseoff"; break; case Ev::HeldOn: name = "heldon"; break; case Ev::Resume: name = "resume"; break; case Ev::Layout: name = "layout"; break; case Ev::Bg: name = "bg"; break; }
-  int p = snprintf(out, n, "{\"ev\":\"%s\",\"t\":%lu", name, (unsigned long)e.t);
-  if (e.fn != Fn::None) p += snprintf(out + p, n - p, ",\"fn\":\"%s\"", fnName(e.fn));
-  if (e.lat >= 0) p += snprintf(out + p, n - p, ",\"lat\":%d", e.lat);
-  if (e.a) p += snprintf(out + p, n - p, ",\"a\":\"%s\"", e.a);
-  if (e.why) p += snprintf(out + p, n - p, ",\"why\":\"%s\"", e.why);
-  if (e.id) p += snprintf(out + p, n - p, ",\"id\":\"%s\"", e.id);
-  if (e.type == Ev::Session && e.a && e.a[1] == 'n') p += snprintf(out + p, n - p, ",\"ms\":%lu,\"used\":%.0f,\"savedOff\":%.0f,\"savedFlow\":%.0f", (unsigned long)e.ms, e.used, e.savedOff, e.savedFlow);
-  if (e.type == Ev::CupFull || e.type == Ev::Soap) p += snprintf(out + p, n - p, ",\"ml\":%.1f", e.ml);
-  if (e.type == Ev::Off) p += snprintf(out + p, n - p, ",\"water\":%s", e.water ? "true" : "false");
-  if (e.type == Ev::Still) p += snprintf(out + p, n - p, ",\"x\":%.0f,\"y\":%.0f", e.x, e.y);
-  if (e.type == Ev::HeldOn) p += snprintf(out + p, n - p, ",\"frames\":%d", e.frames);
-  snprintf(out + p, n - p, "}");
+  w.append("{\"ev\":\"%s\",\"t\":%lu", name, (unsigned long)e.t);
+  if (e.fn != Fn::None) w.append(",\"fn\":\"%s\"", fnName(e.fn)); if (e.lat >= 0) w.append(",\"lat\":%d", e.lat);
+  if (e.a) w.append(",\"a\":\"%s\"", e.a); if (e.why) w.append(",\"why\":\"%s\"", e.why); if (e.id) w.append(",\"id\":\"%s\"", e.id);
+  if (e.type == Ev::Session && e.a && e.a[1] == 'n') w.append(",\"ms\":%lu,\"used\":%.0f,\"savedOff\":%.0f,\"savedFlow\":%.0f", (unsigned long)e.ms, e.used, e.savedOff, e.savedFlow);
+  if (e.type == Ev::CupFull || e.type == Ev::Soap) w.append(",\"ml\":%.1f", e.ml); if (e.type == Ev::Off) w.append(",\"water\":%s", e.water ? "true" : "false");
+  if (e.type == Ev::Still) w.append(",\"x\":%.0f,\"y\":%.0f", e.x, e.y); if (e.type == Ev::HeldOn) w.append(",\"frames\":%d", e.frames); w.append("}");
 }
 void statusJson(JsonObject o) {
   o["fw"] = RING_FW_VERSION; o["proto"] = RING_PROTO; o["up"] = millis(); o["rst"] = resetReason(); o["setup"] = g.setupNeeded; o["heap"] = ESP.getFreeHeap(); o["clients"] = (int)g.clients;
