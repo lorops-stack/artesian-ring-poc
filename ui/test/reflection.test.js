@@ -43,6 +43,19 @@ test('back-edge lock is gone: a track pinned at y=0 does not drag the next fix o
   assert.ok(back.y > 0, 'mirror root is never returned');
 });
 
+test('measured 19.25in bench: degenerate near pair is rejected before it can poison acquisition', () => {
+  const c = rig(); c.plane.w = 488.95; c.plane.d = 533.4; c.sensors.B.x = 488.95;
+  const A = c.sensors.A, B = c.sensors.B;
+  const bad = G().associate([[228, 45]], [[222, 33]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+  assert.equal(bad.flag, RS.FLAG.OUTSIDE, '228/222 mm is a near-baseline, ill-conditioned pair on the measured rig');
+  const good = G().associate([[408, 141]], [[457, 136]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+  assert.equal(good.flag, RS.FLAG.NONE); assert.ok(Math.abs(good.x - 201) < 3); assert.ok(Math.abs(good.y - 355) < 3);
+  // This exact shape occurred on hardware: short clutter on both sides plus a valid longer pair. Independent
+  // per-sensor minima used to create a near window that no pair could pass; acquisition must now remain possible.
+  const mixed = G().associate([[228, 45], [408, 141]], [[222, 33], [457, 136]], { A, B, hand: c.hand, plane: c.plane, nearWin: 120 });
+  assert.equal(mixed.flag, RS.FLAG.NONE);
+});
+
 test('first-arrival rule: a metal-sink bounce later than the hand is dropped on both sensors', () => {
   const c = rig(), A = c.sensors.A, B = c.sensors.B, h = c.hand.zwork, x = 200, y = 180;
   const rA = Math.round(G().range(A, x, y, h)), rB = Math.round(G().range(B, x, y, h));
