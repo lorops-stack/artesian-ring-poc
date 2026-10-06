@@ -123,6 +123,14 @@ void test_associate() {
 void test_masks_and_flat_defaults() {
   Config c; setDefaults(c);
   TEST_ASSERT_EQUAL_FLOAT(0, c.A.tilt); TEST_ASSERT_EQUAL_FLOAT(0, c.hand.zwork); TEST_ASSERT_EQUAL_STRING("flat", c.rig.mount); TEST_ASSERT_EQUAL(0, c.nMasks);
+  TEST_ASSERT_FLOAT_WITHIN(0.01, 488.95f, c.plane.w); TEST_ASSERT_FLOAT_WITHIN(0.01, 482.60f, c.plane.d);
+  // Bench body-only evidence: 559/602 mm solves to about (193,524), beyond the measured 19 in front edge.
+  // It must be rejected, while the simultaneous near wood/hand pair remains a valid in-plane target.
+  Echo bodyA[1] = { { 559, 73 } }, bodyB[1] = { { 602, 72 } };
+  AssocOpts bodyO{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; bodyO.nearWin = 120;
+  TEST_ASSERT_EQUAL(FLAG_OUTSIDE, associate(bodyA, 1, bodyB, 1, bodyO).flag);
+  Echo handA[1] = { { 395, 100 } }, handB[1] = { { 405, 100 } };
+  TEST_ASSERT_EQUAL(FLAG_NONE, associate(handA, 1, handB, 1, bodyO).flag);
   float h = c.hand.zwork;
   float a1 = range(c.A, 430, 150, h), b1 = range(c.B, 430, 150, h), a2 = range(c.A, 150, 400, h), b2 = range(c.B, 150, 400, h);
   auto amp = [](float d, float ref) { return ref * powf(300.0f / d, 2.0f); };
