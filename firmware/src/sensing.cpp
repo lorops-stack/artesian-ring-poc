@@ -15,7 +15,7 @@ static EchoHold holdA(ECHO_HOLD_FRAMES), holdB(ECHO_HOLD_FRAMES);
 static Tracker tracker; static bool hasPrev = false; static float prevX = 0, prevY = 0; static int miss = 0, jumps = 0; static float jumpX = 0, jumpY = 0; static uint32_t jumpT = 0;
 static Echo bgA[8], bgB[8]; static int nBgA = 0, nBgB = 0;          // still objects learned by the stillness rule
 static uint32_t lastA = 0, lastB = 0; static float hzA = 0, hzB = 0; static uint32_t frameN = 0;
-static uint32_t idleSince = 0; static bool relearnDone = false; static uint32_t lastSerial = 0; static uint32_t lastRecal = 0;
+static uint32_t idleSince = 0; static bool relearnDone = false; static uint32_t lastSerial = 0; static uint32_t lastDiagSerial = 0; static uint32_t lastRecal = 0;
 static float spreadBuf[24]; static int spreadN = 0;
 
 xm125::Sensor& sensor(char which) { return which == 'A' ? sA : sB; }
@@ -136,6 +136,20 @@ void step() {
   else if (quiet && (f.A.calNeeded || f.B.calNeeded) && f.t - lastRecal > 20000) { lastRecal = f.t; if (f.A.calNeeded) sA.recalibrate(); if (f.B.calNeeded) sB.recalibrate(); }
   g.checkFailing = !(f.A.alive && f.B.alive);
   g.frame = f;
+  // Bench diagnostic view: keep a low-rate raw/fusion trace on USB even while Ring Studio is connected.
+  // This is intentionally ~5 Hz so diagnostics do not recreate the WebSocket backpressure problem.
+  if (g.clients > 0 && f.t - lastDiagSerial >= 200) {
+    lastDiagSerial = f.t; char line[512]; BoundedWriter w(line, sizeof line);
+    w.append("[diag] A%d", f.A.n);
+    for (int i = 0; i < f.A.n && i < 3 && !w.truncated(); i++) w.append("%s%.0f/%.0f", i ? "," : " ", f.A.e[i].d, f.A.e[i].s);
+    w.append(" B%d", f.B.n);
+    for (int i = 0; i < f.B.n && i < 3 && !w.truncated(); i++) w.append("%s%.0f/%.0f", i ? "," : " ", f.B.e[i].d, f.B.e[i].s);
+    w.append(" pick=%d/%d assoc=%s", a.iA, a.iB, flagName(a.flag));
+    if (a.flag != FLAG_NO_HAND) w.append(" raw=%.0f,%.0f r=%.1f u=%.1f", a.ux, a.uy, a.resid, a.uncertainty);
+    if (f.hasHand) w.append(" track=%.0f,%.0f spd=%.0f", f.hx, f.hy, f.spd);
+    else w.append(" track=none");
+    Serial.println(line);
+  }
   // Phase 0 view: with no Ring Studio connected, print the echo lists on USB serial
   if (g.clients == 0 && f.t - lastSerial >= 45) {
     lastSerial = f.t; char line[256]; BoundedWriter w(line, sizeof line);
