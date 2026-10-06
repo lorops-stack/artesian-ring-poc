@@ -128,7 +128,7 @@ void begin() {
 #else
   server.on("/api/update", HTTP_ANY, [](AsyncWebServerRequest* r) { r->send(403, "application/json", "{\"err\":\"OTA disabled\"}"); });
 #endif
-  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("max-age=600");
+  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("no-cache");  // commissioning UI must pick up a newly uploaded filesystem immediately
   server.onNotFound([](AsyncWebServerRequest* r) { if (r->method() == HTTP_OPTIONS) r->send(200); else r->send(404, "text/plain", "Not found. Ring Studio files missing? Run tools/build_ui.py and Upload Filesystem Image."); });
   server.begin();
   Serial.println("[web] server started");
