@@ -79,6 +79,14 @@ bool strengthInEnvelope(const HandModel& h, float d, float s) {
   float expct = h.envRef * powf(300.0f / d, h.envK), db = 20.0f * log10f(s / expct);
   return fabsf(db) <= h.envDb;
 }
+float geometryUncertainty(const SensorPose& A, const SensorPose& B, float x, float y, float h, float rangeSigma) {
+  float rA = range(A,x,y,h), rB = range(B,x,y,h); if (rA < 1 || rB < 1) return 999;
+  float j00=(x-A.x)/rA, j01=(y-A.y)/rA, j10=(x-B.x)/rB, j11=(y-B.y)/rB;
+  float det=j00*j11-j01*j10; if (fabsf(det)<1e-4f) return 999;
+  float i00=j11/det, i01=-j01/det, i10=-j10/det, i11=j00/det;
+  float sx=rangeSigma*sqrtf(i00*i00+i01*i01), sy=rangeSigma*sqrtf(i10*i10+i11*i11);
+  return hypotf(sx,sy);
+}
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o) {
   Assoc out{}; out.flag = FLAG_NO_HAND; out.iA = out.iB = -1;
   int candA[10], candB[10], ca = 0, cb = 0; bool strengthFail = false;
@@ -112,15 +120,25 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   for (int k = 0; k < np; k++) {
     const Pair& q = pr[k];
     if (eA[q.a].d > limA || eB[q.b].d > limB) continue;
-    float score = q.rA + q.rB; if (o.hasPrev) score += 2.5f * hypotf(q.x - o.prevX, q.y - o.prevY);
+    float trackErr = o.hasPrev ? hypotf(q.x - o.prevX, q.y - o.prevY) : 0;
+    float unc = geometryUncertainty(*o.A, *o.B, q.x, q.y, o.hand->zwork);
+    // Score evidence, not just range. Residual rejects inconsistent circle pairs; prediction rejects echoes moving
+    // unlike the established hand; uncertainty mildly disfavors intrinsically ill-conditioned fixes.
+    float score = q.rA + q.rB + 4.0f * q.res + 0.35f * (unc > 200 ? 200 : unc);
+    if (o.hasPrev) score += 2.5f * trackErr;
     if (!have || score < bestScore) {
       have = true; bestScore = score; out.ux = q.x; out.uy = q.y;
       out.x = q.x < 0 ? 0 : (q.x > o.plane->w ? o.plane->w : q.x); out.y = q.y < 0 ? 0 : (q.y > o.plane->d ? o.plane->d : q.y);
-      out.iA = q.a; out.iB = q.b; out.rA = q.rA; out.rB = q.rB; out.res = q.res;
+      out.iA = q.a; out.iB = q.b; out.rA = q.rA; out.rB = q.rB; out.res = q.res; out.uncertainty = unc;
+      float evidence = q.res + (o.hasPrev ? 0.35f * trackErr : 0) + 0.15f * (unc > 200 ? 200 : unc);
+      out.confidence = 1.0f / (1.0f + evidence / 25.0f);
     }
   }
   if (!have) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
-  if (o.hasPrev && o.maxJump > 0 && hypotf(out.ux - o.prevX, out.uy - o.prevY) > o.maxJump) { out.flag = FLAG_JUMP; return out; }
+  if (o.hasPrev && o.maxJump > 0) {
+    float dynamicJump = o.maxJump + fminf(180.0f, fabsf(o.speed) * fmaxf(0.0f, o.dt) * 1.5f) + fminf(100.0f, out.uncertainty);
+    if (hypotf(out.ux - o.prevX, out.uy - o.prevY) > dynamicJump) { out.flag = FLAG_JUMP; return out; }
+  }
   out.flag = FLAG_NONE; return out;
 }
 
