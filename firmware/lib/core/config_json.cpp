@@ -83,11 +83,8 @@ bool configFromJson(const JsonObjectConst in, Config& c) {
     if (!c.nProfiles) { c.nProfiles = 1; c.profiles[0] = Profile(); }
   }
   JsonObjectConst u = in["units"]; if (!u.isNull() && u["temp"].is<const char*>()) cpy(c.tempUnit, sizeof c.tempUnit, u["temp"]);
-  // sanity
-  if (t.ledCount < 1 || t.ledCount > 600) t.ledCount = 132;
-  if (t.rangeEnd <= t.rangeStart) t.rangeEnd = t.rangeStart + 100;
-  if (c.plane.w < 100) c.plane.w = 584.2f;
-  if (c.plane.d < 100) c.plane.d = 533.4f;
+  // Parsing preserves supplied values. Validation is intentionally separate so malformed
+  // persisted/imported/operator configuration is rejected rather than silently rewritten.
   return true;
 }
 
