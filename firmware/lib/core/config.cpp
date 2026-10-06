@@ -16,7 +16,10 @@ void defaultLayouts(Config& c) {
 }
 void setDefaults(Config& c) {
   c = Config();
-  c.A = SensorPose{ 0, 0, 0, 45, 0, 0, true }; c.B = SensorPose{ 584.2f, 0, 0, 135, 0, 0, true }; c.C = SensorPose{ 292.1f, 533.4f, 0, 270, 0, 0, false };
+  // Current hardware bench: measured antenna-centre baseline 19.25 in = 488.95 mm. The interaction plane is level with the sensors (z=0).
+  // Keep the intended sink depth at 21 in; hard geometry rejection prevents any X/Y fix outside this plane from becoming a hand.
+  c.plane.w = 488.95f; c.plane.d = 533.4f;
+  c.A = SensorPose{ 0, 0, 0, 45, 0, 0, true }; c.B = SensorPose{ 488.95f, 0, 0, 135, 0, 0, true }; c.C = SensorPose{ 244.475f, 533.4f, 0, 270, 0, 0, false };
   defaultLayouts(c);
   c.nProfiles = 1; c.profiles[0] = Profile();
 }
