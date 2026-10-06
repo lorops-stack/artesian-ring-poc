@@ -109,6 +109,14 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var expct = hand.envRef * Math.pow(300 / d, hand.envK == null ? 2 : hand.envK), db = 20 * Math.log10(s / expct);
     return Math.abs(db) <= (hand.envDb == null ? 12 : hand.envDb);
   };
+  // Soft two-sensor consistency evidence. Range-normalise each linear amplitude using the same falloff model as C8;
+  // aspect differences are allowed, but cross-pairs from unrelated reflectors receive a strong score penalty.
+  G.pairStrengthMismatchDb = function (rA, sA, rB, sB, k) {
+    if (!(rA > 1) || !(rB > 1) || !(sA > 0) || !(sB > 0)) return 0;
+    k = k == null ? 2 : k;
+    var a = sA * Math.pow(rA / 300, k), b = sB * Math.pow(rB / 300, k);
+    return (a > 0 && b > 0) ? Math.abs(20 * Math.log10(a / b)) : 0;
+  };
   G.geometryUncertainty = function (A, B, x, y, h, sigma) {
     sigma = sigma == null ? 8 : sigma;
     var rA=G.range(A,x,y,h), rB=G.range(B,x,y,h); if(rA<1||rB<1) return 999;
@@ -139,7 +147,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var unc0 = G.geometryUncertainty(A, B, p.x, p.y, hand.zwork, opts.rangeSigma || 8);
       if (unc0 > 120) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
-      pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB, unc: unc0 });
+      var ampDb = G.pairStrengthMismatchDb(rA, eA[candA[i]][1], rB, eB[candB[j]][1], hand.envK);
+      pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB, unc: unc0, ampDb: ampDb });
     }
     if (!pairs.length) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
     // First-arrival rule (nearWin). The direct path is the shortest path a radar pulse can take, so on each sensor the
@@ -147,25 +156,20 @@ var RS = globalThis.RS || (globalThis.RS = {});
     // established track the reference is the pair nearest the track instead, so a cup set down nearer the sensor than the
     // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
     var limA = Infinity, limB = Infinity;
-    if (opts.nearWin > 0) {
-      var refA = Infinity, refB = Infinity, k0 = null;
-      if (opts.prev) {
-        var bd = Infinity; pairs.forEach(function (q) { var dd = U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y); if (dd < bd) { bd = dd; k0 = q; } });
-      } else {
-        // Use one coherent pair as the acquisition reference. Independent A/B minima can belong to different
-        // reflectors and make a near window that no valid pair can satisfy.
-        var bs = Infinity; pairs.forEach(function (q) { var sc = q.rA + q.rB + 4 * q.p.res + 0.35 * q.unc; if (sc < bs) { bs = sc; k0 = q; } });
-      }
-      refA = eA[k0.ia][0]; refB = eB[k0.ib][0];
-      limA = refA + opts.nearWin; limB = refB + opts.nearWin;
+    // Do not apply a shortest-path gate while acquiring. The bench shows short clutter can coexist with the real
+    // farther hand return. Once a track exists, nearWin remains useful for rejecting later bounces around that track.
+    if (opts.nearWin > 0 && opts.prev) {
+      var k0 = null, bd = Infinity;
+      pairs.forEach(function (q) { var dd = U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y); if (dd < bd) { bd = dd; k0 = q; } });
+      limA = eA[k0.ia][0] + opts.nearWin; limB = eB[k0.ib][0] + opts.nearWin;
     }
     pairs.forEach(function (q) {
       if (eA[q.ia][0] > limA || eB[q.ib][0] > limB) return;
       var trackErr = opts.prev ? U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y) : 0;
       var unc = q.unc;
-      var score = q.rA + q.rB + 4 * q.p.res + 0.35 * Math.min(200, unc);
+      var score = q.rA + q.rB + 4 * q.p.res + 0.35 * Math.min(200, unc) + 12 * Math.min(30, q.ampDb || 0);
       if (opts.prev) score += 2.5 * trackErr;
-      var evidence = q.p.res + (opts.prev ? 0.35 * trackErr : 0) + 0.15 * Math.min(200, unc);
+      var evidence = q.p.res + (opts.prev ? 0.35 * trackErr : 0) + 0.15 * Math.min(200, unc) + 0.5 * Math.min(30, q.ampDb || 0);
       if (!best || score < best.score) best = { x: q.p.x, y: q.p.y, ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB, uncertainty: unc, confidence: 1 / (1 + evidence / 25) };
     });
     if (!best) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
