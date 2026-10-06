@@ -72,6 +72,14 @@ static bool isBg(const Echo* bg, int n, float d, float s) {
   for (int i = 0; i < n; i++) if (fabsf(bg[i].d - d) <= 15 && s < bg[i].s * 1.8f + 1) return true;
   return false;
 }
+// Both XM125s view the same hand, so after compensating the expected range falloff their amplitudes should be
+// broadly compatible. This is deliberately a SOFT score, not a rejection: hand aspect can favour one sensor.
+static float pairStrengthMismatchDb(float rA, float sA, float rB, float sB, float k) {
+  if (!(rA > 1) || !(rB > 1) || !(sA > 0) || !(sB > 0)) return 0;
+  float a = sA * powf(rA / 300.0f, k), b = sB * powf(rB / 300.0f, k);
+  if (!(a > 0) || !(b > 0)) return 0;
+  return fabsf(20.0f * log10f(a / b));
+}
 // Hand strength envelope: a hand at range d returns about envRef * (300 / d) ^ envK. An echo more than envDb away from that
 // is not a hand at that range (a metal wall is far above it, a second bounce far below). envRef 0 = off (C8 learns it).
 bool strengthInEnvelope(const HandModel& h, float d, float s) {
@@ -95,7 +103,7 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   if (!ca || !cb) { out.flag = (nA || nB) ? (strengthFail ? FLAG_STRENGTH : FLAG_NO_HAND) : FLAG_NO_HAND; return out; }
   bool have = false, anyOutside = false, anyMasked = false; float bestScore = 0;
   // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
-  struct Pair { int a, b; float x, y, res, rA, rB, unc; }; Pair pr[100]; int np = 0;
+  struct Pair { int a, b; float x, y, res, rA, rB, unc, ampDb; }; Pair pr[100]; int np = 0;
   float gx = o.plane->w / 2, gy = o.plane->d / 2;                                  // the sink side of the baseline
   for (int i = 0; i < ca; i++) for (int j = 0; j < cb; j++) {
     float rA = eA[candA[i]].d - o.A->off, rB = eB[candB[j]].d - o.B->off;
@@ -108,7 +116,8 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     float unc = geometryUncertainty(*o.A, *o.B, x, y, o.hand->zwork);
     if (unc > 120.0f) { anyOutside = true; continue; }
     if (o.masks && o.nMasks && maskHit(o.masks, o.nMasks, x, y)) { anyMasked = true; continue; }     // a dead area: this pair is ignored, the next best may still win
-    pr[np++] = { candA[i], candB[j], x, y, res, rA, rB, unc };
+    float ampDb = pairStrengthMismatchDb(rA, eA[candA[i]].s, rB, eB[candB[j]].s, o.hand->envK);
+    pr[np++] = { candA[i], candB[j], x, y, res, rA, rB, unc, ampDb };
   }
   if (!np) { out.flag = anyMasked ? FLAG_MASKED : (anyOutside ? FLAG_OUTSIDE : FLAG_NO_HAND); return out; }
   // First-arrival rule (nearWin). The direct path is the shortest path a radar pulse can take, so on each sensor the
@@ -116,17 +125,12 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   // established track the reference is the pair nearest the track instead, so a cup set down nearer the sensor than the
   // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
   float limA = 1e9f, limB = 1e9f;
-  if (o.nearWin > 0) {
-    float refA = 1e9f, refB = 1e9f; int k0 = 0;
-    if (o.hasPrev) {
-      float bd = 1e9f; for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
-    } else {
-      // The reference must be one REAL PAIR. Taking the minimum A and minimum B independently can combine echoes
-      // from different targets and create limits that no geometrically valid pair can satisfy.
-      float bs = 1e9f; for (int k = 0; k < np; k++) { float s = pr[k].rA + pr[k].rB + 4.0f * pr[k].res + 0.35f * pr[k].unc; if (s < bs) { bs = s; k0 = k; } }
-    }
-    refA = eA[pr[k0].a].d; refB = eB[pr[k0].b].d;
-    limA = refA + o.nearWin; limB = refB + o.nearWin;
+  // First-arrival gating is useful only AFTER acquisition. On an untracked scene, short clutter from different
+  // reflectors can otherwise prevent a perfectly valid farther hand pair from ever being considered.
+  if (o.nearWin > 0 && o.hasPrev) {
+    int k0 = 0; float bd = 1e9f;
+    for (int k = 0; k < np; k++) { float dd = hypotf(pr[k].x - o.prevX, pr[k].y - o.prevY); if (dd < bd) { bd = dd; k0 = k; } }
+    limA = eA[pr[k0].a].d + o.nearWin; limB = eB[pr[k0].b].d + o.nearWin;
   }
   for (int k = 0; k < np; k++) {
     const Pair& q = pr[k];
@@ -135,13 +139,13 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
     float unc = q.unc;
     // Score evidence, not just range. Residual rejects inconsistent circle pairs; prediction rejects echoes moving
     // unlike the established hand; uncertainty mildly disfavors intrinsically ill-conditioned fixes.
-    float score = q.rA + q.rB + 4.0f * q.res + 0.35f * (unc > 200 ? 200 : unc);
+    float score = q.rA + q.rB + 4.0f * q.res + 0.35f * (unc > 200 ? 200 : unc) + 12.0f * fminf(30.0f, q.ampDb);
     if (o.hasPrev) score += 2.5f * trackErr;
     if (!have || score < bestScore) {
       have = true; bestScore = score; out.ux = q.x; out.uy = q.y;
       out.x = q.x; out.y = q.y;
       out.iA = q.a; out.iB = q.b; out.rA = q.rA; out.rB = q.rB; out.res = q.res; out.uncertainty = unc;
-      float evidence = q.res + (o.hasPrev ? 0.35f * trackErr : 0) + 0.15f * (unc > 200 ? 200 : unc);
+      float evidence = q.res + (o.hasPrev ? 0.35f * trackErr : 0) + 0.15f * (unc > 200 ? 200 : unc) + 0.5f * fminf(30.0f, q.ampDb);
       out.confidence = 1.0f / (1.0f + evidence / 25.0f);
     }
   }
