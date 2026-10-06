@@ -152,7 +152,7 @@ test('robust wand fit resists a large multipath outlier and reports validation q
   for(const H of holes) for(const depth of RS.calDepths(c)){ const s={hole:H.n,depth}; for(const k of ['A','B']) s[k]=[RS.geo.range(truth[k],H.x,H.y,depth)+truth[k].off-20+2*rnd.gauss(),1200]; samples.push(s); }
   samples.find(s=>s.hole===6).A[0]+=140;
   const fit=RS.fit.wandFit(samples,c); assert.ok(fit.fits.A.outliers.length>=1); assert.ok(Math.abs(fit.fits.A.off-truth.A.off)<12,'offset '+fit.fits.A.off);
-  assert.ok(fit.validationRms!==null && fit.validation.length>=14); assert.ok(['excellent','good','marginal'].includes(fit.quality),'quality '+fit.quality);
+  assert.ok(fit.validationRms!==null && fit.validation.length>=14); assert.equal(fit.quality,'fail','independent validation must expose the corrupted held-out hole instead of blessing the training fit'); assert.ok(fit.validationWorst && fit.validationWorst.err>55,'worst held-out error '+(fit.validationWorst&&fit.validationWorst.err));
 });
 
 test('boundary commissioning prioritizes disposal and hot transitions', () => {
