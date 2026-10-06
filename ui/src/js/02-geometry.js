@@ -109,8 +109,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var expct = hand.envRef * Math.pow(300 / d, hand.envK == null ? 2 : hand.envK), db = 20 * Math.log10(s / expct);
     return Math.abs(db) <= (hand.envDb == null ? 12 : hand.envDb);
   };
-  // Soft two-sensor consistency evidence. Before C8, compare raw A/B amplitudes only; after C8 has fitted the
-  // range falloff, compare range-normalised amplitudes. This avoids inventing a d^-2 correction before calibration.
+  // Soft two-sensor consistency evidence. Range-normalise each linear amplitude using the hand falloff model.
+  // Before C8 this uses the conservative default exponent; C8 then replaces it with the measured exponent.
   G.pairStrengthMismatchDb = function (rA, sA, rB, sB, k) {
     if (!(rA > 1) || !(rB > 1) || !(sA > 0) || !(sB > 0)) return 0;
     k = k == null ? 2 : k;
@@ -147,7 +147,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var unc0 = G.geometryUncertainty(A, B, p.x, p.y, hand.zwork, opts.rangeSigma || 8);
       if (unc0 > 120) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
-      var ampDb = G.pairStrengthMismatchDb(rA, eA[candA[i]][1], rB, eB[candB[j]][1], hand.envRef > 0 ? hand.envK : 0);
+      var ampDb = G.pairStrengthMismatchDb(rA, eA[candA[i]][1], rB, eB[candB[j]][1], hand.envK);
       pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB, unc: unc0, ampDb: ampDb });
     }
     if (!pairs.length) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
