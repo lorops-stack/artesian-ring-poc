@@ -5,7 +5,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
 (function () {
   'use strict';
   var U = RS.util, h = U.h, L = RS.link, S = RS.store, G = RS.geo, rgba = U.rgba;
-  var COL = { A: '#7FD0FF', B: '#FFB27A' }, BAD = '#FF6B6B', OK = '#7FE0C4', WARN = '#F2B44B', HEAT = '#FFB000';
+  var COL = { A: '#7FD0FF', B: '#FFB27A', C:'#B6A0FF' }, BAD = '#FF6B6B', OK = '#7FE0C4', WARN = '#F2B44B', HEAT = '#FFB000';
   var MASK_MIN = 20;                       // mm, smallest dead area that can be drawn
 
   var st = null;                           // screen state while mounted
@@ -66,7 +66,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
         if (w > 50 && hh > 24) { ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fillText(fn ? fn.label : z.fn, x + 6, y + hh - 6); } });
     }
     // field of view per sensor
-    ['A', 'B'].forEach(function (key) {
+    ['A', 'B', 'C'].forEach(function (key) {
       var s = c.sensors[key]; if (!s || s.on === false) return;
       var cx = g.tx(s.x), cy = g.ty(s.y), r0 = (tun.rangeStart || 60) * g.sc, r1 = (tun.rangeEnd || 850) * g.sc, a0 = U.rad(s.yaw - half), a1 = U.rad(s.yaw + half), col = COL[key];
       ctx.save(); rrect(ctx, g.tx(-PAD), g.ty(-PAD), (P.w + 2 * PAD) * g.sc, (P.d + 2 * PAD) * g.sc, 12); ctx.clip();
@@ -106,7 +106,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (st.drag && st.drag.create) drawM(st.drag.create, false, true);
     // live echoes: one arc per echo, brighter for the pair the ring used
     if (f && st.showEchoes) {
-      ['A', 'B'].forEach(function (key) {
+      ['A', 'B', 'C'].forEach(function (key) {
         var s = c.sensors[key], fs = f[key]; if (!fs || !fs.e) return;
         var cx = g.tx(s.x), cy = g.ty(s.y), a0 = U.rad(s.yaw - half), a1 = U.rad(s.yaw + half), v = (c.hand.zwork || 0) + (s.z || 0);
         ctx.save(); rrect(ctx, g.tx(-PAD), g.ty(-PAD), (P.w + 2 * PAD) * g.sc, (P.d + 2 * PAD) * g.sc, 12); ctx.clip();
@@ -120,7 +120,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     // hand: trail, rays from each sensor, marker
     if (f && f.hx != null) {
       var hx = g.tx(f.hx), hy = g.ty(f.hy);
-      ['A', 'B'].forEach(function (key) { var s = c.sensors[key]; ctx.beginPath(); ctx.moveTo(g.tx(s.x), g.ty(s.y)); ctx.lineTo(hx, hy); ctx.strokeStyle = rgba(COL[key], 0.22); ctx.lineWidth = 1; ctx.stroke(); });
+      ['A', 'B', 'C'].forEach(function (key) { var s = c.sensors[key]; ctx.beginPath(); ctx.moveTo(g.tx(s.x), g.ty(s.y)); ctx.lineTo(hx, hy); ctx.strokeStyle = rgba(COL[key], 0.22); ctx.lineWidth = 1; ctx.stroke(); });
       var tr = st.trail; if (tr.length > 1) { ctx.beginPath(); tr.forEach(function (p, i) { var x = g.tx(p.x), y = g.ty(p.y); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.6; ctx.stroke(); }
       var inside = f.hx >= 0 && f.hx <= P.w && f.hy >= 0 && f.hy <= P.d;
       ctx.beginPath(); ctx.arc(hx, hy, 9, 0, 7); ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fill(); ctx.strokeStyle = inside ? '#fff' : WARN; ctx.lineWidth = 2; ctx.stroke();
@@ -130,7 +130,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       if (f.flag === RS.FLAG.MASKED || f.flag === RS.FLAG.OUTSIDE || f.flag === RS.FLAG.STRENGTH) ctx.fillText(RS.FLAG_TEXT[f.flag], g.tx(0) + 8, g.ty(0) + 18);
     }
     // sensors and the spacing line
-    ['A', 'B'].forEach(function (key) {
+    ['A', 'B', 'C'].forEach(function (key) {
       var s = c.sensors[key]; if (!s) return; var x = g.tx(s.x), y = g.ty(s.y);
       ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.fillStyle = '#0C0F13'; ctx.fill(); ctx.strokeStyle = COL[key]; ctx.lineWidth = 2; ctx.stroke();
       ctx.fillStyle = COL[key]; ctx.font = '700 10px Geist, system-ui'; ctx.textAlign = 'center'; ctx.fillText(key, x, y + 3.5); ctx.textAlign = 'left';
@@ -252,7 +252,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var card = h('div.card', h('div.row.between.wrap', h('div', h('h2', 'Mount and area'), h('div.sub', 'Everything here applies to the ring straight away.')), seg),
       h('div.sub.small.mt-s', { id: 'aim-mount-note' }, ''),
       grp('Sink', [bindField('Width (A to B side)', 'plane.w', 'len', { min: 100 }), bindField('Depth (back to front)', 'plane.d', 'len', { min: 100 }), bindField('Spacing A to B', 'sensors.B.x', 'len', { min: 100 }), bindField('Sink depth to floor', 'rig.sinkDepth', 'len', { min: 20 })]),
-      h('div.mt', h('div.eyebrow', 'Aim (where the beam points)'), h('div.col.gap-s.mt-s', [stepper('Sensor A', 'sensors.A.yaw', 1, 5), stepper('Sensor B', 'sensors.B.yaw', 1, 5)]), h('div.tiny.faint.mt-s', 'Angles are measured from the back edge toward the front: A at 45° and B at 135° point at each other’s far corner. Position does not depend on aim; only the echo strength does.')),
+      h('div.mt', h('div.eyebrow', 'Aim (where the beam points)'), h('div.col.gap-s.mt-s', [stepper('Sensor A', 'sensors.A.yaw', 1, 5), stepper('Sensor B', 'sensors.B.yaw', 1, 5), stepper('Sensor C', 'sensors.C.yaw', 1, 5)]), h('div.tiny.faint.mt-s', 'Angles are measured from the back edge toward the front: A at 45° and B at 135° point at each other’s far corner. Position does not depend on aim; only the echo strength does.')),
       grp('Slot and beam', [bindField('Slot height', 'rig.slotH', 'len', { min: 2 }), bindField('Recess (emitter to opening)', 'rig.recess', 'len', { min: 0 }), bindField('Beam half-width, flat', 'tuning.beamHalf', 'deg', { min: 10, max: 89 }), bindField('Beam half-width, vertical', 'rig.beamV', 'deg', { min: 5, max: 89 })]),
       grp('Hand', [bindField('Hand height (below the sensors)', 'hand.zwork', 'len'), bindField('Highest it goes (below sensors)', 'hand.zmin', 'len'), bindField('Lowest it goes (below sensors)', 'hand.zmax', 'len')]),
       grp('Range', [bindField('Nearest echo', 'tuning.rangeStart', 'mm', { min: 40, max: 300 }), bindField('Farthest echo', 'tuning.rangeEnd', 'mm', { min: 400, max: 1500 })]));
@@ -281,7 +281,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var body = st.aimBody; U.empty(body); if (!r) { body.appendChild(h('div.sub.small.dim', 'Nothing yet. Press Start sweep, then move your hand around the sink.')); return; }
     var cov = h('div.bar', h('i', { style: { width: Math.round(r.coverage * 100) + '%' } }));
     body.appendChild(h('div', h('div.row.between.small.dim', h('span', 'Coverage'), h('span', Math.round(r.coverage * 100) + '%')), cov));
-    ['A', 'B'].forEach(function (key) {
+    ['A', 'B', 'C'].forEach(function (key) {
       var res = r[key], typed = c.sensors[key].yaw, ok = res && res.yaw != null, hint = RS.aim.hint(key, res, c);
       var row = h('div.card.tight.solid', { style: { borderColor: rgba(COL[key], 0.35) } },
         h('div.row.between.wrap', h('div.row', h('span.fixcode', { style: { color: COL[key], borderColor: rgba(COL[key], 0.5) } }, key), h('strong', 'Sensor ' + key)), ok ? chip(res.quality === 'good' ? 'Reliable' : res.quality === 'fair' ? 'Rough' : 'Weak', res.quality === 'good' ? 'ok' : 'warn') : chip('Need more', 'info')),
@@ -291,10 +291,10 @@ var RS = globalThis.RS || (globalThis.RS = {});
       body.appendChild(row);
     });
     var A = r.A, B = r.B;
-    if (A && B && A.yaw != null && B.yaw != null && (Math.abs(A.delta) >= 2 || Math.abs(B.delta) >= 2)) body.appendChild(h('div.row.end', btn('Apply both', function () { var o = {}; o['sensors.A.yaw'] = U.round(A.yaw, 1); o['sensors.B.yaw'] = U.round(B.yaw, 1); send(o); }, 'sm primary')));
+    if (A && B && A.yaw != null && B.yaw != null && (Math.abs(A.delta) >= 2 || Math.abs(B.delta) >= 2)) body.appendChild(h('div.row.end', btn('Apply A and B', function () { var o = {}; o['sensors.A.yaw'] = U.round(A.yaw, 1); o['sensors.B.yaw'] = U.round(B.yaw, 1); send(o); }, 'sm primary')));
     var bs = r.base, kind = bs.status === 'ok' ? 'ok' : bs.status === 'low' || bs.status === 'high' ? 'bad' : 'info';
-    body.appendChild(h('div.callout.' + kind, h('strong', 'Sensor spacing check'), h('div.sub.small.mt-s', bs.msg), bs.lo != null ? h('div.tiny.faint.mt-s', 'Readings allow ' + lenTxt(bs.lo, 0) + ' to ' + lenTxt(bs.hi, 0) + '. Set to ' + lenTxt(bs.base, 0) + '.') : null));
-    body.appendChild(h('div.tiny.faint', 'The aim estimate is accurate to roughly ±8° when the sweep covers the sink. It reads the beam from echo strength, which also depends on how you hold your hand.'));
+    body.appendChild(h('div.callout.' + kind, h('strong', 'A–B spacing check'), h('div.sub.small.mt-s', bs.msg), bs.lo != null ? h('div.tiny.faint.mt-s', 'Readings allow ' + lenTxt(bs.lo, 0) + ' to ' + lenTxt(bs.hi, 0) + '. Set to ' + lenTxt(bs.base, 0) + '.') : null));
+    body.appendChild(h('div.tiny.faint', 'The aim estimate needs bench verification. It reads the beam from echo strength, which also depends on how you hold your hand.'));
   }
   function stat(label, value) { return h('div.tile', h('div.v.num', value), h('div.l', label)); }
 
@@ -450,9 +450,9 @@ var RS = globalThis.RS || (globalThis.RS = {});
       st.live = h('div.small', { style: { minHeight: '18px' } }, '');
       var toggles = h('div.row.wrap.gap-s');
       [['showZones', 'Zones'], ['showFov', 'Field of view'], ['showEchoes', 'Echoes']].forEach(function (t) { var b = h('button.chip' + (st[t[0]] ? '.info' : ''), { style: { cursor: 'pointer' }, onclick: function () { st[t[0]] = !st[t[0]]; b.classList.toggle('info', st[t[0]]); } }, t[1]); toggles.appendChild(b); });
-      var legend = h('div.row.wrap.gap-s.tiny.dim', h('span', { style: { color: COL.A } }, '● Sensor A'), h('span', { style: { color: COL.B } }, '● Sensor B'), h('span', { style: { color: BAD } }, '▭ Dead area'), h('span', { style: { color: HEAT } }, '■ False readings learned'), h('span', 'Arcs are the echoes each sensor hears; the bright arc is the one the ring used.'));
+      var legend = h('div.row.wrap.gap-s.tiny.dim', h('span', { style: { color: COL.A } }, '● Sensor A'), h('span', { style: { color: COL.B } }, '● Sensor B'), h('span', { style: { color: COL.C } }, '● Sensor C'), h('span', { style: { color: BAD } }, '▭ Dead area'), h('span', { style: { color: HEAT } }, '■ False readings learned'), h('span', 'Arcs are the echoes each sensor hears; the bright arc is the one the ring used.'));
       var topCard = h('div.card', h('div.row.between.wrap', h('div', h('h2', 'From above'), h('div.sub', 'What each sensor can see across the sink, live.')), toggles), h('div.mt-s', st.live), st.top.el, h('div.mt-s', legend));
-      var sideSeg = h('div.seg'); ['A', 'B'].forEach(function (k) { var b = h('button' + (k === st.side ? '.on' : ''), { onclick: function () { st.side = k; Array.prototype.forEach.call(sideSeg.children, function (x) { x.classList.toggle('on', x.textContent === 'Sensor ' + k); }); refreshSideNotes(); } }, 'Sensor ' + k); sideSeg.appendChild(b); });
+      var sideSeg = h('div.seg'); ['A', 'B', 'C'].forEach(function (k) { var b = h('button' + (k === st.side ? '.on' : ''), { onclick: function () { st.side = k; Array.prototype.forEach.call(sideSeg.children, function (x) { x.classList.toggle('on', x.textContent === 'Sensor ' + k); }); refreshSideNotes(); } }, 'Sensor ' + k); sideSeg.appendChild(b); });
       st.sideNotes = h('div.grid.c3.mt');
       var sideCard = h('div.card', h('div.row.between.wrap', h('div', h('h2', 'From the side'), h('div.sub', 'The beam leaving the slot, the sink floor and the height range of your hand. Drag the green line to set the hand height.')), sideSeg), h('div.mt-s', st.sideCv.el), st.sideNotes,
         h('div.tiny.faint.mt-s', 'The sensor measures distance, not height. The hand height here is a setting, not a reading. Beam and slot are modelled as straight-line fans; real radar also bends around edges, so treat the numbers as a guide.'));

@@ -1,3 +1,4 @@
+# Historical two-sensor diagram generator; current SVGs are maintained in docs/three-sensor-*.svg.
 """Generates docs/wiring.svg from firmware/include/pins.h. Run: python tools/make_wiring_svg.py
 Pin numbers are read from pins.h, so the diagram cannot drift from the firmware."""
 from pathlib import Path
@@ -189,5 +190,5 @@ for i, (t, k) in enumerate(lg):
         + (' stroke-dasharray="8 6"' if k == "rst" else '') + '/>')
     add(f'<text x="{x+42}" y="{H-23}" font-size="13" fill="#333">{t}</text>')
 add('</svg>')
-Path(__file__).resolve().parent.parent.joinpath("docs", "wiring.svg").write_text("\n".join(out), encoding="utf-8")
+Path(__file__).resolve().parent.parent.joinpath("docs", "archive", "two-sensor", "wiring.svg").write_text("\n".join(out), encoding="utf-8")
 print("wrote docs/wiring.svg")

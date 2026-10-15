@@ -8,7 +8,6 @@ var RS = globalThis.RS || (globalThis.RS = {});
   A.route = null; A.active = null; A.el = null;
 
   var NAV = [['show', 'Showcase'], ['operator', 'Operator'], ['hw', 'Hardware'], ['studio', 'Calibrate'], ['aim', 'Aim'], ['bench', 'Bench log'], ['tests', 'Tests'], ['dashboard', 'Dashboard'], ['settings', 'Settings']];
-  var LOCKED = { studio: 1, aim: 1, hw: 1, bench: 1, tests: 1, settings: 1, dashboard: 0, operator: 0, show: 0 };
 
   // ---- toasts and modals ---------------------------------------------------------------------------------------------------------------
   A.toast = function (msg, kind, ms) {
@@ -57,7 +56,6 @@ var RS = globalThis.RS || (globalThis.RS = {});
   function routeFromHash() { var m = /^#\/([a-z]+)/.exec(location.hash || ''); return m && RS.screens[m[1]] ? m[1] : (RS.screens[S.get('route')] ? S.get('route') : 'show'); }
   A.render = function () {
     var route = routeFromHash();
-    if (LOCKED[route] && S.studioLocked()) { RS.setup.lock(route); return; }
     if (A.route === route && A.active) { if (A.active.onHash) A.active.onHash(location.hash); return; }
     if (A.active && A.active.unmount) A.active.unmount();
     A.route = route; S.set('route', route);
@@ -105,7 +103,6 @@ var RS = globalThis.RS || (globalThis.RS = {});
     L.on('err', function (e) { if (e.msg) A.toast(e.msg, 'bad'); });
     L.on('event', function (e) { if (e.ev === 'button' && e.a === 'cal') { A.toast('BOOT button: opening the calibration studio', 'info'); A.go('studio'); } if (e.ev === 'button' && e.a === 'reset') A.toast('Wi-Fi password and PIN reset from the BOOT button. The ring restarts with a temporary password (see the serial monitor).', 'warn', 10000); });
     RS.rec.on('start', A.refreshChips); RS.rec.on('session', function () { A.refreshChips(); });
-    S.on('change:presentation', function () { if (!S.get('presentation')) S.sessionPin = false; });
     A.render();
     L.autoStart();
     requestAnimationFrame(loop);

@@ -82,7 +82,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     tuning: {
       settleMs: 150, settleSpeed: 250, startSpeed: 60, goneFrames: 3, exitMs: 1000, stillOffMs: 10000, presentFrames: 2,
       disposalHoldMs: 1000, disposalRunMs: 15000, cleanMs: 60000, cleanHoldMs: 3000,
-      rangeStart: 60, rangeEnd: 850, threshSens: 1.0, i2cKhz: 400, log: false, wifiCh: 6,
+      rangeStart: 60, rangeEnd: 850, threshSens: 1.5, i2cKhz: 400, log: false, wifiCh: 6,
       ledCount: 132, ledBright: 90, ledOrder: 'GRB', hyst: 20, beamHalf: 60, nearWin: 120, smooth: 0.35
     },
     profile: 'default',
@@ -112,7 +112,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     ['cleanMs', 'Clean mode', 'ms', 10000, 300000, 5000, 'Pause length for wiping the sink'],
     ['rangeStart', 'Range start', 'mm', 40, 300, 10, 'Detector start distance'],
     ['rangeEnd', 'Range end', 'mm', 400, 1500, 50, 'Detector end distance'],
-    ['threshSens', 'Threshold sensitivity', 'x', 0.3, 3, 0.1, 'Scales the recorded threshold'],
+    ['threshSens', 'Threshold sensitivity', 'x', 0.3, 2, 0.1, 'Higher detects weaker targets; 1.0 = XM125 default, 2.0 = maximum sensitivity'],
     ['i2cKhz', 'I2C speed', 'kHz', 100, 400, 300, '400 normally; 100 if bus errors appear'],
     ['wifiCh', 'Wi-Fi channel', '', 1, 11, 1, 'Change if the venue is busy on this channel'],
     ['ledCount', 'LED count', 'LEDs', 1, 300, 1, 'The real number on the strip'],

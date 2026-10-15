@@ -79,10 +79,12 @@ test('simulator: background capture (C6) learns the basin echoes and flags a cup
 
 test('simulator: a still cursor hand becomes an object after 10 s and the water stops', () => {
   const { sim, msgs } = makeSim();
+  // Isolate the stillness state machine from random multipath/dropouts.
+  sim.echoes=function(k,t){return t?[[RS.geo.range(this.cfg.sensors[k],t.x,t.y,t.h),1500]]:[];};
   let now = 1000; const step = () => { now += 45; sim.tick(now); };
-  const P = sim.cfg.plane, warm = { x: P.w / 2, y: P.d * 0.83, h: 110 };
+  const P = sim.cfg.plane, warm = { x: P.w / 2, y: P.d * 0.83, h: sim.cfg.hand.zwork };
   // enter moving from the front, then hold perfectly still
-  for (let i = 0; i < 20; i++) { sim.setHand({ x: warm.x, y: P.d - i * 4, h: 110 }, false); step(); }
+  for (let i = 0; i < 20; i++) { sim.setHand({ x: warm.x, y: P.d - i * 4, h: sim.cfg.hand.zwork }, false); step(); }
   for (let i = 0; i < 12; i++) { sim.setHand(warm, false); step(); }
   assert.ok(msgs.some(m => m.ev === 'latch' && m.fn === 'warm'), 'latched warm');
   for (let i = 0; i < 240; i++) { sim.setHand(warm, false); step(); }

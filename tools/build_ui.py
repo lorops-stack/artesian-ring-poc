@@ -55,6 +55,11 @@ def main() -> int:
     for f in (SRC / "fonts").iterdir():
         shutil.copy(f, DIST / "fonts" / f.name)
         shutil.copy(f, DIST_FS / "fonts" / f.name)
+        # ESPAsyncWebServer probes <asset>.gz first when serving static files. Ship that representation too so
+        # every font request is satisfied without a noisy LittleFS ENOENT probe. WOFF2 is already compressed,
+        # but the duplicate is small enough for this filesystem and keeps Content-Encoding handling consistent.
+        with f.open("rb") as src, gzip.open(DIST_FS / "fonts" / (f.name + ".gz"), "wb", compresslevel=9) as g:
+            shutil.copyfileobj(src, g)
     for name, text in (("index.html", out_html), ("app.js", bundle), ("app.css", css)):
         with gzip.open(DIST_FS / (name + ".gz"), "wb", compresslevel=9) as g:
             g.write(text.encode("utf-8"))

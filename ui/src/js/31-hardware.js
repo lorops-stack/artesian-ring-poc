@@ -68,7 +68,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   }
   function refreshRecheck() {
     if (!st) return; var hh = L.latest.health, pending = st.recheckAt && (U.now() - st.recheckAt < 25000);
-    if (pending && hh && hh.A && st.setupsAt && ((hh.A.setups || 0) > st.setupsAt.A && (hh.B.setups || 0) > st.setupsAt.B)) { pending = false; st.recheckAt = 0; }
+    if (pending && hh && hh.A && hh.B && hh.C && st.setupsAt && ((hh.A.setups || 0) > st.setupsAt.A && (hh.B.setups || 0) > st.setupsAt.B && (hh.C.setups || 0) > st.setupsAt.C)) { pending = false; st.recheckAt = 0; }
     st.recheck.textContent = pending ? 'Re-checking… (about 10 s)' : 'Re-check sensors'; st.recheck.disabled = !!pending;
   }
 
@@ -83,7 +83,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     mount: function (host) {
       st = { cards: { A: sensorCard('A'), B: sensorCard('B'), C:sensorCard('C') }, err: { A: new HW.ErrRate(), B: new HW.ErrRate(), C:new HW.ErrRate() }, wave: new HW.Wave(), waveOn: false, waveDone: false, waveEnd: 0, unsub: [], lastLive: 0, recheckAt: 0, setupsAt: null };
       st.banner = h('div'); st.recheck = btn('Re-check sensors', function () {
-        var hh = L.latest.health; st.setupsAt = { A: (hh && hh.A && hh.A.setups) || 0, B: (hh && hh.B && hh.B.setups) || 0 }; st.recheckAt = U.now();
+        var hh = L.latest.health; st.setupsAt = { A: (hh && hh.A && hh.A.setups) || 0, B: (hh && hh.B && hh.B.setups) || 0, C: (hh && hh.C && hh.C.setups) || 0 }; st.recheckAt = U.now();
         L.send({ c: 'sensors', a: 'recheck' }).catch(function (e) { st.recheckAt = 0; RS.app.toast((e && e.message) || 'could not start the re-check', 'bad'); }); refreshRecheck();
       }, 'primary');
       st.waveBtn = btn('Start wave test', startWave, 'primary'); st.waveRows = h('div.col.gap-s.mt-s');
@@ -91,7 +91,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var wrap = h('div.wrap', st.banner, h('div.grid.c2.mt', st.cards.A.card, st.cards.B.card, st.cards.C.card), h('div.mt', waveCard));
       if (isSim()) {
         var chips = h('div.row.wrap.gap-s.mt-s');
-        [['A_swapSdaScl', 'A: SDA/SCL swapped'], ['B_noPower', 'B: no power'], ['wrongFw', 'B: presence firmware'], ['statusErr', 'A: setup error'], ['A_loose', 'A: loose wire']].forEach(function (f) {
+        [['A_swapSdaScl', 'A: SDA/SCL swapped'], ['B_noPower', 'B: no power'], ['C_noPower', 'C: no power'], ['wrongFw', 'B: presence firmware'], ['statusErr', 'A: setup error'], ['A_loose', 'A: loose wire']].forEach(function (f) {
           var b = h('button.chip', { style: { cursor: 'pointer' } }, f[1]); b.onclick = function () { var on = !L.sim.faults[f[0]]; L.sim.setFault(f[0], on); b.className = 'chip' + (on ? ' info' : ''); L.send({ c: 'get', what: 'health' }).catch(function () { /* the next periodic message will do */ }); }; if (L.sim.faults[f[0]]) b.className = 'chip info'; chips.appendChild(b);
         });
         wrap.appendChild(h('div.card.mt', h('h2', 'Rehearse a fault'), h('div.sub', 'Simulator only. Switch a fault on to see what it looks like here, then switch it off.'), chips));

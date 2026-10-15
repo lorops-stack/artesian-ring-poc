@@ -79,8 +79,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
         if (this.rnd() < 0.3) push(d + 240 + 40 * this.rnd(), s * 0.5);
       }
     }
-    if (f.hotspot && this.rnd() < 0.55) {     // a flickering reflector inside the sink (drip, steam, a swinging brush): false fixes at one spot
-      var hs = { x: 430 + 7 * this.rnd.gauss(), y: 150 + 7 * this.rnd.gauss(), h: this.cfg.hand.zwork };
+    if (f.hotspot && this.hotspotTarget) {     // a flickering reflector inside the sink (drip, steam, a swinging brush): false fixes at one spot
+      var hs = this.hotspotTarget;
       var hd = G.range(pose, hs.x, hs.y, hs.h) + pose.off + NOISE_MM * this.rnd.gauss(); push(hd, this.echoStrength(pose, hs.x, hs.y, hs.h, hd, 'hand') * 0.8 * atten);
     }
     var basin = this.truth.basin[k];
@@ -99,6 +99,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var t = Math.round(nowMs - this.t0); this.t = t; this.n += 1;
     var cfg = this.cfg, hand = this.hand; this.tracker.setAlpha(cfg.tuning.smooth || 0.35);
     var target = hand ? { x: hand.x, y: hand.y, h: hand.h == null ? cfg.hand.zwork : hand.h, kind: 'hand' } : null;
+    this.hotspotTarget=this.faults.hotspot&&this.rnd()<.55?{x:430+7*this.rnd.gauss(),y:150+7*this.rnd.gauss(),h:cfg.hand.zwork}:null;
     var eA = this.echoes('A', target), eB = this.echoes('B', target), eC=this.echoes('C',target);
     var fpsA = eA ? 1000 / RATE_MS / late : 0, fpsB = eB ? 1000 / RATE_MS / late : 0;
     this.fps.A = 0.9 * this.fps.A + 0.1 * fpsA; this.fps.B = 0.9 * this.fps.B + 0.1 * fpsB;
@@ -118,6 +119,11 @@ var RS = globalThis.RS || (globalThis.RS = {});
       } else { this.jumps = 1; this.jump = { x: assoc.ux, y: assoc.uy, t: t }; if (this.prev) { pos = gate; speed = this.tracker.x !== null ? U.hypot(this.tracker.vx, this.tracker.vy) : 0; } }
     }
     else { this.jumps = 0; this.miss = (this.miss || 0) + 1; if (this.miss >= cfg.tuning.goneFrames) { this.tracker.reset(); this.prev = null; } }   // coast through a brief dropout
+    // Match firmware: a valid measurement can still be extrapolated outside the plane by the tracker.
+    // Never publish that filter artefact as a hand; reset so the next in-plane measurement re-acquires.
+    if (pos && (pos.x < 0 || pos.x > cfg.plane.w || pos.y < 0 || pos.y > cfg.plane.d)) {
+      pos = null; assoc.flag = FLAG.OUTSIDE; this.tracker.reset(); this.prev = null; this.miss = 0; this.jumps = 0;
+    }
     if (this.faults.personFront && !hand && assoc.flag === FLAG.OUTSIDE) this.frontEcho += 1;
     var wasSession = this.sm.session;
     var snap = this.sm.step({ t: t, pos: pos, speed: speed, flag: assoc.flag });

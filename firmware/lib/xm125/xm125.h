@@ -1,5 +1,5 @@
 // xm125.h - register-level driver for the Acconeer I2C Distance Detector firmware on the SparkFun XM125.
-// One instance per TwoWire bus (both boards answer at 0x52). Reference: Acconeer "I2C Distance Detector" register
+// One instance per physical SDA/SCL pair (all modules answer at 0x52). Reference: Acconeer "I2C Distance Detector" register
 // map (also used by SparkFun's Qwiic XM125 library). Registers are 16-bit addresses with 32-bit big-endian values.
 #pragma once
 #include <Arduino.h>
@@ -27,12 +27,15 @@ constexpr uint32_t THRESH_FIXED_AMPLITUDE = 1, THRESH_RECORDED = 2, THRESH_CFAR 
 constexpr uint32_t SORT_CLOSEST = 1, SORT_STRONGEST = 2;
 constexpr uint8_t I2C_ADDR = 0x52;
 
-struct Settings { uint32_t startMm = 60, endMm = 850, thresholdMethod = THRESH_RECORDED, numFramesRecorded = 100, sensitivityX1000 = 500, peakSorting = SORT_CLOSEST, closeRangeLeakage = 1, maxProfile = 5, signalQualityX1000 = 15000, reflectorShape = 1; };
+struct Settings { uint32_t startMm = 60, endMm = 850, thresholdMethod = THRESH_RECORDED, numFramesRecorded = 100, sensitivityX1000 = 500, peakSorting = SORT_CLOSEST, closeRangeLeakage = 1, maxProfile = 5, signalQualityX1000 = 25000, reflectorShape = 1; };
 struct Result { uint8_t n = 0; bool nearStart = false, calNeeded = false, measureError = false; int16_t tempC = 0; uint32_t distMm[10]; int32_t strengthDb1000[10]; };
 
 class Sensor {
  public:
   Sensor(TwoWire& wire, int sda, int scl, int rstPin, const char* name) : w_(wire), sda_(sda), scl_(scl), rst_(rstPin), name_(name) {}
+  ~Sensor() { const int bus = &w_ == &Wire ? 0 : 1; if (active_[bus] == this) { w_.end(); active_[bus] = nullptr; } }
+  Sensor(const Sensor&) = delete;
+  Sensor& operator=(const Sensor&) = delete;
   // Starts the bus; the RST line is open-drain and only ever pulled low.
   void beginBus(uint32_t hz);
   void setBusSpeed(uint32_t hz) { hz_ = hz; }

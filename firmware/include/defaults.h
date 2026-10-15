@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 // ---- Sensing plane (spec 2, studio C1) ---------------------------------------
-constexpr float PLANE_W_MM = 584.2f;   // 23 in
-constexpr float PLANE_D_MM = 533.4f;   // 21 in
+constexpr float PLANE_W_MM = 584.2f;  // 23 in, nominal opening; measure antenna positions
+constexpr float PLANE_D_MM = 533.4f;  // 21 in, nominal opening depth
 
 // ---- Sensor geometry (studio C2/C3), origin = back-left corner, y toward user
 struct SensorPose { float x_mm, y_mm, z_mm, yaw_deg, tilt_deg; bool enabled; };

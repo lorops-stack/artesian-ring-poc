@@ -11,7 +11,7 @@ constexpr int MAX_LAYOUTS = 6, MAX_PROFILES = 6;
 struct Tuning {
   uint16_t settleMs = 150; float settleSpeed = 250; float startSpeed = 60; uint8_t goneFrames = 3; uint16_t exitMs = 1000;
   uint32_t stillOffMs = 10000; uint8_t presentFrames = 2; uint16_t disposalHoldMs = 1000; uint32_t disposalRunMs = 15000;
-  uint32_t cleanMs = 60000; uint16_t cleanHoldMs = 3000; uint16_t rangeStart = 60; uint16_t rangeEnd = 850; float threshSens = 1.0f;
+  uint32_t cleanMs = 60000; uint16_t cleanHoldMs = 3000; uint16_t rangeStart = 60; uint16_t rangeEnd = 850; float threshSens = 1.5f;
   uint16_t i2cKhz = 400; bool log = false; uint8_t wifiCh = 6; uint16_t ledCount = 132; uint8_t ledBright = 90; char ledOrder[5] = "GRB";
   float hyst = 20; float beamHalf = 60; uint16_t ledOffset = 0; uint32_t bgRelearnIdleMs = 30000; float nearWin = 120; float smooth = 0.35f;
 };

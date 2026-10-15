@@ -1,3 +1,5 @@
+> Current build: three sensors A/B/C. Use the [installation guide](three-sensor-installation.md) for wiring and geometry. Run per-sensor checks on C as well as A/B. Older two-sensor examples describe diagnostic history, not three-sensor acceptance. Record current results in [issue #5](https://github.com/lorops-stack/artesian-ring-poc/issues/5).
+
 # 07 · Test and Demo Plan
 
 Every rule in spec section 4 has a bench test here and a unit-test twin in `firmware/test/`. Tests of hardware, power and security (T8, T13 to T15, T24 to T26) are bench-only.

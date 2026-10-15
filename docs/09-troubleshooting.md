@@ -1,3 +1,5 @@
+> Current build: three sensors A/B/C. Use the [installation guide](three-sensor-installation.md) for wiring and geometry. Run per-sensor checks on C as well as A/B. Older two-sensor examples describe diagnostic history, not three-sensor acceptance. Record current results in [issue #5](https://github.com/lorops-stack/artesian-ring-poc/issues/5).
+
 # 09 · Troubleshooting and Guided Fixes
 
 This guide covers everything that can stop the ring working correctly, from a loose wire to a sensor aimed the wrong way. Ring Studio uses the same codes: when a check fails, it shows the code, what is wrong and these fix steps, with a **Test again** button.

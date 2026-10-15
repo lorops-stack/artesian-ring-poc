@@ -2,7 +2,7 @@
 // cursor, and fails on any console error. Run: node ui/test/smoke.js   (writes screenshots to ui/test/shots/)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
-const DIST = path.join(__dirname, '..', 'dist'), SHOTS = path.join(__dirname, 'shots');
+const DIST = path.join(__dirname, '..', 'dist'), SHOTS = process.env.SMOKE_SHOTS || path.join(__dirname, 'shots');
 const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.txt': 'text/plain' };
 function serve() {
   return new Promise((res) => {
@@ -18,7 +18,7 @@ function serve() {
 (async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
   const srv = await serve(), base = 'http://127.0.0.1:' + srv.address().port;
-  const browser = await chromium.launch(), page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const browser = await chromium.launch(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH} : {}), page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [], logs = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.type() + ': ' + m.text()); else logs.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -26,6 +26,10 @@ function serve() {
   const fail = (m) => { console.error('FAIL ' + m); process.exitCode = 1; };
 
   await page.goto(base + '/#/show'); await page.waitForTimeout(1500);
+  // Isolate UI interaction/recording from random radar dropout; noisy sensing has unit coverage.
+  await page.evaluate(() => { const sim=RS.link.sim; sim.resetSession(); sim.tracker.reset(); sim.prev=null;
+    sim.echoes=function(k,hand){return hand ? [[RS.geo.range(this.cfg.sensors[k],hand.x,hand.y,hand.h),100]] : [];};
+  });
   const title = await page.title(); if (!/Showcase/.test(title)) fail('title ' + title);
   await shot('01-showcase-idle');
   // move the cursor into the Warm zone (plane coords): basin is at 390..1050 x 168..770 in a 1440x900 stage scaled to fit
@@ -71,7 +75,7 @@ function serve() {
   // hardware check: healthy, then a rehearsed fault, then the wave test
   await page.goto(base + '/#/hw'); await page.waitForTimeout(1800);
   let hwTxt = await page.evaluate(() => document.querySelector('.screen').innerText);
-  if (!/Both sensors are good/.test(hwTxt)) fail('hw: expected both sensors good, got: ' + hwTxt.slice(0, 200));
+  if (!/All three sensors are good/.test(hwTxt)) fail('hw: expected all three sensors good, got: ' + hwTxt.slice(0, 200));
   await shot('17-hw-good');
   await page.click('button:has-text("B: no power")'); await page.waitForTimeout(300);
   hwTxt = await page.evaluate(() => document.querySelector('.screen').innerText);

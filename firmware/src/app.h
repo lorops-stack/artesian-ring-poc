@@ -22,7 +22,11 @@ struct Frame {
 };
 // Events cross from core 1 to core 0 through a small ring buffer of pre-rendered JSON lines.
 constexpr int EVQ = 32, EVLEN = 160;
-struct EventQueue { char buf[EVQ][EVLEN]; volatile int head = 0, tail = 0; void push(const char* s); bool pop(char* out); };
+struct EventQueue {
+  char buf[EVQ][EVLEN]; int head = 0, tail = 0; uint32_t dropped = 0;
+  portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+  void push(const char* s); bool pop(char* out); uint32_t droppedCount();
+};
 
 // What core 1 learned about each sensor when it last set it up (core 0 only reads this; it never touches the I2C bus).
 struct SensorInfo { bool sda = false, scl = false, present = false, cfgOk = false, stop = false; uint32_t ver = 0, status = 0; int busErr = 0; uint16_t setups = 0; };

@@ -1,3 +1,4 @@
+# Historical two-sensor diagram generator; current SVGs are maintained in docs/three-sensor-*.svg.
 """Builds the board-layout wiring diagrams from firmware/include/pins.h.
 
     python tools/make_board_diagrams.py
@@ -55,7 +56,7 @@ class Svg:
 
     def save(self, name):
         self.add("</svg>")
-        (ROOT / "docs" / name).write_text("\n".join(self.o), encoding="utf-8")
+        (ROOT / "docs" / "archive" / "two-sensor" / name).write_text("\n".join(self.o), encoding="utf-8")
         print("wrote docs/" + name)
 
 

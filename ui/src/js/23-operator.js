@@ -40,7 +40,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       S.on('change', function () { self.refreshControls(); })
     ];
     var cv = this.canvas;
-    var pt = function (e) { var r = cv.getBoundingClientRect(); var g = self.geom(); if (!g) return null; var x = e.clientX - r.left, y = e.clientY - r.top; if (x < g.bx || x > g.bx + g.bw || y < g.by || y > g.by + g.bh) return null; var plane = S.cfg().plane; return { x: U.clamp((x - g.bx) / g.bw, 0, 0.9999) * plane.w, y: U.clamp((y - g.by) / g.bh, 0, 0.9999) * plane.d, h: 110 }; };
+    var pt = function (e) { var r = cv.getBoundingClientRect(); var g = self.geom(); if (!g) return null; var x = e.clientX - r.left, y = e.clientY - r.top; if (x < g.bx || x > g.bx + g.bw || y < g.by || y > g.by + g.bh) return null; var plane = S.cfg().plane; return { x: U.clamp((x - g.bx) / g.bw, 0, 0.9999) * plane.w, y: U.clamp((y - g.by) / g.bh, 0, 0.9999) * plane.d, h: S.cfg().hand.zwork }; };
     cv.addEventListener('pointermove', function (e) { self.userHand = pt(e); if (L.mode === 'sim') L.sim.setHand(self.userHand, false); });
     cv.addEventListener('pointerdown', function (e) { RS.sound.unlockOnGesture(); self.userHand = pt(e); if (L.mode === 'sim') L.sim.setHand(self.userHand, false); });
     cv.addEventListener('pointerleave', function () { self.userHand = null; if (L.mode === 'sim') L.sim.setHand(null, false); });
@@ -74,7 +74,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     this.engStats = h('div.grid.c4');
     this.eng.appendChild(h('div.card.tight', h('div.row.between', h('div.eyebrow', 'Live echoes · A'), this.engA = h('span.small.dim.mono')), h('div.echo.mt-s', this.echoA),
       h('div.row.between.mt', h('div.eyebrow', 'Live echoes · B'), this.engB = h('span.small.dim.mono')), h('div.echo.mt-s', this.echoB), h('div.eyebrow.mt','Live echoes · C'), h('div.echo.mt-s',this.echoC), h('div.mt', this.engStats),
-      h('div.small.faint.mt-s', 'Distance along the bar, 60 to 850 mm; bar height is echo strength. The lit echo is the pair used for the fix. Range circles are drawn on the plan.')));
+      h('div.small.faint.mt-s', 'Distance along the bar, 60 to 850 mm; bar height is echo strength. The lit echo is one of the three ranges used for the fix. Range circles are drawn on the plan.')));
     this.evList = h('div.col.gap-s'); this.eng.appendChild(h('div.card.tight', h('div.eyebrow', 'Recent events'), h('div.mt-s', this.evList)));
   };
   OP.drawEchoes = function (cv, sensor, col, cfg) {

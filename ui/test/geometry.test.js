@@ -49,24 +49,26 @@ for (const mount of MOUNTS) {
     assert.equal(g2.flag, 0); assert.equal(g2.iA, 1, 'a faint blip nearer than the hand does not drop it');
   });
 
-  test(`[${mount}] coverage prediction: back row is the weakest, overall high`, () => {
+  test(`[${mount}] coverage prediction: third view improves back geometry and exposes front coverage gaps`, () => {
     const cov = RS.geo.coverage(c, 23, 21, 'kitchen');
     const rows = [0, 1, 2].map(r => cov.zones.filter(z => z.row === r).map(z => cov.perZone[z.id]).reduce((a, b) => a + b, 0) / 3);
-    assert.ok(cov.overall > 0.85, 'overall ' + cov.overall);
-    assert.ok(rows[0] <= rows[2] + 0.02, 'back row should not beat the front row: ' + rows);
+    assert.ok(cov.cells.every(x=>Number.isFinite(x.err)&&x.acc>=0&&x.acc<=1));
+    assert.ok(cov.cells.some(x=>x.blind), 'front-centre sensor has near-range / beam gaps');
+    const two=RS.util.deepClone(c);two.sensors.C.on=false;const old=RS.geo.coverage(two,23,21);
+    const mid=cov.cells.find(x=>x.yf<.05&&Math.abs(x.xf-.5)<.03);const oldMid=old.cells.find(x=>x.yf<.05&&Math.abs(x.xf-.5)<.03);assert.ok(mid.err<oldMid.err);
   });
 
   test(`[${mount}] wand fit finds hidden sensor errors and offsets`, () => {
-    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: 8, y: -5, z: 6, off: 18 }, B: { x: 574.2, y: 4, z: -3, off: 24 } };
-    const samples = [];
+    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: 8, y: -5, z: 6, off: 18 }, B: { x: 574.2, y: 4, z: -3, off: 24 }, C:{x:292.1,y:537.4,z:0,off:12} };
+    const samples = [], rndC=RS.util.rng(9);
     for (const H of holes) for (const depth of RS.calDepths(c)) {
       const s = { hole: H.n, depth };
-      for (const k of ['A', 'B']) { const d = RS.geo.range(truth[k], H.x, H.y, depth) + truth[k].off - 20 + 3 * rnd.gauss(); s[k] = [d, 1500]; }
+      for (const k of ['A', 'B', 'C']) { const d = RS.geo.range(truth[k], H.x, H.y, depth) + truth[k].off - 20 + 3 * (k==='C'?rndC:rnd).gauss(); s[k] = [d, 1500]; }
       samples.push(s);
     }
     const fit = RS.fit.wandFit(samples, c);
     assert.ok(fit.rms < 12, 'rms ' + fit.rms);
-    for (const k of ['A', 'B']) {
+    for (const k of ['A', 'B', 'C']) {
       assert.ok(Math.abs(fit.fits[k].off - truth[k].off) < 10, k + ' offset ' + fit.fits[k].off);
       assert.ok(Math.hypot(fit.fits[k].x - truth[k].x, fit.fits[k].y - truth[k].y) < 14, k + ' pose');
     }
@@ -94,7 +96,10 @@ test('dead areas: a masked pair is ignored, the next best pair wins, and a fully
   const c = RS.presetConfig('flat'), A = c.sensors.A, B = c.sensors.B, h = c.hand.zwork;
   const at = (x, y) => [RS.geo.range(A, x, y, h), RS.geo.range(B, x, y, h)];
   const [a1, b1] = at(430, 150), [a2, b2] = at(150, 400);
-  const eA = [[Math.round(a1), 3000], [Math.round(a2), 2500]], eB = [[Math.round(b1), 3000], [Math.round(b2), 2500]];
+  // Strength is linear amplitude and falls with range. Keep the synthetic reflector strength physically
+  // consistent across A/B so this test exercises masking rather than an impossible amplitude pattern.
+  const amp = (d, ref) => ref * Math.pow(300 / d, 2);
+  const eA = [[Math.round(a1), amp(a1, 70)], [Math.round(a2), amp(a2, 60)]], eB = [[Math.round(b1), amp(b1, 70)], [Math.round(b2), amp(b2, 60)]];
   const base = { A, B, hand: c.hand, plane: c.plane };
   const open = RS.geo.associate(eA, eB, base);
   assert.equal(open.flag, 0); assert.ok(RS.geo.maskHit({ m: { t: 'circle', x: 430, y: 150, r: 60 } }, open.x, open.y), 'unmasked, the clutter spot wins (a cross-pairing ghost lands next to it)');
@@ -139,4 +144,24 @@ test('baseline check: brackets the sensor spacing and flags a wrong one', () => 
   const wrong2 = RS.util.deepClone(c); wrong2.sensors.B.x = 400;
   assert.equal(RS.fit.baselineBracket(samples, wrong2).status, 'low');
   assert.equal(RS.fit.baselineBracket(samples.slice(0, 10), c).status, 'few');
+});
+
+test('geometry uncertainty rises near the sensor baseline', () => {
+  const c = RS.presetConfig('flat'), A=c.sensors.A, B=c.sensors.B, h=c.hand.zwork;
+  const back=RS.geo.geometryUncertainty(A,B,c.plane.w/2,20,h,8), front=RS.geo.geometryUncertainty(A,B,c.plane.w/2,c.plane.d*0.8,h,8);
+  assert.ok(back > front, 'back '+back+' front '+front); assert.ok(front > 0 && Number.isFinite(front));
+});
+
+test('robust wand fit resists a large multipath outlier and reports validation quality', () => {
+  const c=RS.presetConfig('flat'), rnd=RS.util.rng(77), holes=RS.geo.templateHoles(c.plane), truth={A:{x:7,y:-4,z:0,off:18},B:{x:577,y:5,z:0,off:23},C:{x:292.1,y:537,z:0,off:12}}, samples=[];
+  for(const H of holes) for(const depth of RS.calDepths(c)){ const s={hole:H.n,depth}; for(const k of ['A','B','C']) s[k]=[RS.geo.range(truth[k],H.x,H.y,depth)+truth[k].off-20+2*rnd.gauss(),1200]; samples.push(s); }
+  samples.find(s=>s.hole===6).A[0]+=140;
+  const fit=RS.fit.wandFit(samples,c); assert.ok(fit.fits.A.outliers.length>=1); assert.ok(Math.abs(fit.fits.A.off-truth.A.off)<12,'offset '+fit.fits.A.off);
+  assert.ok(fit.validationRms!==null && fit.validation.length>=14); assert.equal(fit.quality,'fail','independent validation must expose the corrupted held-out hole instead of blessing the training fit'); assert.ok(fit.validationWorst && fit.validationWorst.err>55,'worst held-out error '+(fit.validationWorst&&fit.validationWorst.err));
+});
+
+test('boundary commissioning prioritizes disposal and hot transitions', () => {
+  const c=RS.presetConfig('flat'), p=RS.fit.boundaryPlan(c,18); assert.ok(p.length>0); assert.equal(p[0].risk,5); assert.ok(p.some(x=>x.risk===3));
+  const obs=[]; p.forEach((x,i)=>x.tests.forEach((t,s)=>obs.push({id:i,side:s,actual:t.expect}))); const good=RS.fit.scoreBoundaryRun(p,obs); assert.equal(good.pass,true);
+  const hi=p.findIndex(x=>x.risk>1); obs.find(o=>o.id===hi).actual='neutral'; const bad=RS.fit.scoreBoundaryRun(p,obs); assert.equal(bad.pass,false); assert.ok(bad.safetyWrong>=1);
 });

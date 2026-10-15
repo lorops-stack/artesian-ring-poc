@@ -28,12 +28,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // centre (reading + ballR); s0: tape-measured pose {x,y,z}. Prior sd 15 mm, noise sd 8 mm.
   F.fitSensor = function (pts, meas, s0, priorSd, noiseSd, opts) {
     priorSd = priorSd || 15; noiseSd = noiseSd || 8; opts = opts || {};
-    var q = [s0.x, s0.y, s0.z, 0], wp = noiseSd / priorSd, i, it;
+    var q = [s0.x, s0.y, s0.z, 0], wp = noiseSd / priorSd, i, it, weights = new Array(pts.length).fill(1);
     for (it = 0; it < 40; it++) {
       var J = [], r = [];
       for (i = 0; i < pts.length; i++) {
         var dx = q[0] - pts[i].x, dy = q[1] - pts[i].y, dz = q[2] + pts[i].h, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
-        J.push([dx / d, dy / d, dz / d, 1]); r.push(d + q[3] - meas[i]);
+        var rr = d + q[3] - meas[i], sw = Math.sqrt(weights[i]);
+        J.push([sw * dx / d, sw * dy / d, sw * dz / d, sw]); r.push(sw * rr);
       }
       J.push([wp, 0, 0, 0]); r.push(wp * (q[0] - s0.x));
       J.push([0, wp, 0, 0]); r.push(wp * (q[1] - s0.y));
@@ -41,11 +42,17 @@ var RS = globalThis.RS || (globalThis.RS = {});
       J.push([0, 0, wz, 0]); r.push(wz * (q[2] - s0.z));
       var step = solveNormal(J, r, 4), mx = 0;
       for (i = 0; i < 4; i++) { q[i] -= step[i]; mx = Math.max(mx, Math.abs(step[i])); }
+      // Huber IRLS: preserve normal measurements while preventing one multipath return from dragging the installation fit.
+      var absr = []; for (i = 0; i < pts.length; i++) { var ax=q[0]-pts[i].x, ay=q[1]-pts[i].y, az=q[2]+pts[i].h; absr.push(Math.abs(Math.sqrt(ax*ax+ay*ay+az*az)+q[3]-meas[i])); }
+      var mad = U.median(absr), scale = Math.max(2, mad / 0.6745), huber = 1.5 * scale;
+      for (i = 0; i < pts.length; i++) weights[i] = absr[i] <= huber ? 1 : huber / absr[i];
       if (mx < 1e-4) break;
     }
     var resid = [];
     for (i = 0; i < pts.length; i++) { var ddx = q[0] - pts[i].x, ddy = q[1] - pts[i].y, ddz = q[2] + pts[i].h; resid.push(Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz) + q[3] - meas[i]); }
-    return { x: q[0], y: q[1], z: q[2], off: q[3], rms: U.rms(resid), resid: resid };
+    var absFinal=resid.map(Math.abs), med=U.median(absFinal), sc=Math.max(2,med/0.6745), outliers=[];
+    for(i=0;i<resid.length;i++) if(Math.abs(resid[i])>Math.max(12,3*sc)) outliers.push(i);
+    return { x: q[0], y: q[1], z: q[2], off: q[3], rms: U.rms(resid), robustRms: U.rms(resid.filter(function(_,ix){return outliers.indexOf(ix)<0;})), resid: resid, outliers: outliers, scale: sc };
   };
 
   // Full C7 evaluation. samples: [{hole:n, depth:60|160, A:[d,str]|null, B:[d,str]|null}] (readings to the ball surface).
@@ -77,12 +84,28 @@ var RS = globalThis.RS || (globalThis.RS = {});
         if (!s.A || !s.B) return;
         var p = G.locate(s.A[0] + ballR - fits.A.off, s.B[0] + ballR - fits.B.off, fits.A, fits.B, s.depth, { x: H.x, y: H.y }, plane);
         if(fits.C && s.C) p=G.associate3([[s.A[0]+ballR,s.A[1]]],[[s.B[0]+ballR,s.B[1]]],[[s.C[0]+ballR,s.C[1]]],{A:fits.A,B:fits.B,C:fits.C,hand:Object.assign({},cfg.hand,{zwork:s.depth,strMin:0,strMax:1e12,envRef:0}),plane:plane});
-        if(p.x!=null) errs.push(U.hypot(p.x - H.x, p.y - H.y));
+        errs.push(p.x==null?999:U.hypot(p.x - H.x, p.y - H.y));
       });
       var e = errs.length ? U.mean(errs) : null, rec = { n: H.n, x: H.x, y: H.y, err: e, near: near, skipped: !ss.length };
       out.holes.push(rec); if (e !== null && (!worst || e > worst.err)) worst = rec;
     });
     out.worstHole = worst;
+    // Independent validation: refit while withholding one hole at a time, then predict that hole.
+    // This prevents a low training RMS from disguising a calibration that does not generalise across the sink.
+    var cv = [];
+    holes.forEach(function(H) {
+      var held = samples.filter(function(s){return s.hole===H.n && s.A && s.B && s.C;}); if(!held.length) return;
+      var train = samples.filter(function(s){return s.hole!==H.n;}); var ff={};
+      ['A','B','C'].forEach(function(k){ var pts=[],meas=[]; train.forEach(function(s){if(!s[k])return;var P=holes[s.hole-1];pts.push({x:P.x,y:P.y,h:s.depth});meas.push(s[k][0]+ballR);}); ff[k]=pts.length>=6?F.fitSensor(pts,meas,cfg.sensors[k],null,null,{fixZ:flat}):null; });
+      if(!ff.A||!ff.B||!ff.C)return; var errs=[];
+      held.forEach(function(s){var p=G.associate3([[s.A[0]+ballR,s.A[1]]],[[s.B[0]+ballR,s.B[1]]],[[s.C[0]+ballR,s.C[1]]],{A:ff.A,B:ff.B,C:ff.C,hand:Object.assign({},cfg.hand,{zwork:s.depth,strMin:0,strMax:1e12,envRef:0}),plane:plane});errs.push(p.x==null?999:U.hypot(p.x-H.x,p.y-H.y));});
+      cv.push({n:H.n,err:U.mean(errs)});
+    });
+    out.validation = cv; out.validationRms = cv.length ? Math.sqrt(U.mean(cv.map(function(v){return v.err*v.err;}))) : null;
+    out.validationWorst = cv.length ? cv.reduce(function(a,b){return b.err>a.err?b:a;}) : null;
+    var outlierCount=(fits.A.outliers||[]).length+(fits.B.outliers||[]).length+(fits.C?(fits.C.outliers||[]).length:0); out.outliers=outlierCount;
+    var vr=out.validationRms==null?999:out.validationRms, we=out.validationWorst?out.validationWorst.err:999;
+    out.quality = (!out.ok||vr>35||we>55)?'fail':(vr<=12&&we<=25&&outlierCount<=2?'excellent':(vr<=22&&we<=40?'good':'marginal'));
     var skipped = out.holes.filter(function (h) { return h.skipped; }).length;
     if (skipped > 2) { out.ok = false; out.codes.push('P2'); }
     if (rmsAll > CAL.fitPassMm) { out.ok = false; out.codes.push('P2'); }
@@ -159,8 +182,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
         if(s.C){strs.push(s.C[1]);env.push(s.C);}
         strs.push(s.A[1], s.B[1]); env.push([s.A[0], s.A[1]], [s.B[0], s.B[1]]);
         var rr = [s.A[0] - (A.off || 0), s.B[0] - (B.off || 0)], hs = [];
-        [[A, rr[0]], [B, rr[1]]].forEach(function (q) { var pl = G.planar(q[0], H.x, H.y), v2 = q[1] * q[1] - pl * pl; if (v2 > 0) hs.push(Math.sqrt(v2) - q[0].z); });
-        if (hs.length) { var h = U.mean(hs); depths.push(h); var p = G.locate(rr[0], rr[1], A, B, h, { x: H.x, y: H.y }, plane); est.push(U.hypot(p.x - H.x, p.y - H.y)); }
+        [[A, rr[0]], [B, rr[1]]].concat(s.C?[[cfg.sensors.C,s.C[0]-(cfg.sensors.C.off||0)]]:[]).forEach(function (q) { var pl = G.planar(q[0], H.x, H.y), v2 = q[1] * q[1] - pl * pl; if (v2 > 0) hs.push(Math.sqrt(v2) - q[0].z); });
+        if (hs.length) { var h = U.mean(hs); depths.push(h); var p = s.C?G.associate3([s.A],[s.B],[s.C],{A:A,B:B,C:cfg.sensors.C,hand:Object.assign({},cfg.hand,{zwork:h,strMin:0,strMax:1e12,envRef:0}),plane:plane}):G.locate(rr[0],rr[1],A,B,h,{x:H.x,y:H.y},plane); est.push(p.x==null?999:U.hypot(p.x - H.x, p.y - H.y)); }
       });
       var spread = est.length ? U.std(est) + U.mean(est) * 0.5 : null;
       points.push({ n: H.n, samples: ss.length, spread: spread, ok: ss.length >= 2 && (spread === null || spread <= 25), missing: !ss.length });
@@ -177,27 +200,52 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var strMin = Math.max(1, lo * 0.5), strMax = hi * 2.0;   // measured XM125 hand echoes run 5 to 170, so no absolute floor
     // Strength-vs-range envelope: ln(s) = ln(envRef) - k ln(d / 300), least squares over every sample from both sensors.
     // k is held to 1..4 (point targets fall as d^-2 in amplitude); fewer than 6 samples keep k = 2 and fit envRef alone.
-    var envRef = cfg.hand.envRef || 0, envK = cfg.hand.envK || 2, ev = env.filter(function (e) { return e[0] > 0 && e[1] > 0; });
+    var envRef = cfg.hand.envRef || 0, envK = cfg.hand.envK || 2, envDb = cfg.hand.envDb || 12, ev = env.filter(function (e) { return e[0] > 0 && e[1] > 0; });
     if (ev.length >= 3) {
-      var xs = ev.map(function (e) { return Math.log(e[0] / 300); }), ys = ev.map(function (e) { return Math.log(e[1]); }), mx = U.mean(xs), my = U.mean(ys), sxx = 0, sxy = 0;
-      for (var q = 0; q < xs.length; q++) { sxx += (xs[q] - mx) * (xs[q] - mx); sxy += (xs[q] - mx) * (ys[q] - my); }
-      if (ev.length >= 6 && sxx > 0.05) envK = U.clamp(-sxy / sxx, 1, 4); else envK = 2;
-      envRef = Math.exp(my + envK * mx);
+      var xs = ev.map(function (e) { return Math.log(e[0] / 300); }), ys = ev.map(function (e) { return Math.log(e[1]); }), weights = new Array(ev.length).fill(1), slope = -2, intercept = 0;
+      for (var it=0;it<8;it++) {
+        var sw=0,sx=0,sy=0; for(var q=0;q<ev.length;q++){sw+=weights[q];sx+=weights[q]*xs[q];sy+=weights[q]*ys[q];}
+        var mx=sx/sw,my=sy/sw,sxx=0,sxy=0; for(q=0;q<ev.length;q++){sxx+=weights[q]*(xs[q]-mx)*(xs[q]-mx);sxy+=weights[q]*(xs[q]-mx)*(ys[q]-my);}
+        slope=sxx>0.02?sxy/sxx:-2; slope=-U.clamp(-slope,1,4); intercept=my-slope*mx;
+        var ar=[];for(q=0;q<ev.length;q++)ar.push(Math.abs(ys[q]-(intercept+slope*xs[q])));var sc=Math.max(0.08,U.median(ar)/0.6745),hh=1.5*sc;
+        for(q=0;q<ev.length;q++)weights[q]=ar[q]<=hh?1:hh/ar[q];
+      }
+      envK=-slope; envRef=Math.exp(intercept);
+      var dbres=ev.map(function(e){var expect=envRef*Math.pow(300/e[0],envK);return Math.abs(20*Math.log10(e[1]/expect));}).sort(function(a,b){return a-b;});
+      envDb=U.clamp(dbres[Math.min(dbres.length-1,Math.floor(dbres.length*0.95))]*1.35,6,20);
     }
     // Stillness threshold: between the static object's spread and a still hand's movement
     var handMove = null;
     if (stillHold && stillHold.length > 4) {
-      var pts = stillHold.map(function (f) { return G.locate(f.A - (A.off || 0), f.B - (B.off || 0), A, B, zwork, null, plane); });
+      var pts = stillHold.map(function (f) { return f.C!=null?G.associate3([[f.A,100]],[[f.B,100]],[[f.C,100]],{A:A,B:B,C:cfg.sensors.C,hand:Object.assign({},cfg.hand,{zwork:zwork,strMin:0,strMax:1e12,envRef:0}),plane:plane}):G.locate(f.A-(A.off||0),f.B-(B.off||0),A,B,zwork,null,plane); });
+      if(pts.some(function(p){return !Number.isFinite(p.x)||!Number.isFinite(p.y);})) { codes.push('H4'); pts=[]; }
       var cx = U.mean(pts.map(function (p) { return p.x; })), cy = U.mean(pts.map(function (p) { return p.y; }));
-      handMove = U.rms(pts.map(function (p) { return U.hypot(p.x - cx, p.y - cy); }));
+      handMove = pts.length ? U.rms(pts.map(function (p) { return U.hypot(p.x - cx, p.y - cy); })) : null;
     }
     var stat = staticSpread == null ? 2.5 : staticSpread, stillThr = cfg.hand.stillThr;
     if (handMove !== null) {
       if (handMove < stat * 1.6) codes.push('H4');
       stillThr = U.round(Math.max(3, Math.min(handMove * 0.5, stat * 2.5 + (handMove - stat) * 0.4)), 1);
     }
-    return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, envRef: U.round(envRef, 1), envK: U.round(envK, 2), handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
+    return { zwork: U.round(zwork, 1), strMin: Math.round(strMin), strMax: Math.round(strMax), stillThr: stillThr, envRef: U.round(envRef, 1), envK: U.round(envK, 2), envDb: U.round(envDb, 1), handMove: handMove, staticSpread: stat, points: points, codes: codes, ok: codes.length === 0 || (codes.length === 1 && codes[0] === 'H5') };
   };
+  // Commissioning boundary stress: evaluate points immediately either side of every internal zone boundary.
+  // Returns a safety-weighted margin summary; disposal/hot mistakes carry higher weight than benign water-zone confusion.
+  F.boundaryPlan = function (cfg, inset) {
+    inset = inset || 18; var zones=G.zones(cfg.layout,cfg.layouts), P=cfg.plane, pts=[], seen={};
+    function risk(a,b){return (a==='disposal'||b==='disposal')?5:((a==='hot'||b==='hot')?3:1);}
+    zones.forEach(function(a){zones.forEach(function(b){if(a.id>=b.id)return;
+      var key, x,y;
+      if(Math.abs(a.x1-b.x0)<1e-6 && Math.max(a.y0,b.y0)<Math.min(a.y1,b.y1)){y=(Math.max(a.y0,b.y0)+Math.min(a.y1,b.y1))/2*P.d;x=a.x1*P.w;key='v/'+x.toFixed(1)+'/'+y.toFixed(1);if(!seen[key]){seen[key]=1;pts.push({axis:'x',x:x,y:y,a:a.fn,b:b.fn,risk:risk(a.fn,b.fn),tests:[{x:x-inset,y:y,expect:a.fn},{x:x+inset,y:y,expect:b.fn}]});}}
+      if(Math.abs(a.y1-b.y0)<1e-6 && Math.max(a.x0,b.x0)<Math.min(a.x1,b.x1)){x=(Math.max(a.x0,b.x0)+Math.min(a.x1,b.x1))/2*P.w;y=a.y1*P.d;key='h/'+x.toFixed(1)+'/'+y.toFixed(1);if(!seen[key]){seen[key]=1;pts.push({axis:'y',x:x,y:y,a:a.fn,b:b.fn,risk:risk(a.fn,b.fn),tests:[{x:x,y:y-inset,expect:a.fn},{x:x,y:y+inset,expect:b.fn}]});}}
+    });}); return pts.sort(function(a,b){return b.risk-a.risk;});
+  };
+  F.scoreBoundaryRun = function (plan, observations) {
+    var by={}, total=0, weighted=0, wrong=0, safetyWrong=0; (observations||[]).forEach(function(o){by[o.id+'/'+o.side]=o.actual;});
+    plan.forEach(function(p,pi){p.tests.forEach(function(t,si){var a=by[pi+'/'+si];if(a==null)return;total+=p.risk;weighted+=a===t.expect?p.risk:0;if(a!==t.expect){wrong++;if(p.risk>1)safetyWrong++;}});});
+    return {weightedAccuracy:total?weighted/total:null,wrong:wrong,safetyWrong:safetyWrong,pass:total>0&&safetyWrong===0&&weighted/total>=0.95};
+  };
+
   // ---- Self-calibration from a free sweep (Aim screen) -----------------------------------------------------------------------------------
   // Position needs only the sensor positions, not their angles; the aim only changes how strong the echoes are. So the aim can be
   // read from the strengths while a hand moves around the sink: the beam is strongest along its centre line.
