@@ -16,7 +16,10 @@ void defaultLayouts(Config& c) {
 }
 void setDefaults(Config& c) {
   c = Config();
-  c.A = SensorPose{ 0, 0, 0, 45, 0, 0, true }; c.B = SensorPose{ 584.2f, 0, 0, 135, 0, 0, true }; c.C = SensorPose{ 292.1f, 533.4f, 0, 270, 0, 0, false };
+  // Current hardware bench: antenna-centre baseline 19.25 in = 488.95 mm and sensor line to front edge 19.00 in = 482.60 mm.
+  // These are hard geometry boundaries: a torso standing beyond the front edge must not become an in-plane hand target.
+  c.plane.w = 488.95f; c.plane.d = 482.60f;
+  c.A = SensorPose{ 0, 0, 0, 45, 0, 0, true }; c.B = SensorPose{ 488.95f, 0, 0, 135, 0, 0, true }; c.C = SensorPose{ 244.475f, 482.60f, 0, 270, 0, 0, false };
   defaultLayouts(c);
   c.nProfiles = 1; c.profiles[0] = Profile();
 }

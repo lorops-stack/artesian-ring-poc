@@ -99,8 +99,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
   G.vertFactor = function (cfg, S, p, h) { var v = G.vHalf(cfg), o = G.vertOff(S, p, h); return Math.exp(-0.7 * Math.pow(o / Math.max(1, v), 2)); };
 
   // ---- Echo association (spec 6, one rule) --------------------------------------------------------------------
-  // echoes: [[d_mm, strength], ...] per sensor. Returns {x,y,ux,uy,iA,iB,flag} ; flag 0 = good. x,y are clamped to the
-  // plane; ux,uy are the raw fix (the track must follow the raw one, or a hand at the edge gets pinned there).
+  // echoes: [[d_mm, strength], ...] per sensor. Returns {x,y,ux,uy,iA,iB,flag}; flag 0 = good.
+  // A valid fix is already inside the plane; out-of-plane fixes are rejected, never clamped onto an edge.
   // opts: {A,B poses with .off, hand {zwork,strMin,strMax,envRef,envK,envDb}, plane, bg {A:[[d,s]..], B:[..]}, prev {x,y}, maxJump, masks, nearWin}
   // Hand strength envelope: a hand at range d returns about envRef * (300 / d) ^ envK. An echo more than envDb away from
   // that is not a hand at that range (a metal wall is far above it, a second bounce far below). envRef 0 = off.
@@ -108,6 +108,22 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (!(hand.envRef > 0) || !(s > 0) || !(d > 0)) return true;
     var expct = hand.envRef * Math.pow(300 / d, hand.envK == null ? 2 : hand.envK), db = 20 * Math.log10(s / expct);
     return Math.abs(db) <= (hand.envDb == null ? 12 : hand.envDb);
+  };
+  // Soft two-sensor consistency evidence. Range-normalise each linear amplitude using the hand falloff model.
+  // Before C8 this uses the conservative default exponent; C8 then replaces it with the measured exponent.
+  G.pairStrengthMismatchDb = function (rA, sA, rB, sB, k) {
+    if (!(rA > 1) || !(rB > 1) || !(sA > 0) || !(sB > 0)) return 0;
+    k = k == null ? 2 : k;
+    var a = sA * Math.pow(rA / 300, k), b = sB * Math.pow(rB / 300, k);
+    return (a > 0 && b > 0) ? Math.abs(20 * Math.log10(a / b)) : 0;
+  };
+  G.geometryUncertainty = function (A, B, x, y, h, sigma) {
+    sigma = sigma == null ? 8 : sigma;
+    var rA=G.range(A,x,y,h), rB=G.range(B,x,y,h); if(rA<1||rB<1) return 999;
+    var j00=(x-A.x)/rA,j01=(y-A.y)/rA,j10=(x-B.x)/rB,j11=(y-B.y)/rB,det=j00*j11-j01*j10;
+    if(Math.abs(det)<1e-4) return 999;
+    var i00=j11/det,i01=-j01/det,i10=-j10/det,i11=j00/det;
+    return Math.hypot(sigma*Math.hypot(i00,i01),sigma*Math.hypot(i10,i11));
   };
   G.associate = function (eA, eB, opts) {
     var A = opts.A, B = opts.B, hand = opts.hand, plane = opts.plane, bg = opts.bg || {}, tol = 15;
@@ -119,15 +135,20 @@ var RS = globalThis.RS || (globalThis.RS = {});
     for (i = 0; i < eA.length; i++) { if (!okStr(eA[i])) { anyStrengthFail = true; continue; } if (isBg(bg.A, eA[i][0], eA[i][1])) continue; candA.push(i); }
     for (j = 0; j < eB.length; j++) { if (!okStr(eB[j])) { anyStrengthFail = true; continue; } if (isBg(bg.B, eB[j][0], eB[j][1])) continue; candB.push(j); }
     if (!candA.length || !candB.length) return { flag: (eA.length || eB.length) ? (anyStrengthFail ? RS.FLAG.STRENGTH : RS.FLAG.NO_HAND) : RS.FLAG.NO_HAND };
-    var best = null, margin = 30, anyOutside = false, anyMasked = false, pairs = [];
+    var best = null, anyOutside = false, anyMasked = false, pairs = [];
     // Pass 1: every pair that is geometrically possible, inside the sink and not in a dead area.
     for (i = 0; i < candA.length; i++) for (j = 0; j < candB.length; j++) {
       var rA = eA[candA[i]][0] - (A.off || 0), rB = eB[candB[j]][0] - (B.off || 0);
       if (!G.pairFeasible(rA, rB, A, B, hand.zwork)) continue;
       var p = G.locate(rA, rB, A, B, hand.zwork, null, plane);
-      if (p.x < -margin || p.x > plane.w + margin || p.y < -margin || p.y > plane.d + margin || p.res > 60) { anyOutside = true; continue; }
+      if (p.x < 0 || p.x > plane.w || p.y < 0 || p.y > plane.d || p.res > 60) { anyOutside = true; continue; }
+      // Reject baseline/edge-degenerate pairs before they can become the first-arrival reference and hide a
+      // later valid hand echo. This mirrors firmware's 120 mm uncertainty safety gate.
+      var unc0 = G.geometryUncertainty(A, B, p.x, p.y, hand.zwork, opts.rangeSigma || 8);
+      if (unc0 > 120) { anyOutside = true; continue; }
       if (opts.masks && G.maskHit(opts.masks, p.x, p.y)) { anyMasked = true; continue; }       // a dead area: this pair is ignored, the next best may still win
-      pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB });
+      var ampDb = G.pairStrengthMismatchDb(rA, eA[candA[i]][1], rB, eB[candB[j]][1], hand.envK);
+      pairs.push({ p: p, ia: candA[i], ib: candB[j], rA: rA, rB: rB, unc: unc0, ampDb: ampDb });
     }
     if (!pairs.length) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
     // First-arrival rule (nearWin). The direct path is the shortest path a radar pulse can take, so on each sensor the
@@ -135,20 +156,27 @@ var RS = globalThis.RS || (globalThis.RS = {});
     // established track the reference is the pair nearest the track instead, so a cup set down nearer the sensor than the
     // hand cannot steal it. Applied after the dead-area check so a reflector in a dead area never hides a real hand.
     var limA = Infinity, limB = Infinity;
-    if (opts.nearWin > 0) {
-      var refA = Infinity, refB = Infinity;
-      if (opts.prev) { var k0 = null, bd = Infinity; pairs.forEach(function (q) { var dd = U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y); if (dd < bd) { bd = dd; k0 = q; } }); refA = eA[k0.ia][0]; refB = eB[k0.ib][0]; }
-      else pairs.forEach(function (q) { refA = Math.min(refA, eA[q.ia][0]); refB = Math.min(refB, eB[q.ib][0]); });
-      limA = refA + opts.nearWin; limB = refB + opts.nearWin;
+    // Do not apply a shortest-path gate while acquiring. The bench shows short clutter can coexist with the real
+    // farther hand return. Once a track exists, nearWin remains useful for rejecting later bounces around that track.
+    if (opts.nearWin > 0 && opts.prev) {
+      var k0 = null, bd = Infinity;
+      pairs.forEach(function (q) { var dd = U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y); if (dd < bd) { bd = dd; k0 = q; } });
+      limA = eA[k0.ia][0] + opts.nearWin; limB = eB[k0.ib][0] + opts.nearWin;
     }
     pairs.forEach(function (q) {
       if (eA[q.ia][0] > limA || eB[q.ib][0] > limB) return;
-      var score = q.rA + q.rB;                       // nearer pair wins (ghosts are always further away)
-      if (opts.prev) score += 2.5 * U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y);   // an established track is not stolen by a sporadic echo
-      if (!best || score < best.score) best = { x: U.clamp(q.p.x, 0, plane.w), y: U.clamp(q.p.y, 0, plane.d), ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB };
+      var trackErr = opts.prev ? U.hypot(q.p.x - opts.prev.x, q.p.y - opts.prev.y) : 0;
+      var unc = q.unc;
+      var score = q.rA + q.rB + 4 * q.p.res + 0.35 * Math.min(200, unc) + 12 * Math.min(30, q.ampDb || 0);
+      if (opts.prev) score += 2.5 * trackErr;
+      var evidence = q.p.res + (opts.prev ? 0.35 * trackErr : 0) + 0.15 * Math.min(200, unc) + 0.5 * Math.min(30, q.ampDb || 0);
+      if (!best || score < best.score) best = { x: q.p.x, y: q.p.y, ux: q.p.x, uy: q.p.y, iA: q.ia, iB: q.ib, res: q.p.res, score: score, rA: q.rA, rB: q.rB, uncertainty: unc, confidence: 1 / (1 + evidence / 25) };
     });
     if (!best) return { flag: anyMasked ? RS.FLAG.MASKED : (anyOutside ? RS.FLAG.OUTSIDE : RS.FLAG.NO_HAND) };
-    if (opts.prev && opts.maxJump > 0 && U.hypot(best.ux - opts.prev.x, best.uy - opts.prev.y) > opts.maxJump) { best.flag = RS.FLAG.JUMP; return best; }
+    if (opts.prev && opts.maxJump > 0) {
+      var dynamicJump = opts.maxJump + Math.min(180, Math.abs(opts.speed || 0) * Math.max(0, opts.dt || 0.045) * 1.5) + Math.min(100, best.uncertainty || 0);
+      if (U.hypot(best.ux - opts.prev.x, best.uy - opts.prev.y) > dynamicJump) { best.flag = RS.FLAG.JUMP; return best; }
+    }
     best.flag = RS.FLAG.NONE;
     return best;
   };

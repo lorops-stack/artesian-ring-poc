@@ -4,15 +4,15 @@
 #include <stdint.h>
 
 // ---- Sensing plane (spec 2, studio C1) ---------------------------------------
-constexpr float PLANE_W_MM = 584.2f;   // 23 in
-constexpr float PLANE_D_MM = 533.4f;   // 21 in
+constexpr float PLANE_W_MM = 488.95f;  // 19.25 in, current bench sensor baseline
+constexpr float PLANE_D_MM = 482.60f;  // 19.00 in, current bench sensor line to front edge
 
 // ---- Sensor geometry (studio C2/C3), origin = back-left corner, y toward user
 struct SensorPose { float x_mm, y_mm, z_mm, yaw_deg, tilt_deg; bool enabled; };
 // Flat slot mount (production build): sensors in the gap between the undermount sink and the countertop, level with the plane, no tilt.
 constexpr SensorPose DEFAULT_A = {   0.0f, 0.0f, 0.0f,  45.0f, 0.0f, true  };
-constexpr SensorPose DEFAULT_B = { 584.2f, 0.0f, 0.0f, 135.0f, 0.0f, true  };
-constexpr SensorPose DEFAULT_C = { 292.1f, 533.4f, 0.0f, 270.0f, 0.0f, false }; // reserved
+constexpr SensorPose DEFAULT_B = { 488.95f, 0.0f, 0.0f, 135.0f, 0.0f, true  };
+constexpr SensorPose DEFAULT_C = { 244.475f, 482.60f, 0.0f, 270.0f, 0.0f, false }; // reserved
 
 // Hand depth is mm BELOW the sensor plane (negative = above it). Flat mount: the hand is about level with the sensors.
 constexpr float HAND_DEPTH_MIN_MM = -30.0f;  // studio C4 (for the coverage prediction)

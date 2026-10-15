@@ -116,6 +116,11 @@ var RS = globalThis.RS || (globalThis.RS = {});
       } else { this.jumps = 1; this.jump = { x: assoc.ux, y: assoc.uy, t: t }; if (this.prev) { pos = gate; speed = this.tracker.x !== null ? U.hypot(this.tracker.vx, this.tracker.vy) : 0; } }
     }
     else { this.jumps = 0; this.miss = (this.miss || 0) + 1; if (this.miss >= cfg.tuning.goneFrames) { this.tracker.reset(); this.prev = null; } }   // coast through a brief dropout
+    // Match firmware: a valid measurement can still be extrapolated outside the plane by the tracker.
+    // Never publish that filter artefact as a hand; reset so the next in-plane measurement re-acquires.
+    if (pos && (pos.x < 0 || pos.x > cfg.plane.w || pos.y < 0 || pos.y > cfg.plane.d)) {
+      pos = null; assoc.flag = FLAG.OUTSIDE; this.tracker.reset(); this.prev = null; this.miss = 0; this.jumps = 0;
+    }
     if (this.faults.personFront && !hand && assoc.flag === FLAG.OUTSIDE) this.frontEcho += 1;
     var wasSession = this.sm.session;
     var snap = this.sm.step({ t: t, pos: pos, speed: speed, flag: assoc.flag });

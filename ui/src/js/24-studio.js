@@ -322,11 +322,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
       drawSensorDot(ctx, g, 'A', cfg.sensors.A, COL.A); drawSensorDot(ctx, g, 'B', cfg.sensors.B, COL.B); planeLabel(ctx, g, plane);
     } });
     var fW = lenField('Width (x, left to right)', d, 'w', changed), fD = lenField('Depth (y, back to front)', d, 'd', changed), preset = h('div.seg');
-    function isPoc() { return Math.abs(d.w - 584.2) < 0.6 && Math.abs(d.d - 533.4) < 0.6; }
+    function isBench() { return Math.abs(d.w - 488.95) < 0.6 && Math.abs(d.d - 533.4) < 0.6; }
+    function isProduction() { return Math.abs(d.w - 584.2) < 0.6 && Math.abs(d.d - 533.4) < 0.6; }
     function refreshPreset() {
       U.empty(preset);
-      preset.appendChild(h('button' + (isPoc() ? '.on' : ''), { onclick: function () { d.w = 584.2; d.d = 533.4; fW.refresh(); fD.refresh(); changed(); } }, '23 × 21 in (PoC rig)'));
-      preset.appendChild(h('button' + (!isPoc() ? '.on' : ''), { onclick: function () { fW.input.focus(); fW.input.select(); } }, 'Custom'));
+      preset.appendChild(h('button' + (isBench() ? '.on' : ''), { onclick: function () { d.w = 488.95; d.d = 533.4; fW.refresh(); fD.refresh(); changed(); } }, '19¼ × 21 in (current bench)'));
+      preset.appendChild(h('button' + (isProduction() ? '.on' : ''), { onclick: function () { d.w = 584.2; d.d = 533.4; fW.refresh(); fD.refresh(); changed(); } }, '23 × 21 in (production target)'));
+      preset.appendChild(h('button' + (!isBench() && !isProduction() ? '.on' : ''), { onclick: function () { fW.input.focus(); fW.input.select(); } }, 'Custom'));
     }
     function changed() { st.dirty = true; pm.dirty = true; refreshPreset(); }
     var apply = btn('Apply', function () {
@@ -595,7 +597,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     function stop() { send({ c: 'cal', step: 'c7', a: 'stop' }); }
     function apply() {
-      var r = st.result; if (!r || !r.fits || !r.fits.A || !r.fits.B) return;
+      var r = st.result; if (!r || !r.fits || !r.fits.A || !r.fits.B || !r.ok || r.quality === 'fail') { RS.app.toast('Calibration failed independent validation; it was not applied', 'bad'); return; }
       var sens = {}; ['A', 'B'].forEach(function (k) { var f = r.fits[k]; sens[k] = { x: U.round(f.x, 1), y: U.round(f.y, 1), z: U.round(f.z, 1), off: U.round(f.off, 1) }; });
       send({ c: 'cal', step: 'c7', a: 'apply', sensors: sens }).then(function (ack) { if (ack) { st.applied = true; setProgress('c7', 'done'); RS.app.toast('Fitted positions and offsets applied', 'ok'); renderReport(); pm.dirty = true; } });
     }
@@ -632,12 +634,15 @@ var RS = globalThis.RS || (globalThis.RS = {});
           return h('tr', h('td', h('strong', { style: { color: COL[k] } }, k)), h('td.num', xyz(typed)), h('td.num', xyz(f)), h('td.num', h('span', { style: far ? { color: 'var(--bad)' } : null }, 'moved ' + fmtLen(f.moved, 1) + (far ? ' (P1)' : ''))), h('td.num', (f.off >= 0 ? '+' : '') + f.off.toFixed(0) + ' mm'), h('td.num', Math.round(cfg.sensors[k].yaw) + '° · ' + (f.yawEst == null ? '–' : Math.round(f.yawEst) + '°')));
         })))));
       var worst = r.worstHole;
+      var qTone = r.quality === 'excellent' ? 'ok' : r.quality === 'good' ? 'ok' : r.quality === 'marginal' ? 'warn' : 'bad';
+      report.appendChild(h('div.card.tight.mt', h('div.row.between.wrap', h('div', h('div.eyebrow','Independent validation'), h('div.sub','Leave-one-hole-out: each hole is predicted by a fit that did not use that hole.')), chip((r.quality || 'unknown').toUpperCase(), qTone)),
+        h('div.grid.c3.mt-s', tile('Validation RMS', r.validationRms == null ? '–' : r.validationRms.toFixed(1), 'mm'), tile('Worst unseen hole', r.validationWorst ? r.validationWorst.err.toFixed(1) : '–', r.validationWorst ? 'mm · hole '+r.validationWorst.n : 'mm'), tile('Rejected outliers', String(r.outliers || 0), 'robust C7 fit'))));
       report.appendChild(h('div.card.tight.mt', h('div.eyebrow', 'Per-hole error: where the located ball landed against the hole'),
         h('div.holes.mt-s', (r.holes || []).map(function (hh) { var isW = worst && worst.n === hh.n && hh.err != null; return h('div.hole' + (hh.skipped ? '' : isW ? '.bad' : (hh.err != null && hh.err > CAL.fitPassMm * 1.5 ? '.bad' : '.done')), { style: { cursor: 'default' }, title: hh.near != null ? 'Nearest sensor ' + Math.round(hh.near) + ' mm' : '' }, h('span', String(hh.n)), h('span.num.small', hh.skipped ? 'skipped' : hh.err == null ? '–' : hh.err.toFixed(1) + ' mm')); })),
         worst && worst.err != null ? h('div.small.dim.mt-s', 'Worst: hole ' + worst.n + ' at ' + worst.err.toFixed(1) + ' mm.' + (worst.near < CAL.nearMm ? ' It sits within ' + CAL.nearMm + ' mm of a sensor (P6).' : '') + (r.staticSpread != null ? ' Still-ball spread ' + r.staticSpread.toFixed(1) + ' mm (a static object; C8 uses it for the stillness threshold).' : '')) : null));
       (r.codes || []).forEach(function (c) { report.appendChild(h('div.mt', RS.fixPanel(c, { onTest: start }))); });
-      var applyBtn = btn(st.applied ? 'Applied' : (r.ok ? 'Apply fitted positions' : 'Apply anyway'), apply, 'primary lg', st.applied ? { disabled: true } : null);
-      report.appendChild(h('div.row.between.wrap.mt-l', h('div.sub.grow', r.ok ? 'The fit passed. Apply writes each sensor\'s fitted x, y, z and distance offset to the ring; C2 keeps the tape-measure values as its guide.' : 'The fit has warnings. Fix them and run again, or apply anyway if you accept them.'), h('div.row', btn('Export result', exportResult, 'sm'), applyBtn)));
+      var fitSafe = r.ok && r.quality !== 'fail'; var applyBtn = btn(st.applied ? 'Applied' : (fitSafe ? 'Apply fitted positions' : 'Calibration failed'), apply, 'primary lg', (st.applied || !fitSafe) ? { disabled: true } : null);
+      report.appendChild(h('div.row.between.wrap.mt-l', h('div.sub.grow', fitSafe ? 'The fit and independent validation passed. Apply writes each sensor\'s fitted x, y, z and distance offset to the ring; C2 keeps the tape-measure values as its guide.' : 'This calibration is not safe to apply. Correct the indicated geometry/readings and run C7 again.'), h('div.row', btn('Export result', exportResult, 'sm'), applyBtn)));
       if (!r.ok && !st.applied) setProgress('c7', 'fail');
     }
     function renderAll() { U.empty(gridBox); gridBox.appendChild(holeGrid(holeStates(), redo)); renderStage(); renderReport(); pm.dirty = true; }
@@ -692,7 +697,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     function stop() { send({ c: 'cal', step: 'c8', a: 'stop' }); }
     function apply() {
       var r = st.result; if (!r) return;
-      send({ c: 'cal', step: 'c8', a: 'apply', hand: { zwork: r.zwork, strMin: r.strMin, strMax: r.strMax, stillThr: r.stillThr, envRef: r.envRef, envK: r.envK } }).then(function (ack) { if (ack) { st.applied = true; setProgress('c8', 'done'); RS.app.toast('Hand profile applied', 'ok'); renderReport(); } });
+      send({ c: 'cal', step: 'c8', a: 'apply', hand: { zwork: r.zwork, strMin: r.strMin, strMax: r.strMax, stillThr: r.stillThr, envRef: r.envRef, envK: r.envK, envDb: r.envDb } }).then(function (ack) { if (ack) { st.applied = true; setProgress('c8', 'done'); RS.app.toast('Hand profile applied', 'ok'); renderReport(); } });
     }
     function renderStage() {
       U.empty(stage); stillBar = null; var cal = st.cal;
@@ -715,7 +720,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       report.appendChild(h('div.eyebrow.mt-l', 'Result'));
       var zT = tile('Working hand depth', fmtLen(r.zwork, 1), 'now ' + fmtLen(cfg.hand.zwork, 1)); zT.appendChild(chip(inBand ? 'Inside the C4 band ' + Math.round(cfg.hand.zmin) + ' to ' + Math.round(cfg.hand.zmax) + ' mm' : 'Outside the C4 band (H3)', inBand ? 'ok' : 'bad'));
       var sT = tile('Hand strength window', r.strMin + ' to ' + r.strMax, 'now ' + cfg.hand.strMin + ' to ' + cfg.hand.strMax);
-      var eT = tile('Strength envelope', r.envRef ? r.envRef + ' at 300 mm, falls as d^-' + r.envK : 'not fitted', cfg.hand.envRef ? 'now ' + cfg.hand.envRef + ', d^-' + cfg.hand.envK : 'now off');
+      var eT = tile('Strength envelope', r.envRef ? r.envRef + ' at 300 mm, d^-' + r.envK + ', ±' + r.envDb + ' dB' : 'not fitted', cfg.hand.envRef ? 'now ' + cfg.hand.envRef + ', d^-' + cfg.hand.envK + ', ±' + cfg.hand.envDb + ' dB' : 'now off');
       var tT = tile('Still threshold', r.stillThr, 'mm · now ' + cfg.hand.stillThr);
       report.appendChild(h('div.grid.c3.mt-s', zT, sT, tT)); report.appendChild(h('div.grid.c3.mt-s', eT));
       var tooClose = r.handMove != null && r.handMove < r.staticSpread * 1.6;

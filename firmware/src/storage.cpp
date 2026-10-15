@@ -20,10 +20,12 @@ void begin() {
   prefs.getString("calName", g.calName, sizeof g.calName); prefs.getString("calWhen", g.calWhen, sizeof g.calWhen);
 }
 void loadSecrets() {
-  prefs.getString("pass", g.wifiPass, sizeof g.wifiPass); prefs.getString("pin", g.pin, sizeof g.pin);
-  g.setupNeeded = strlen(g.wifiPass) < 8 || strlen(g.pin) < 4;
+  prefs.getString("pass", g.wifiPass, sizeof g.wifiPass);
+  // Ring Studio uses the WPA2 AP password as its access boundary. Legacy studio PINs are ignored.
+  g.pin[0] = 0;
+  g.setupNeeded = strlen(g.wifiPass) < 8;
 }
-void saveSecrets() { prefs.putString("pass", g.wifiPass); prefs.putString("pin", g.pin); }
+void saveSecrets() { prefs.putString("pass", g.wifiPass); prefs.remove("pin"); g.pin[0] = 0; }
 void saveTotals() { prefs.putUInt("sess", g.totals.sess); prefs.putFloat("ml", g.totals.ml); prefs.putFloat("savedOff", g.totals.savedOff); prefs.putFloat("savedFlow", g.totals.savedFlow); g.totalsDirty = false; }
 
 static bool readJsonFile(const char* path, JsonDocument& doc) {
@@ -34,12 +36,20 @@ static bool readJsonFile(const char* path, JsonDocument& doc) {
   return true;
 }
 static bool writeJsonFile(const char* path, const JsonDocument& doc) {
-  if (!fsOk) return false; File f = LittleFS.open(path, "w"); if (!f) return false; serializeJson(doc, f); f.close(); return true;
+  if (!fsOk) return false;
+  String tmp = String(path) + ".tmp"; LittleFS.remove(tmp);
+  File f = LittleFS.open(tmp, "w"); if (!f) return false;
+  size_t written = serializeJson(doc, f); f.flush(); f.close();
+  if (!written) { LittleFS.remove(tmp); return false; }
+  LittleFS.remove(path);
+  if (!LittleFS.rename(tmp, path)) { LittleFS.remove(tmp); return false; }
+  return true;
 }
 bool loadConfig() {
-  setDefaults(g.cfg);
-  JsonDocument doc; if (!readJsonFile(CFG_PATH, doc)) { Serial.println("[cfg] no saved configuration, using defaults"); return false; }
-  configFromJson(doc.as<JsonObjectConst>(), g.cfg); Serial.println("[cfg] loaded"); return true;
+  Config candidate; setDefaults(candidate);
+  JsonDocument doc; if (!readJsonFile(CFG_PATH, doc)) { g.cfg = candidate; Serial.println("[cfg] no saved configuration, using defaults"); return false; }
+  char err[96] = ""; if (!configFromJson(doc.as<JsonObjectConst>(), candidate) || !validateConfig(candidate, err, sizeof err)) { g.cfg = Config(); setDefaults(g.cfg); Serial.printf("[cfg] rejected saved configuration: %s\n", err[0] ? err : "parse error"); return false; }
+  g.cfg = candidate; Serial.println("[cfg] loaded"); return true;
 }
 void saveConfig() {
   JsonDocument doc; configToJson(g.cfg, doc.to<JsonObject>());
@@ -60,13 +70,15 @@ bool saveCal(const char* name, const char* notes) {
   configToJson(g.cfg, doc["cfg"].to<JsonObject>());
   char path[64]; calPath(name, path, sizeof path);
   if (!writeJsonFile(path, doc)) return false;
-  strncpy(g.calName, name, sizeof g.calName - 1); strncpy(g.calWhen, when, sizeof g.calWhen - 1); prefs.putString("calName", g.calName); prefs.putString("calWhen", g.calWhen);
+  strncpy(g.calName, name, sizeof g.calName - 1); g.calName[sizeof g.calName - 1] = 0; strncpy(g.calWhen, when, sizeof g.calWhen - 1); g.calWhen[sizeof g.calWhen - 1] = 0; prefs.putString("calName", g.calName); prefs.putString("calWhen", g.calWhen);
   return true;
 }
 bool loadCal(const char* name) {
   char path[64]; calPath(name, path, sizeof path); JsonDocument doc; if (!readJsonFile(path, doc)) return false;
-  Lock lk; configFromJson(doc["cfg"].as<JsonObjectConst>(), g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis();
-  strncpy(g.calName, name, sizeof g.calName - 1); strncpy(g.calWhen, doc["when"] | "", sizeof g.calWhen - 1); prefs.putString("calName", g.calName); prefs.putString("calWhen", g.calWhen);
+  Config candidate; { Lock lk; candidate = g.cfg; } char err[96] = "";
+  if (!configFromJson(doc["cfg"].as<JsonObjectConst>(), candidate) || !validateConfig(candidate, err, sizeof err)) { Serial.printf("[cal] rejected %s: %s\n", name, err[0] ? err : "parse error"); return false; }
+  { Lock lk; g.cfg = candidate; g.cfgDirty = true; g.cfgDirtyAt = millis(); }
+  strncpy(g.calName, name, sizeof g.calName - 1); g.calName[sizeof g.calName - 1] = 0; strncpy(g.calWhen, doc["when"] | "", sizeof g.calWhen - 1); g.calWhen[sizeof g.calWhen - 1] = 0; prefs.putString("calName", g.calName); prefs.putString("calWhen", g.calWhen);
   return true;
 }
 bool deleteCal(const char* name) { char path[64]; calPath(name, path, sizeof path); return fsOk && LittleFS.remove(path); }

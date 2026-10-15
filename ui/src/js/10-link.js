@@ -131,7 +131,9 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var h = (typeof location !== 'undefined') ? location.hostname : '';
     var fromRing = (/^(\d+\.){3}\d+$/.test(h) && !/^127\./.test(h)) || /ring/i.test(h);   // an IP that is not loopback: the ESP32
     var remembered = U.store.get('link.host', null);
-    if (fromRing) L.connectWs(location.host, { fallback: true, timeout: 3000 });
+    // A page served by the ESP32 is a hardware session. If its WebSocket is temporarily unavailable,
+    // stay in live mode and retry rather than silently substituting simulated data.
+    if (fromRing) L.connectWs(location.host, { fallback: false, timeout: 3000 });
     else if (remembered && U.store.get('link.autoconnect', false)) L.connectWs(remembered, { fallback: true, timeout: 3000 });
     else L.useSim('laptop copy');
   };

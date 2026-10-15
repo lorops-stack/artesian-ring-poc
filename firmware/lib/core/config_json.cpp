@@ -1,5 +1,7 @@
 #include "config_json.h"
 #include <string.h>
+#include <math.h>
+#include <stdio.h>
 
 namespace ring {
 
@@ -81,12 +83,29 @@ bool configFromJson(const JsonObjectConst in, Config& c) {
     if (!c.nProfiles) { c.nProfiles = 1; c.profiles[0] = Profile(); }
   }
   JsonObjectConst u = in["units"]; if (!u.isNull() && u["temp"].is<const char*>()) cpy(c.tempUnit, sizeof c.tempUnit, u["temp"]);
-  // sanity
-  if (t.ledCount < 1 || t.ledCount > 600) t.ledCount = 132;
-  if (t.rangeEnd <= t.rangeStart) t.rangeEnd = t.rangeStart + 100;
-  if (c.plane.w < 100) c.plane.w = 584.2f;
-  if (c.plane.d < 100) c.plane.d = 533.4f;
+  // Parsing preserves supplied values. Validation is intentionally separate so malformed
+  // persisted/imported/operator configuration is rejected rather than silently rewritten.
   return true;
+}
+
+static bool bad(char* err, int n, const char* msg) { if (err && n > 0) { snprintf(err, n, "%s", msg); } return false; }
+bool validateConfig(const Config& c, char* err, int errLen) {
+  auto finite = [](float v) { return isfinite(v); };
+  if (!finite(c.plane.w) || !finite(c.plane.d) || c.plane.w < 300 || c.plane.w > 1200 || c.plane.d < 250 || c.plane.d > 1200) return bad(err, errLen, "plane dimensions out of range");
+  const SensorPose* poses[] = {&c.A,&c.B,&c.C}; for (auto p : poses) if (!finite(p->x)||!finite(p->y)||!finite(p->z)||!finite(p->yaw)||!finite(p->tilt)||!finite(p->off)||fabsf(p->x)>2000||fabsf(p->y)>2000||fabsf(p->z)>1000||fabsf(p->yaw)>720||fabsf(p->tilt)>90||fabsf(p->off)>500) return bad(err, errLen, "sensor pose out of range");
+  const HandModel& h=c.hand; if (!finite(h.zmin)||!finite(h.zmax)||!finite(h.zwork)||h.zmin>=h.zmax||h.zwork<h.zmin||h.zwork>h.zmax||h.zmin<-300||h.zmax>500) return bad(err,errLen,"hand depth model invalid");
+  if (!finite(h.strMin)||!finite(h.strMax)||h.strMin<0||h.strMax<=h.strMin||h.strMax>1000000||!finite(h.stillThr)||h.stillThr<0||h.stillThr>100||!finite(h.envRef)||h.envRef<0||h.envRef>1000000||!finite(h.envK)||h.envK<0.5f||h.envK>6||!finite(h.envDb)||h.envDb<3||h.envDb>30) return bad(err,errLen,"hand strength/noise model invalid");
+  if (c.nLayouts<1||c.nLayouts>MAX_LAYOUTS||!c.findLayout(c.layout)) return bad(err,errLen,"layout selection invalid");
+  for(int i=0;i<c.nLayouts;i++){ const Layout& L=c.layouts[i]; if(!L.id[0]||L.nRows<1||L.nRows>MAX_ROWS) return bad(err,errLen,"layout rows invalid"); float sum=0; for(int j=0;j<L.nRows;j++){ const LayoutRow& R=L.rows[j]; if(!finite(R.h)||R.h<=0||R.h>1||R.n<1||R.n>MAX_COLS) return bad(err,errLen,"layout geometry invalid"); sum+=R.h; } if(fabsf(sum-1.0f)>0.02f) return bad(err,errLen,"layout row heights must sum to 1"); }
+  const Tuning& t=c.tuning;
+  if(t.settleMs<20||t.settleMs>3000||!finite(t.settleSpeed)||t.settleSpeed<1||t.settleSpeed>3000||!finite(t.startSpeed)||t.startSpeed<0||t.startSpeed>3000||t.goneFrames<1||t.goneFrames>30||t.exitMs<100||t.exitMs>10000) return bad(err,errLen,"tracking timing invalid");
+  if(t.stillOffMs<1000||t.stillOffMs>120000||t.presentFrames<1||t.presentFrames>30||t.disposalHoldMs<250||t.disposalHoldMs>10000||t.disposalRunMs<1000||t.disposalRunMs>30000||t.cleanMs<5000||t.cleanMs>600000||t.cleanHoldMs<500||t.cleanHoldMs>10000) return bad(err,errLen,"function timing invalid");
+  if(t.rangeStart<40||t.rangeEnd>3000||t.rangeEnd<=t.rangeStart+50||!finite(t.threshSens)||t.threshSens<0.3f||t.threshSens>2.0f||t.i2cKhz<50||t.i2cKhz>1000||t.wifiCh<1||t.wifiCh>13) return bad(err,errLen,"sensor/network tuning invalid");
+  if(t.ledCount<1||t.ledCount>600||!finite(t.hyst)||t.hyst<0||t.hyst>150||!finite(t.beamHalf)||t.beamHalf<5||t.beamHalf>90||!finite(t.nearWin)||t.nearWin<0||t.nearWin>500||!finite(t.smooth)||t.smooth<0.05f||t.smooth>1.0f) return bad(err,errLen,"UI/association tuning invalid");
+  if(c.nProfiles<1||c.nProfiles>MAX_PROFILES||!c.activeProfile()) return bad(err,errLen,"profile selection invalid");
+  for(int i=0;i<c.nProfiles;i++){ const Profile& p=c.profiles[i]; if(!p.id[0]||!finite(p.hotF)||!finite(p.hotCapF)||!finite(p.warmF)||p.hotF<60||p.hotF>p.hotCapF||p.hotCapF>140||p.warmF<50||p.warmF>p.hotCapF||!finite(p.cupMl)||p.cupMl<10||p.cupMl>2000||!finite(p.soapMl)||p.soapMl<0.05f||p.soapMl>20||!finite(p.flowGpm)||p.flowGpm<0.1f||p.flowGpm>5) return bad(err,errLen,"profile values invalid"); }
+  for(int i=0;i<c.nMasks;i++){ const Mask&m=c.masks[i]; if(!m.id[0]||!finite(m.x)||!finite(m.y)||!finite(m.a)||!finite(m.b)||m.a<=0||(m.kind==0&&m.b<=0)) return bad(err,errLen,"mask invalid"); }
+  if(err&&errLen>0) err[0]=0; return true;
 }
 
 // Dotted-path sets are applied on a JSON image of the config, then read back. Simple and schema-proof.
@@ -110,6 +129,7 @@ bool configApplySet(Config& c, const JsonObjectConst set, char* err, int errLen)
   }
   Config fresh; setDefaults(fresh); configFromJson(root, fresh);
   // keep layouts/profiles exactly as the JSON says (configFromJson rebuilt them); copy over
+  if (!validateConfig(fresh, err, errLen)) return false;
   c = fresh; return true;
 }
 
