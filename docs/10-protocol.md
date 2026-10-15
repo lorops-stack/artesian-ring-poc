@@ -1,3 +1,5 @@
+> Access boundary: the current build uses the WPA2 AP password for both HTTP controls and WebSocket commands. Legacy PIN examples below are historical; no second PIN is required. OTA remains disabled by default.
+
 > Three-sensor extension (firmware/UI 0.2.0): protocol version remains 1; frame and health messages now include `C` with the same shape as `A` and `B`. Calibration samples and still-hold records include C. Configuration schema 2 enables C; schema-1 configurations retain their measured values and migrate C to enabled. Review C pose before use. Clients must consume all three sensors for system health. Missing C prevents a new hand position. Older examples below may omit the additive C field.
 
 # 10 · Device ↔ Ring Studio protocol

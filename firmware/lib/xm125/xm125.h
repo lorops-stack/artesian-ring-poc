@@ -40,6 +40,7 @@ class Sensor {
   void beginBus(uint32_t hz);
   void setBusSpeed(uint32_t hz) { hz_ = hz; }
   bool selectBus(); // route a shared controller to this sensor before every transaction
+  void setWaitHook(void (*hook)()) { waitHook_ = hook; }
   void hardReset();                              // pull RST low 20 ms, release, wait for the module to boot
   bool present();                                // answers at 0x52
   bool readReg(uint16_t reg, uint32_t& value);
@@ -66,6 +67,7 @@ class Sensor {
   static void versionString(uint32_t v, char* out, int n) { snprintf(out, n, "%lu.%lu.%lu", (unsigned long)(v >> 16), (unsigned long)((v >> 8) & 0xFF), (unsigned long)(v & 0xFF)); }
  private:
   static Sensor* active_[2];
+  void (*waitHook_)() = nullptr;
   uint32_t hz_ = 400000;
   TwoWire& w_; int sda_, scl_, rst_; const char* name_; uint32_t errors_ = 0, lastStatus_ = 0; int lastBusErr_ = 0; bool ok_ = false;
   bool stopMode_ = false;   // false: repeated start between the address write and the read; true: a full STOP (auto-switched if reads fail)

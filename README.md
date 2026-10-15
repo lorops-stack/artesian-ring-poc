@@ -4,7 +4,7 @@ Three SparkFun XM125 radar modules and one ESP32-S3-N8R2 track a hand over a nom
 
 ## Build and install
 
-Start with the [three-sensor installation guide](docs/three-sensor-installation.md), [wiring diagram](docs/three-sensor-wiring.svg) and [placement drawing](docs/three-sensor-layout.svg). Firmware pin assignments live in `firmware/include/pins.h`; factory geometry lives in `firmware/include/defaults.h`. Enter measured antenna positions before calibration.
+Start with the [three-sensor installation guide](docs/three-sensor-installation.md), [wiring diagram](docs/three-sensor-wiring.svg) and [placement drawing](docs/three-sensor-layout.svg). Firmware pin assignments live in `firmware/include/pins.h`; factory geometry lives in `firmware/include/defaults.h`. Enter measured antenna positions before calibration. The default C position is front-left, aimed diagonally inward; [the placement comparison](docs/placement-comparison.md) explains why.
 
 ```sh
 python tools/build_ui.py
@@ -23,7 +23,7 @@ Open `ui/dist/index.html` for the simulator. For hardware, use the temporary acc
 
 [Commissioning epic #2](https://github.com/lorops-stack/artesian-ring-poc/issues/2) links requirements, implementation and physical verification. [Issue #3](https://github.com/lorops-stack/artesian-ring-poc/issues/3) defines the contribution workflow. [Issue #4](https://github.com/lorops-stack/artesian-ring-poc/issues/4) covers three-sensor software and [issue #5](https://github.com/lorops-stack/artesian-ring-poc/issues/5) holds bench evidence. Test results belong on the corresponding issue and PR, not in an accumulating README progress log.
 
-Read [CONTRIBUTING](CONTRIBUTING.md) before changing code. Automated contributors also follow [AGENTS](AGENTS.md). CI runs UI regressions, native firmware tests, driver tests and an ESP32-S3 build. Passing software checks does not establish physical coverage or appliance safety.
+Read [CONTRIBUTING](CONTRIBUTING.md) before changing code. Automated contributors also follow [AGENTS](AGENTS.md). CI runs UI regressions, native firmware tests, driver tests and an ESP32-S3 build. Passing software checks does not establish physical coverage or appliance safety. Successful GitHub Actions runs also preserve matched firmware and browser filesystem images as downloadable artifacts.
 
 ## Reference
 

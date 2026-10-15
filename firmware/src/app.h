@@ -1,6 +1,7 @@
 // app.h - shared application state between the sensing core (1) and the Wi-Fi/LED core (0).
 #pragma once
 #include <Arduino.h>
+#include <atomic>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <ArduinoJson.h>
@@ -52,9 +53,9 @@ struct State {
   volatile int clients = 0;
   volatile bool restartWifi = false, reboot = false;
   volatile bool checkFailing = false;
-  volatile bool sensorsReconfig = false;                  // range / threshold changed: reset and re-configure both sensors (the module locks its config after apply)
-  volatile bool pauseSensing = false;                     // set while a calibration step talks to the sensors itself
-  volatile bool sensingBusy = false;                      // true while core 1 is inside a measurement
+  std::atomic<bool> sensorsReconfig{false};                  // range / threshold changed: reset and re-configure all three sensors (the module locks its config after apply)
+  std::atomic<bool> pauseSensing{false};                     // set while a calibration step talks to the sensors itself
+  std::atomic<bool> sensingBusy{false};                      // true while core 1 is inside a measurement
   // LED tests and button-driven status
   volatile int ledTest = 0; volatile int ledTestN = 0;    // 0 none, 1 white, 2 rgb, 3 count
   volatile int buttonPhase = 0;                           // 0 none, 1 held <3 s, 2 held 3-8 s, 3 reset done

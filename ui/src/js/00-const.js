@@ -72,7 +72,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     sensors: {
       A: { x: 0,     y: 0,     z: 0, yaw: 45,  tilt: 0, off: 0, on: true },
       B: { x: 584.2, y: 0,     z: 0, yaw: 135, tilt: 0, off: 0, on: true },
-      C: { x: 292.1, y: 533.4, z: 0, yaw: 270, tilt: 0, off: 0, on: true }
+      C: { x: 0, y: 533.4, z: 0, yaw: 315, tilt: 0, off: 0, on: true }
     },
     hand: { zmin: -30, zmax: 60, zwork: 0, strMin: 3, strMax: 60000, stillThr: 6, envRef: 0, envK: 2, envDb: 12 },   // envRef: hand strength at 300 mm, 0 = envelope off (C8 learns it)
     rig: { mount: 'flat', slotH: 14, recess: 20, sinkDepth: 190, beamV: 35 },

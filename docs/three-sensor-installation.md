@@ -6,13 +6,15 @@
 
 ![Top view](three-sensor-layout.svg)
 
-Viewed from the person using the sink, put A at the back-left corner, B at the back-right corner, and C at the centre of the front edge, looking back toward the drain. This triangular arrangement gives the third sensor a different measurement direction from the existing rear pair. Putting all three on the back edge would make the fixed-height three-range solve degenerate; putting C beside A or B adds less independent geometry. Front-centre is the recommended symmetric starting point, not a physically proven optimum.
+Viewed from the person using the sink, put A at the back-left corner, B at the back-right corner, and C at the front-left corner, aimed diagonally toward the back-right. Three corner positions improve shared angular coverage relative to a front-centre C. The front-right corner (584.2, 533.4), yaw 225°, is a mirrored alternative if it has better mechanical clearance; enter that pose explicitly. This is the best starting arrangement among the compared candidates for overlap, not a physically proven optimum. A front-centre C offers slightly better range-noise geometry but loses more of the near-front area when all three sensors are required.
+
+Putting all three antennas on the back edge makes this solver's noncollinear initialization degenerate. Keep a wide triangle. The reproducible [placement comparison](placement-comparison.md) explains the geometry/coverage tradeoff and its assumptions.
 
 | Sensor | Antenna centre x | Antenna centre y | Starting yaw | Tilt / z |
 |---|---:|---:|---:|---:|
 | A — back-left | 0 mm | 0 mm | 45° | 0° / 0 mm |
 | B — back-right | 584.2 mm | 0 mm | 135° | 0° / 0 mm |
-| C — front-centre | 292.1 mm | 533.4 mm | 270° | 0° / 0 mm |
+| C — front-left | 0 mm | 533.4 mm | 315° | 0° / 0 mm |
 
 Origin is the nominal back-left opening corner; x goes right, y goes toward the user. Yaw is measured from +x toward +y. Values locate the radar antenna, not the PCB corner or mounting screw. If the antenna sits outside this nominal rectangle, enter its actual coordinates; do not move the coordinate origin to hide a setback. The opening dimensions and antenna baseline are not necessarily equal.
 
@@ -20,7 +22,7 @@ Mount each antenna face toward the intended sensing area: radiation leaves the f
 
 Use adjustable, nonmetallic supports. Keep the antenna's view clear of the metal sink lip, fasteners and foil-backed trim; place it as close to the slot mouth as the enclosure and splash protection permit. Keep all three sensing planes level initially. Do not assume radar sees through the metal sink or stone countertop. A radome, countertop overhang or deep recess changes the result and needs testing in its final position. Record actual slot height, antenna recess and z offset. No unmeasured numeric clearance is guaranteed here.
 
-A third range improves geometric conditioning when all sensors see the same target; it does not guarantee full coverage. A/B may miss their adjacent rear corners; C can miss the near-front region or have its view blocked by the user's hand/arm. The 60 mm minimum detector range also creates local exclusion regions. The UI beam widths are adjustable modelling assumptions, not measured installed antenna specifications. Plan for a tested working area inside the opening and exclude unreliable cells.
+A third range improves geometric conditioning when all sensors see the same target; it does not guarantee full coverage. Each sensor can miss adjacent edge regions with a narrow installed beam, or have its view blocked by the user's hand/arm. The 60 mm minimum detector range also creates local exclusion regions. The UI beam widths are adjustable modelling assumptions, not measured installed antenna specifications. Plan for a tested working area inside the opening and exclude unreliable cells.
 
 ## Wiring
 
@@ -66,9 +68,13 @@ Keep the scene dry and use the LED demo first. Record the firmware commit, modul
 1. Flash the same supported I²C distance-detector firmware onto all three XM125s. Boot the ESP32 with an empty opening. Check that A/B/C each answer, configure, measure and reset independently. Disconnect C and verify that it is reported missing and cannot start a new session. Reconnect and recheck.
 2. At the drain and each intended zone, move a calibration target and then a real hand. Inspect each raw echo list separately. Confirm all three see the target before interpreting the fused point. Measure actual full-triplet frame rate, bus errors and power voltage during reset/calibration.
 3. Measure and enter geometry, record the empty-scene background, then run C7 at all 16 template holes and both prescribed depths. For the flat mount these are 10 and 50 mm below the sensing plane. Use a fixture whose dimensions and ball radius match the calibration settings. C8 uses 5/35 mm hand positions for the flat mount. Reject incomplete/poor fits; retain held-out errors as well as training RMS.
-4. Repeat fixed-grid and boundary runs with real hands, different hand orientations, two hands, a torso at the front, towels, dishes and the final countertop/radome. Include the front-centre near zone and rear corners. Measure accepted triples, missed detections, wrong-zone selections, latency and false sessions during an empty-scene soak. Report denominators and raw logs, not just a percentage.
-5. Compare the recommended C mount with reversible alternatives at approximately front x = 35%, 50%, 65% (204.5 / 292.1 / 379.7 mm); aim each toward the same central working region. Re-measure and recalibrate for each candidate, keeping power, A/B and test sequence constant. Choose the layout with the best verified intended-zone coverage and lowest wrong-zone/false-session rate, then latency and maintainability. Do not optimise only range RMS.
+4. Repeat fixed-grid and boundary runs with real hands, different hand orientations, two hands, a torso at the front, towels, dishes and the final countertop/radome. Include all sensor-adjacent near zones and the unoccupied front-right corner. Measure accepted triples, missed detections, wrong-zone selections, latency and false sessions during an empty-scene soak. Report denominators and raw logs, not just a percentage.
+5. Compare the recommended front-left C with the mirrored front-right corner and front-centre (292.1, 533.4), yaw 270°. Re-measure and recalibrate for each candidate, keeping power, A/B and test sequence constant. Choose the layout with the best verified intended-zone coverage and lowest wrong-zone/false-session rate, then latency and maintainability. Do not optimise only range RMS.
 6. Mark blind regions and adjust zones/masks accordingly. If all-three coverage is inadequate, change the physical mount or sensing architecture in a new issue rather than silently enabling a two-sensor fallback. Record approval and remaining limitations before any release or appliance integration.
+
+## Access and maintenance
+
+The WPA2 access-point password is the access boundary for both browser WebSocket commands and HTTP controls. There is no second operator PIN in this build. Share that password only with people who may change the configuration; anyone connected can control this bench demo. OTA remains disabled by default. Calibration uses bounded polling with watchdog progress and releases the shared state lock during long detector operations.
 
 ## Sources and scope
 
@@ -76,6 +82,7 @@ The attached R10 package provides product/demo context; it does not supply measu
 
 - [SparkFun hardware overview](https://docs.sparkfun.com/SparkFun_Qwiic_Pulsed_Radar_Sensor_XM125/hardware_overview/): power inputs, logic levels, jumpers, reset and board dimensions.
 - [Espressif I²C API](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/i2c.html): controller end/begin and pin assignment.
+- [Acconeer radome and mechanical design](https://docs.acconeer.com/en/latest/hw_integration/a121/radome_and_mechanical_design.html): enclosure-dependent antenna patterns and reference measurement of radome range offsets. Do not transplant a spacing dimension from one dielectric/shape to an untested countertop slot.
 - [Acconeer distance detector](https://docs.acconeer.com/en/latest/detectors/a121/distance_detector.html): detector operation and constraints.
 
 Placement and supply sizing are engineering recommendations for this prototype, not manufacturer guarantees or measured acceptance results.

@@ -63,7 +63,7 @@ bool Sensor::writeReg(uint16_t reg, uint32_t value) {
 }
 bool Sensor::waitNotBusy(uint32_t timeoutMs) {
   uint32_t t0 = millis(); uint32_t st = 0;
-  while (millis() - t0 < timeoutMs) { if (readReg(REG_DETECTOR_STATUS, st)) { lastStatus_ = st; if (!(st & ST_BUSY)) return true; } delay(1); }
+  while (millis() - t0 < timeoutMs) { if (waitHook_) waitHook_(); if (readReg(REG_DETECTOR_STATUS, st)) { lastStatus_ = st; if (!(st & ST_BUSY)) return true; } delay(1); }
   return false;
 }
 bool Sensor::configure(const Settings& s, uint32_t timeoutMs) {

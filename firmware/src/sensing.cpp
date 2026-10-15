@@ -1,4 +1,4 @@
-// sensing.cpp - core 1: measure A then B, associate, track, run the state machine, publish the frame.
+// sensing.cpp - core 1: measure A, B, C, associate, track, run the state machine, publish the frame.
 #include "app.h"
 #include "pins.h"
 #include "echo_hold.h"
@@ -53,7 +53,12 @@ static bool setupSensor(xm125::Sensor& s) {
   SensorInfo inf; inf.setups = priorSetups + 1;
   bool ok = setupSensorImpl(s, inf); { Lock lk; pub = inf; } return ok;
 }
+static void sensorWaitProgress() {
+  // Startup runs before watchdog registration; calibration may run on either core.
+  if (esp_task_wdt_status(nullptr) == ESP_OK) esp_task_wdt_reset();
+}
 void begin() {
+  sA.setWaitHook(sensorWaitProgress); sB.setWaitHook(sensorWaitProgress); sC.setWaitHook(sensorWaitProgress);
   uint32_t hz = g.cfg.tuning.i2cKhz * 1000UL;
   sA.beginBus(hz); sB.beginBus(hz); sC.beginBus(hz);
   sA.hardReset(); sB.hardReset(); sC.hardReset();
@@ -82,7 +87,7 @@ bool resetTest(char which, char& restartedWhich) {
   for(int k=0;k<3;k++) if(sensors[k]->measureCounter()<before[k]) { n++; restartedWhich='A'+k; }
   if(n>1) restartedWhich='2'; setupSensor(sensor(which)); return restartedWhich==which;
 }
-bool recordBackground() { bool a=sA.calibrate(); esp_task_wdt_reset(); bool b=sB.calibrate(); esp_task_wdt_reset(); bool c=sC.calibrate(); nBgA=nBgB=nBgC=0; return a && b && c; }
+bool recordBackground() { bool a=sA.calibrate(); sensorWaitProgress(); bool b=sB.calibrate(); sensorWaitProgress(); bool c=sC.calibrate(); { Lock lk; clearBg(); } return a && b && c; }
 void clearBg() { nBgA=nBgB=nBgC=0; holdA.reset(); holdB.reset(); holdC.reset(); }
 
 float stillSpread() { if (spreadN < 4) return -1; float m = 0; for (int i = 0; i < (spreadN < 24 ? spreadN : 24); i++) m += spreadBuf[i]; m /= (spreadN < 24 ? spreadN : 24); float v = 0; for (int i = 0; i < (spreadN < 24 ? spreadN : 24); i++) v += (spreadBuf[i] - m) * (spreadBuf[i] - m); return sqrtf(v / ((spreadN < 24 ? spreadN : 24) - 1)); }
@@ -113,10 +118,11 @@ void step() {
   if (g.pauseSensing) { delay(5); return; }
   struct BusyGuard { BusyGuard() { g.sensingBusy=true; } ~BusyGuard() { g.sensingBusy=false; } } busy;
   if(g.pauseSensing) return;
-  if (g.sensorsReconfig) { g.sensorsReconfig = false; reconfigure(); return; }
+  if (g.sensorsReconfig.exchange(false)) { reconfigure(); return; }
   Frame f; f.t = millis(); f.n = ++frameN;
   readSensor(sA, f.A, lastA, hzA); readSensor(sB, f.B, lastB, hzB); readSensor(sC, f.C, lastC, hzC);
-  Lock lk;
+  bool recapture = false; uint8_t recalibrateMask = 0;
+  { Lock lk;
   static bool hooked = false; if (!hooked) { g.sm->onEvent(onEvent, nullptr); hooked = true; }
   const Config& c = g.cfg; tracker.setAlpha(c.tuning.smooth);
   // Kinematic gate: with a live track the association compares candidates against where the track should be now,
@@ -155,8 +161,8 @@ void step() {
   // can teach an untracked real hand into the XM125's recorded threshold and make it disappear.
   bool quiet = s.st == IDLE && !g.sm->session() && f.A.alive && f.B.alive && f.C.alive && f.A.n == 0 && f.B.n == 0 && f.C.n == 0;
   if (!quiet) { idleSince = f.t; relearnDone = false; }
-  if (quiet && !relearnDone && f.t - idleSince > c.tuning.bgRelearnIdleMs && f.t - lastRecal > 60000) { relearnDone = true; lastRecal = f.t; Serial.println("[bg] idle 30 s: re-recording the empty-sink threshold"); sA.calibrate(); esp_task_wdt_reset(); sB.calibrate(); esp_task_wdt_reset(); sC.calibrate(); nBgA = nBgB = nBgC = 0; }
-  else if (quiet && (f.A.calNeeded || f.B.calNeeded || f.C.calNeeded) && f.t - lastRecal > 20000) { lastRecal = f.t; if (f.A.calNeeded) sA.recalibrate(); if (f.B.calNeeded) sB.recalibrate(); if (f.C.calNeeded) sC.recalibrate(); }
+  if (quiet && !relearnDone && f.t - idleSince > c.tuning.bgRelearnIdleMs && f.t - lastRecal > 60000) { relearnDone = true; lastRecal = f.t; Serial.println("[bg] idle 30 s: re-recording the empty-sink threshold"); recapture = true; }
+  else if (quiet && (f.A.calNeeded || f.B.calNeeded || f.C.calNeeded) && f.t - lastRecal > 20000) { lastRecal = f.t; recalibrateMask = (f.A.calNeeded ? 1 : 0) | (f.B.calNeeded ? 2 : 0) | (f.C.calNeeded ? 4 : 0); }
   g.checkFailing = !(f.A.alive && f.B.alive && f.C.alive);
   g.frame = f;
   // Bench diagnostic view: keep a low-rate raw/fusion trace on USB even while Ring Studio is connected.
@@ -185,6 +191,13 @@ void step() {
     w.append("%.1f Hz  %s", (f.A.hz+f.B.hz+f.C.hz)/3, stateName(f.st));
     if (f.hasHand) w.append("  hand x %.0f y %.0f", f.hx, f.hy);
     Serial.println(line);
+  }
+  } // Release shared state before slow detector operations; BusyGuard retains bus ownership.
+  if (recapture) { if (!recordBackground()) { Lock lk; g.checkFailing = true; } }
+  else {
+    if (recalibrateMask & 1) sA.recalibrate();
+    if (recalibrateMask & 2) sB.recalibrate();
+    if (recalibrateMask & 4) sC.recalibrate();
   }
 }
 

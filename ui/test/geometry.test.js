@@ -59,7 +59,7 @@ for (const mount of MOUNTS) {
   });
 
   test(`[${mount}] wand fit finds hidden sensor errors and offsets`, () => {
-    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: 8, y: -5, z: 6, off: 18 }, B: { x: 574.2, y: 4, z: -3, off: 24 }, C:{x:292.1,y:537.4,z:0,off:12} };
+    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: 8, y: -5, z: 6, off: 18 }, B: { x: 574.2, y: 4, z: -3, off: 24 }, C:{x:c.sensors.C.x+4,y:c.sensors.C.y+4,z:0,off:12} };
     const samples = [], rndC=RS.util.rng(9);
     for (const H of holes) for (const depth of RS.calDepths(c)) {
       const s = { hole: H.n, depth };

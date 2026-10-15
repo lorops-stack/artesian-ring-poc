@@ -3,6 +3,7 @@
 #include "app.h"
 #include "xm125.h"
 #include "config_json.h"
+#include <esp_task_wdt.h>
 
 using namespace ring;
 namespace app { namespace calib {
@@ -23,7 +24,7 @@ static struct { float d; float s; int n; } accA[12], accB[12], accC[12]; static 
 static Hole holes[16]; static bool waveA = false, waveB = false, waveC = false; static float noiseSpread = -1; static bool identA = false, identB = false;
 
 static void mark() { dirty = true; }
-static void takeBus() { g.pauseSensing = true; while (g.sensingBusy) delay(5); delay(10); }
+static void takeBus() { g.pauseSensing = true; while (g.sensingBusy) { if (esp_task_wdt_status(nullptr) == ESP_OK) esp_task_wdt_reset(); delay(5); } delay(10); }
 bool changed() { bool d = dirty; dirty = false; return d; }
 void begin() {}
 
@@ -106,7 +107,7 @@ void step() {
       case 1: { bool ok=true; for(char k='A';k<='C';k++) { uint32_t v=sensing::sensorVersion(k); ok=(v>>16)>=1 && ok; } addCheck("fw","A/B/C detector firmware",ok,"F1","See per-sensor versions on Hardware screen"); break; }
       case 2: { bool ok=true; for(char k='A';k<='C';k++) ok=!(sensing::sensorStatus(k)&(xm125::ST_ERROR_MASK|xm125::ST_DETECTOR_ERROR)) && ok; addCheck("status","A/B/C status flags",ok,"F2","See per-sensor status on Hardware screen"); break; }
       case 3: { bool ok=true; for(char k='A';k<='C';k++) { char restarted; ok=sensing::resetTest(k,restarted) && ok; } addCheck("rst","Three independent reset lines",ok,"W4",ok?"A, B, C reset independently":"Reset test failed; check GPIO6/7/12"); g.pauseSensing=false; break; }
-      case 4: { if(!waveA && !waveB && !waveC && now-phaseT<100) { setPrompt("Wave the ball in front of A, then B, then front-centre C"); return; }
+      case 4: { if(!waveA && !waveB && !waveC && now-phaseT<100) { setPrompt("Wave the ball in front of A, then B, then front-left C"); return; }
         for(int i=0;i<f.A.n;i++) if(f.A.e[i].d<300) waveA=true;
         for(int i=0;i<f.B.n;i++) if(f.B.e[i].d<300) waveB=true;
         for(int i=0;i<f.C.n;i++) if(f.C.e[i].d<300) waveC=true;
@@ -130,7 +131,7 @@ void step() {
   }
   if (cur == C6) {
     if (st != RUNNING) return;
-    if (g.pauseSensing) { while (g.sensingBusy) delay(5); bool ok = sensing::recordBackground(); g.pauseSensing = false; c6Ok = ok; phaseT = now; if (!ok) { st = FAILED; mark(); } return; }
+    if (g.pauseSensing) { while (g.sensingBusy) { if (esp_task_wdt_status(nullptr) == ESP_OK) esp_task_wdt_reset(); delay(5); } bool ok = sensing::recordBackground(); g.pauseSensing = false; c6Ok = ok; phaseT = now; if (!ok) { st = FAILED; mark(); } return; }
     if (now - phaseT < 600) return;   // let the first frames after the capture arrive
     auto acc = [&](const SensorFrame& S, decltype(accA)& A, int& n) { for (int i = 0; i < S.n; i++) { bool seen = false; for (int k = 0; k < n; k++) if (fabsf(A[k].d - S.e[i].d) <= 20) { A[k].n++; if (S.e[i].s > A[k].s) A[k].s = S.e[i].s; seen = true; break; } if (!seen && n < 12) { A[n].d = S.e[i].d; A[n].s = S.e[i].s; A[n].n = 1; n++; } } };
     acc(f.A, accA, nAccA); acc(f.B, accB, nAccB); acc(f.C, accC, nAccC); capFrames++; if (capFrames % 5 == 0) mark();
