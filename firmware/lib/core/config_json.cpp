@@ -42,6 +42,8 @@ bool configFromJson(const JsonObjectConst in, Config& c) {
   if (in.isNull()) return false;
   JsonObjectConst p = in["plane"]; if (!p.isNull()) { get(p, "w", c.plane.w); get(p, "d", c.plane.d); }
   JsonObjectConst s = in["sensors"]; if (!s.isNull()) { poseFromJson(s["A"], c.A); poseFromJson(s["B"], c.B); poseFromJson(s["C"], c.C); }
+  if ((in["schema"] | 1) < 2) c.C.on = true;
+  c.schema=2;
   JsonObjectConst h = in["hand"]; if (!h.isNull()) { get(h, "zmin", c.hand.zmin); get(h, "zmax", c.hand.zmax); get(h, "zwork", c.hand.zwork); get(h, "strMin", c.hand.strMin); get(h, "strMax", c.hand.strMax); get(h, "stillThr", c.hand.stillThr); get(h, "envRef", c.hand.envRef); get(h, "envK", c.hand.envK); get(h, "envDb", c.hand.envDb); }
   JsonObjectConst rg = in["rig"]; if (!rg.isNull()) { if (rg["mount"].is<const char*>()) cpy(c.rig.mount, sizeof c.rig.mount, rg["mount"]); get(rg, "slotH", c.rig.slotH); get(rg, "recess", c.rig.recess); get(rg, "sinkDepth", c.rig.sinkDepth); get(rg, "beamV", c.rig.beamV); }
   JsonObjectConst ms = in["masks"];

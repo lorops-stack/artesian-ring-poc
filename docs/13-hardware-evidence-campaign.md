@@ -1,3 +1,5 @@
+> Current build: three sensors A/B/C. Use the [installation guide](three-sensor-installation.md) for wiring and geometry. Run per-sensor checks on C as well as A/B. Older two-sensor examples describe diagnostic history, not three-sensor acceptance. Record current results in [issue #5](https://github.com/lorops-stack/artesian-ring-poc/issues/5).
+
 # Hardware evidence campaign
 
 This document turns bench work into repeatable evidence. Do not tune from theory when a raw capture can answer the question.

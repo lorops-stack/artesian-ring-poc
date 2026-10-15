@@ -5,7 +5,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
 (function () {
   'use strict';
   var U = RS.util, h = U.h, L = RS.link, S = RS.store, HW = RS.hw;
-  var COL = { A: '#7FD0FF', B: '#FFB27A' };
+  var COL = { A: '#7FD0FF', B: '#FFB27A', C:'#B69CFF' };
   var st = null;
 
   function isSim() { return L.mode === 'sim' && !!L.sim; }
@@ -33,15 +33,15 @@ var RS = globalThis.RS || (globalThis.RS = {});
   function render() {
     if (!st) return;
     var hh = L.latest.health, status = L.latest.status, diags = {}, sys = HW.system(hh, status);
-    ['A', 'B'].forEach(function (k) { diags[k] = HW.diagnose(k, hh && hh[k], { errRate: st.err[k].rate() }); });
-    var worst = HW.overall([diags.A, diags.B], sys), allOk = worst === 'ok';
-    var title = !hh ? 'Waiting for the ring' : (allOk ? 'Both sensors are good' : (worst === 'warn' ? 'Working, with a warning' : (worst === 'wait' ? 'Checking' : 'A wiring or setup fault needs fixing')));
+    ['A', 'B', 'C'].forEach(function (k) { diags[k] = HW.diagnose(k, hh && hh[k], { errRate: st.err[k].rate() }); });
+    var worst = HW.overall([diags.A, diags.B, diags.C], sys), allOk = worst === 'ok';
+    var title = !hh ? 'Waiting for the ring' : (allOk ? 'All three sensors are good' : (worst === 'warn' ? 'Working, with a warning' : (worst === 'wait' ? 'Checking' : 'A wiring or setup fault needs fixing')));
     var sub = !hh ? 'No health message yet.' : (allOk ? 'Powered, answering, configured and measuring. Run the wave test, then go to Calibrate.' : 'The first failing step is shown on each sensor below.');
     U.empty(st.banner);
     st.banner.appendChild(h('div.callout.' + lvlClass(!hh ? 'wait' : worst), h('div.row.between.wrap.top', h('div.grow', h('strong', title), h('div.sub.mt-s', sub)),
       h('div.row.gap-s', st.recheck))));
     if (sys.length) sys.forEach(function (d) { st.banner.appendChild(h('div.callout.' + lvlClass(d.level) + '.mt-s', h('strong', d.title), h('div.sub.mt-s', d.text))); });
-    ['A', 'B'].forEach(function (k) {
+    ['A', 'B', 'C'].forEach(function (k) {
       var c = st.cards[k], d = diags[k], s = hh && hh[k];
       c.el.pins.textContent = 'SDA GPIO' + HW.PINS[k].sda + ' · SCL GPIO' + HW.PINS[k].scl + ' · RST GPIO' + HW.PINS[k].rst;
       U.empty(c.el.verdict); c.el.verdict.appendChild(h('div.callout.' + lvlClass(d.verdict.level), h('strong', d.verdict.title), h('div.sub.mt-s', d.verdict.text)));
@@ -52,7 +52,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
 
   function refreshLive() {
     if (!st) return; var hh = L.latest.health, f = L.latest.frame;
-    ['A', 'B'].forEach(function (k) {
+    ['A', 'B', 'C'].forEach(function (k) {
       var c = st.cards[k], s = hh && hh[k], fs = f && f[k]; U.empty(c.el.live); if (!s) return;
       var near = fs && fs.e && fs.e.length ? fs.e[0] : null;
       c.el.live.appendChild(h('span.chip', (s.hz != null ? (+s.hz).toFixed(1) : '-') + ' Hz'));
@@ -63,12 +63,12 @@ var RS = globalThis.RS || (globalThis.RS = {});
     });
   }
   function refreshWave() {
-    if (!st) return; var w = st.wave.result(); U.empty(st.waveRows); st.waveRows.appendChild(waveRow(w, 'A')); st.waveRows.appendChild(waveRow(w, 'B'));
+    if (!st) return; var w = st.wave.result(); U.empty(st.waveRows); st.waveRows.appendChild(waveRow(w, 'A')); st.waveRows.appendChild(waveRow(w, 'B')); st.waveRows.appendChild(waveRow(w,'C'));
     st.waveBtn.textContent = st.waveOn ? 'Waving… ' + Math.max(0, Math.ceil((st.waveEnd - U.now()) / 1000)) + ' s' : (st.waveDone ? 'Run again' : 'Start wave test'); st.waveBtn.disabled = !!st.waveOn;
   }
   function refreshRecheck() {
     if (!st) return; var hh = L.latest.health, pending = st.recheckAt && (U.now() - st.recheckAt < 25000);
-    if (pending && hh && hh.A && st.setupsAt && ((hh.A.setups || 0) > st.setupsAt.A && (hh.B.setups || 0) > st.setupsAt.B)) { pending = false; st.recheckAt = 0; }
+    if (pending && hh && hh.A && hh.B && hh.C && st.setupsAt && ((hh.A.setups || 0) > st.setupsAt.A && (hh.B.setups || 0) > st.setupsAt.B && (hh.C.setups || 0) > st.setupsAt.C)) { pending = false; st.recheckAt = 0; }
     st.recheck.textContent = pending ? 'Re-checking… (about 10 s)' : 'Re-check sensors'; st.recheck.disabled = !!pending;
   }
 
@@ -81,23 +81,23 @@ var RS = globalThis.RS || (globalThis.RS = {});
   var HWS = {
     title: 'Hardware check',
     mount: function (host) {
-      st = { cards: { A: sensorCard('A'), B: sensorCard('B') }, err: { A: new HW.ErrRate(), B: new HW.ErrRate() }, wave: new HW.Wave(), waveOn: false, waveDone: false, waveEnd: 0, unsub: [], lastLive: 0, recheckAt: 0, setupsAt: null };
+      st = { cards: { A: sensorCard('A'), B: sensorCard('B'), C:sensorCard('C') }, err: { A: new HW.ErrRate(), B: new HW.ErrRate(), C:new HW.ErrRate() }, wave: new HW.Wave(), waveOn: false, waveDone: false, waveEnd: 0, unsub: [], lastLive: 0, recheckAt: 0, setupsAt: null };
       st.banner = h('div'); st.recheck = btn('Re-check sensors', function () {
-        var hh = L.latest.health; st.setupsAt = { A: (hh && hh.A && hh.A.setups) || 0, B: (hh && hh.B && hh.B.setups) || 0 }; st.recheckAt = U.now();
+        var hh = L.latest.health; st.setupsAt = { A: (hh && hh.A && hh.A.setups) || 0, B: (hh && hh.B && hh.B.setups) || 0, C: (hh && hh.C && hh.C.setups) || 0 }; st.recheckAt = U.now();
         L.send({ c: 'sensors', a: 'recheck' }).catch(function (e) { st.recheckAt = 0; RS.app.toast((e && e.message) || 'could not start the re-check', 'bad'); }); refreshRecheck();
       }, 'primary');
       st.waveBtn = btn('Start wave test', startWave, 'primary'); st.waveRows = h('div.col.gap-s.mt-s');
-      var waveCard = h('div.card', h('div.row.between.wrap', h('div', h('h2', 'Wave test'), h('div.sub', 'Hold your hand 5 to 20 cm in front of one sensor and wave it slowly for 8 seconds. Do sensor A, press Run again, then sensor B. The nearest echo should swing by at least 40 mm.')), st.waveBtn), st.waveRows);
-      var wrap = h('div.wrap', st.banner, h('div.grid.c2.mt', st.cards.A.card, st.cards.B.card), h('div.mt', waveCard));
+      var waveCard = h('div.card', h('div.row.between.wrap', h('div', h('h2', 'Wave test'), h('div.sub', 'Hold your hand 5 to 20 cm in front of one sensor and wave it slowly for 8 seconds. Do sensor A, press Run again, then sensor B, then C. The nearest echo should swing by at least 40 mm.')), st.waveBtn), st.waveRows);
+      var wrap = h('div.wrap', st.banner, h('div.grid.c2.mt', st.cards.A.card, st.cards.B.card, st.cards.C.card), h('div.mt', waveCard));
       if (isSim()) {
         var chips = h('div.row.wrap.gap-s.mt-s');
-        [['A_swapSdaScl', 'A: SDA/SCL swapped'], ['B_noPower', 'B: no power'], ['wrongFw', 'B: presence firmware'], ['statusErr', 'A: setup error'], ['A_loose', 'A: loose wire']].forEach(function (f) {
+        [['A_swapSdaScl', 'A: SDA/SCL swapped'], ['B_noPower', 'B: no power'], ['C_noPower', 'C: no power'], ['wrongFw', 'B: presence firmware'], ['statusErr', 'A: setup error'], ['A_loose', 'A: loose wire']].forEach(function (f) {
           var b = h('button.chip', { style: { cursor: 'pointer' } }, f[1]); b.onclick = function () { var on = !L.sim.faults[f[0]]; L.sim.setFault(f[0], on); b.className = 'chip' + (on ? ' info' : ''); L.send({ c: 'get', what: 'health' }).catch(function () { /* the next periodic message will do */ }); }; if (L.sim.faults[f[0]]) b.className = 'chip info'; chips.appendChild(b);
         });
         wrap.appendChild(h('div.card.mt', h('h2', 'Rehearse a fault'), h('div.sub', 'Simulator only. Switch a fault on to see what it looks like here, then switch it off.'), chips));
       }
       host.appendChild(h('div.scroll', wrap));
-      st.unsub.push(L.on('health', function (hh) { var t = U.now(); if (hh.A) st.err.A.add(hh.A.er, t); if (hh.B) st.err.B.add(hh.B.er, t); render(); }));
+      st.unsub.push(L.on('health', function (hh) { var t = U.now(); if (hh.A) st.err.A.add(hh.A.er, t); if (hh.B) st.err.B.add(hh.B.er, t); if(hh.C)st.err.C.add(hh.C.er,t); render(); }));
       st.unsub.push(L.on('frame', function (f) { if (st.waveOn) st.wave.add(f); }));
       var hh0 = L.latest.health; if (hh0) { var t0 = U.now(); if (hh0.A) st.err.A.add(hh0.A.er, t0); if (hh0.B) st.err.B.add(hh0.B.er, t0); }
       L.send({ c: 'get', what: 'health' }).catch(function () { /* the periodic message will arrive */ });

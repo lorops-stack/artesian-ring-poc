@@ -26,11 +26,11 @@ constexpr int PIN_B_SCL = 18;
 constexpr int PIN_B_RST = 7;    // REQUIRED, same as A
 constexpr int PIN_B_INT = 16;   // OPTIONAL
 
-// ---- Sensor C: RESERVED for a future third XM125 (front-centre, review R6) --
+// ---- Sensor C: third XM125 (front-left, review R6) --
 // The ESP32-S3 has two hardware I2C controllers and every XM125 answers at 0x52.
-// Plan: sensors are read one after another, so controller 1 is switched between
-// B's pins and C's pins each frame (Wire1.end(); Wire1.begin(10, 11)), or a
-// TCA9548A I2C switch is added. Not bit-banged: the XM125 stretches the clock.
+// Sensors are read one after another, so controller 1 is switched between
+// B's pins and C's pins before their transactions (Wire1.end(); Wire1.begin()).
+// Keep B and C SDA/SCL physically separate. No external mux is required.
 constexpr int PIN_C_SDA = 10;
 constexpr int PIN_C_SCL = 11;
 constexpr int PIN_C_RST = 12;

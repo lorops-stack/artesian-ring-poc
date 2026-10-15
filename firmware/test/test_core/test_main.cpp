@@ -123,14 +123,16 @@ void test_associate() {
 void test_masks_and_flat_defaults() {
   Config c; setDefaults(c);
   TEST_ASSERT_EQUAL_FLOAT(0, c.A.tilt); TEST_ASSERT_EQUAL_FLOAT(0, c.hand.zwork); TEST_ASSERT_EQUAL_STRING("flat", c.rig.mount); TEST_ASSERT_EQUAL(0, c.nMasks);
-  TEST_ASSERT_FLOAT_WITHIN(0.01, 488.95f, c.plane.w); TEST_ASSERT_FLOAT_WITHIN(0.01, 482.60f, c.plane.d);
+  TEST_ASSERT_FLOAT_WITHIN(0.01, 584.2f, c.plane.w); TEST_ASSERT_FLOAT_WITHIN(0.01, 533.4f, c.plane.d);
   // Bench body-only evidence: 559/602 mm solves to about (193,524), beyond the measured 19 in front edge.
   // It must be rejected, while the simultaneous near wood/hand pair remains a valid in-plane target.
+  c.plane.w=488.95f; c.plane.d=482.6f; c.B.x=c.plane.w; // retain the original measured fixture geometry
   Echo bodyA[1] = { { 559, 73 } }, bodyB[1] = { { 602, 72 } };
   AssocOpts bodyO{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; bodyO.nearWin = 120;
   TEST_ASSERT_EQUAL(FLAG_OUTSIDE, associate(bodyA, 1, bodyB, 1, bodyO).flag);
   Echo handA[1] = { { 395, 100 } }, handB[1] = { { 405, 100 } };
   TEST_ASSERT_EQUAL(FLAG_NONE, associate(handA, 1, handB, 1, bodyO).flag);
+  setDefaults(c);
   float h = c.hand.zwork;
   float a1 = range(c.A, 430, 150, h), b1 = range(c.B, 430, 150, h), a2 = range(c.A, 150, 400, h), b2 = range(c.B, 150, 400, h);
   auto amp = [](float d, float ref) { return ref * powf(300.0f / d, 2.0f); };
@@ -249,8 +251,18 @@ static void test_echo_hold() {
   TEST_ASSERT_TRUE(held); TEST_ASSERT_EQUAL(2, n); TEST_ASSERT_EQUAL_FLOAT(200, r[1].d);                                       // keeps the latest list
 }
 
+void test_three_sensor() {
+  Config c; setDefaults(c); AssocOpts o{}; o.A=&c.A; o.B=&c.B; o.C=&c.C; o.hand=&c.hand; o.plane=&c.plane;
+  Echo a{range(c.A,292,260,c.hand.zwork),100}, b{range(c.B,292,260,c.hand.zwork),100}, d{range(c.C,292,260,c.hand.zwork),100};
+  Assoc v=associate3(&a,1,&b,1,&d,1,o); TEST_ASSERT_EQUAL(FLAG_NONE,v.flag); TEST_ASSERT_FLOAT_WITHIN(.01,292,v.x); TEST_ASSERT_FLOAT_WITHIN(.01,260,v.y); TEST_ASSERT_EQUAL(0,v.iC);
+  TEST_ASSERT_NOT_EQUAL(FLAG_NONE,associate3(&a,1,&b,1,&d,0,o).flag);
+  d.d+=200; TEST_ASSERT_NOT_EQUAL(FLAG_NONE,associate3(&a,1,&b,1,&d,1,o).flag);
+  c.C.on=false; TEST_ASSERT_NOT_EQUAL(FLAG_NONE,associate3(&a,1,&b,1,&d,1,o).flag);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
+  RUN_TEST(test_three_sensor);
   RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_geometry_uncertainty); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set); RUN_TEST(test_config_validation_rejects_bad_values_atomically);
   RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);
   return UNITY_END();

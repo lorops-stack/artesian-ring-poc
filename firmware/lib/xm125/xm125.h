@@ -1,5 +1,5 @@
 // xm125.h - register-level driver for the Acconeer I2C Distance Detector firmware on the SparkFun XM125.
-// One instance per TwoWire bus (both boards answer at 0x52). Reference: Acconeer "I2C Distance Detector" register
+// One instance per physical SDA/SCL pair (all modules answer at 0x52). Reference: Acconeer "I2C Distance Detector" register
 // map (also used by SparkFun's Qwiic XM125 library). Registers are 16-bit addresses with 32-bit big-endian values.
 #pragma once
 #include <Arduino.h>
@@ -33,9 +33,14 @@ struct Result { uint8_t n = 0; bool nearStart = false, calNeeded = false, measur
 class Sensor {
  public:
   Sensor(TwoWire& wire, int sda, int scl, int rstPin, const char* name) : w_(wire), sda_(sda), scl_(scl), rst_(rstPin), name_(name) {}
+  ~Sensor() { const int bus = &w_ == &Wire ? 0 : 1; if (active_[bus] == this) { w_.end(); active_[bus] = nullptr; } }
+  Sensor(const Sensor&) = delete;
+  Sensor& operator=(const Sensor&) = delete;
   // Starts the bus; the RST line is open-drain and only ever pulled low.
   void beginBus(uint32_t hz);
-  void setBusSpeed(uint32_t hz) { w_.setClock(hz); }
+  void setBusSpeed(uint32_t hz) { hz_ = hz; }
+  bool selectBus(); // route a shared controller to this sensor before every transaction
+  void setWaitHook(void (*hook)()) { waitHook_ = hook; }
   void hardReset();                              // pull RST low 20 ms, release, wait for the module to boot
   bool present();                                // answers at 0x52
   bool readReg(uint16_t reg, uint32_t& value);
@@ -61,6 +66,9 @@ class Sensor {
   static float strengthLinear(int32_t db1000) { return 1000.0f * powf(10.0f, db1000 / 1000.0f / 20.0f); }   // dB x1000 -> linear amplitude
   static void versionString(uint32_t v, char* out, int n) { snprintf(out, n, "%lu.%lu.%lu", (unsigned long)(v >> 16), (unsigned long)((v >> 8) & 0xFF), (unsigned long)(v & 0xFF)); }
  private:
+  static Sensor* active_[2];
+  void (*waitHook_)() = nullptr;
+  uint32_t hz_ = 400000;
   TwoWire& w_; int sda_, scl_, rst_; const char* name_; uint32_t errors_ = 0, lastStatus_ = 0; int lastBusErr_ = 0; bool ok_ = false;
   bool stopMode_ = false;   // false: repeated start between the address write and the read; true: a full STOP (auto-switched if reads fail)
   bool readOnce(uint16_t reg, uint32_t& value, bool stop);

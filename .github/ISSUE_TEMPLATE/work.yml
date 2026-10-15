@@ -1,0 +1,30 @@
+name: Outcome or technical task
+description: Define work and its acceptance evidence
+title: ""
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Problem and desired outcome
+      description: Who needs what behavior, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope, constraints and parent
+      description: Link the epic or dependency and identify what this task changes.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and evidence
+      description: Observable pass conditions, tests, and any required physical measurements.
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Initial plan and open decisions
+      description: Continue decisions and progress in issue comments; update scope here when agreed.

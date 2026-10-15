@@ -3,6 +3,7 @@
 #include "app.h"
 #include "xm125.h"
 #include "config_json.h"
+#include <esp_task_wdt.h>
 
 using namespace ring;
 namespace app { namespace calib {
@@ -10,20 +11,20 @@ namespace app { namespace calib {
 enum Step : uint8_t { NONE, C0, IDENT, C6, C7, C8 };
 enum St : uint8_t { IDLE_, RUNNING, WAITING, DONE, FAILED };
 struct Check { const char* id; const char* label; int ok; const char* code; char detail[80]; };
-struct Sample { uint8_t hole; uint8_t depth; bool high; bool hasA, hasB; float dA, sA, dB, sB, spread; };
+struct Sample { uint8_t hole; uint8_t depth; bool high; bool hasA, hasB, hasC; float dA, sA, dB, sB, dC, sC, spread; };
 struct Pair { uint8_t hole, depth; bool high; };
 
 static Step cur = NONE; static St st = IDLE_; static bool dirty = false; static uint32_t t0 = 0, phaseT = 0;
 static Check checks[8]; static int nChecks = 0; static char prompt[96] = "";
 static Pair queue[64]; static int qn = 0; static Sample samples[40]; static int ns = 0; static int skips = 0;
-static float bufA[14], bufSA[14], bufB[14], bufSB[14]; static int bufN = 0; static float stillA[120], stillB[120]; static int stillN = 0; static bool stillPhase = false, stillDone = false;
-static float readA = 0, readB = 0; static bool haveRead = false;
+static float bufA[14], bufSA[14], bufB[14], bufSB[14], bufC[14], bufSC[14]; static int bufN = 0; static float stillA[120], stillB[120], stillC[120]; static int stillN = 0; static bool stillPhase = false, stillDone = false;
+static float readA = 0, readB = 0, readC = 0; static bool haveRead = false;
 // c6 capture buffers
-static struct { float d; float s; int n; } accA[12], accB[12]; static int nAccA = 0, nAccB = 0; static int capFrames = 0; static bool c6Ok = true; static float c6Max = 0;
-static Hole holes[16]; static bool waveA = false, waveB = false; static float noiseSpread = -1; static bool identA = false, identB = false;
+static struct { float d; float s; int n; } accA[12], accB[12], accC[12]; static int nAccA = 0, nAccB = 0, nAccC = 0; static int capFrames = 0; static bool c6Ok = true; static float c6Max = 0;
+static Hole holes[16]; static bool waveA = false, waveB = false, waveC = false; static float noiseSpread = -1; static bool identA = false, identB = false;
 
 static void mark() { dirty = true; }
-static void takeBus() { g.pauseSensing = true; for (int i = 0; i < 60 && g.sensingBusy; i++) delay(5); delay(10); }
+static void takeBus() { g.pauseSensing = true; while (g.sensingBusy) { if (esp_task_wdt_status(nullptr) == ESP_OK) esp_task_wdt_reset(); delay(5); } delay(10); }
 bool changed() { bool d = dirty; dirty = false; return d; }
 void begin() {}
 
@@ -31,13 +32,14 @@ static void setPrompt(const char* p) { strncpy(prompt, p, sizeof prompt - 1); st
 static void addCheck(const char* id, const char* label, int ok, const char* code, const char* detail) {
   if (nChecks >= 8) return; Check& c = checks[nChecks++]; c.id = id; c.label = label; c.ok = ok; c.code = code; strncpy(c.detail, detail ? detail : "", sizeof c.detail - 1); c.detail[sizeof c.detail - 1] = 0; mark();
 }
+static uint8_t calDepth(bool low) { bool flat=!strcmp(g.cfg.rig.mount,"flat"); return flat?(low?50:10):(low?160:60); }
 static void buildQueue(bool c7) {
   qn = 0;
-  for (int h = 1; h <= 16; h++) { if (c7) { queue[qn++] = { (uint8_t)h, 60, false }; queue[qn++] = { (uint8_t)h, 160, false }; } else { queue[qn++] = { (uint8_t)h, 0, true }; queue[qn++] = { (uint8_t)h, 0, false }; } }
+  for (int h = 1; h <= 16; h++) { if (c7) { queue[qn++] = { (uint8_t)h, calDepth(false), false }; queue[qn++] = { (uint8_t)h, calDepth(true), false }; } else { queue[qn++] = { (uint8_t)h, 0, true }; queue[qn++] = { (uint8_t)h, 0, false }; } }
 }
 static void nextWaiting() {
   bufN = 0; haveRead = false;
-  if (qn > 0) { const Pair& p = queue[0]; if (cur == C7) snprintf(prompt, sizeof prompt, "Hole %d, mark %d (%d mm)", p.hole, p.depth == 60 ? 1 : 2, p.depth); else snprintf(prompt, sizeof prompt, "Hole %d, hand held %s", p.hole, p.high ? "high" : "low"); st = WAITING; mark(); return; }
+  if (qn > 0) { const Pair& p = queue[0]; if (cur == C7) snprintf(prompt, sizeof prompt, "Hole %d, mark %d (%d mm)", p.hole, p.depth == calDepth(false) ? 1 : 2, p.depth); else snprintf(prompt, sizeof prompt, "Hole %d, hand held %s", p.hole, p.high ? "high" : "low"); st = WAITING; mark(); return; }
   if (cur == C8 && !stillDone) { stillPhase = true; stillN = 0; setPrompt("Hold your hand as still as you can over the drain for 5 seconds"); return; }
   st = DONE; g.calTargetHole = 0; mark();
 }
@@ -50,7 +52,7 @@ bool command(const char* s, const char* a, JsonVariantConst extra, char* err, in
     Config candidate; { Lock lk; candidate = g.cfg; }
     JsonObjectConst sens = extra["sensors"]; JsonObjectConst hand = extra["hand"];
     auto poseSet = [&](JsonObjectConst o, SensorPose& p) { if (o.isNull()) return; if (!o["x"].isNull()) p.x = o["x"]; if (!o["y"].isNull()) p.y = o["y"]; if (!o["z"].isNull()) p.z = o["z"]; if (!o["off"].isNull()) p.off = o["off"]; };
-    if (!sens.isNull()) { poseSet(sens["A"], candidate.A); poseSet(sens["B"], candidate.B); }
+    if (!sens.isNull()) { poseSet(sens["A"], candidate.A); poseSet(sens["B"], candidate.B); poseSet(sens["C"],candidate.C); }
     if (!hand.isNull()) { if (!hand["zwork"].isNull()) candidate.hand.zwork = hand["zwork"]; if (!hand["strMin"].isNull()) candidate.hand.strMin = hand["strMin"]; if (!hand["strMax"].isNull()) candidate.hand.strMax = hand["strMax"]; if (!hand["stillThr"].isNull()) candidate.hand.stillThr = hand["stillThr"]; if (!hand["envRef"].isNull()) candidate.hand.envRef = hand["envRef"]; if (!hand["envK"].isNull()) candidate.hand.envK = hand["envK"]; if (!hand["envDb"].isNull()) candidate.hand.envDb = hand["envDb"]; }
     if (!validateConfig(candidate, err, errLen)) return false;
     { Lock lk; g.cfg = candidate; g.sm->setConfig(&g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis(); }
@@ -58,10 +60,10 @@ bool command(const char* s, const char* a, JsonVariantConst extra, char* err, in
   }
   if (want == NONE) { snprintf(err, errLen, "unknown step"); return false; }
   if (!strcmp(a, "start")) {
-    cur = want; st = RUNNING; t0 = millis(); phaseT = t0; nChecks = 0; ns = 0; skips = 0; qn = 0; bufN = 0; stillPhase = stillDone = false; stillN = 0; haveRead = false; prompt[0] = 0; waveA = waveB = false; noiseSpread = -1; identA = identB = false;
+    cur = want; st = RUNNING; t0 = millis(); phaseT = t0; nChecks = 0; ns = 0; skips = 0; qn = 0; bufN = 0; stillPhase = stillDone = false; stillN = 0; haveRead = false; prompt[0] = 0; waveA = waveB = waveC = false; noiseSpread = -1; identA = identB = false;
     templateHoles(g.cfg.plane, holes);
     if (want == IDENT) setPrompt("Hold your hand 20 cm in front of the back-left sensor");
-    else if (want == C6) { nAccA = nAccB = 0; capFrames = 0; c6Ok = true; c6Max = 0; takeBus(); }
+    else if (want == C6) { nAccA = nAccB = nAccC = 0; capFrames = 0; c6Ok = true; c6Max = 0; takeBus(); }
     else if (want == C7) { buildQueue(true); nextWaiting(); }
     else if (want == C8) { buildQueue(false); nextWaiting(); }
     mark(); return true;
@@ -74,7 +76,7 @@ bool command(const char* s, const char* a, JsonVariantConst extra, char* err, in
     uint8_t hole = extra["hole"] | (qn ? queue[0].hole : 1);
     int w = 0; for (int i = 0; i < ns; i++) if (samples[i].hole != hole) samples[w++] = samples[i]; ns = w;
     removeHole(hole); // put the hole's pairs at the front
-    Pair add[2]; int na = 0; if (cur == C7) { add[na++] = { hole, 60, false }; add[na++] = { hole, 160, false }; } else { add[na++] = { hole, 0, true }; add[na++] = { hole, 0, false }; }
+    Pair add[2]; int na = 0; if (cur == C7) { add[na++] = { hole, calDepth(false), false }; add[na++] = { hole, calDepth(true), false }; } else { add[na++] = { hole, 0, true }; add[na++] = { hole, 0, false }; }
     for (int i = qn - 1; i >= 0; i--) queue[i + na] = queue[i]; for (int i = 0; i < na; i++) queue[i] = add[i]; qn += na;
     if (st == DONE) st = WAITING; nextWaiting(); return true;
   }
@@ -101,20 +103,25 @@ void step() {
     if (st != RUNNING) return;
     int idx = nChecks; char d[80];
     switch (idx) {
-      case 0: { takeBus(); bool a = sensing::sensorPresent('A'), b = sensing::sensorPresent('B'); snprintf(d, sizeof d, "%s%s", a ? "" : "Sensor A not found. ", b ? "" : "Sensor B not found."); addCheck("found", "Sensors answer on their buses", a && b, "W1", a && b ? "A and B answer at 0x52" : d); break; }
-      case 1: { char va[16] = "-", vb[16] = "-"; uint32_t A = sensing::sensorVersion('A'), B = sensing::sensorVersion('B'); xm125::Sensor::versionString(A, va, sizeof va); xm125::Sensor::versionString(B, vb, sizeof vb); bool ok = A != 0 && B != 0 && (A >> 16) >= 1 && (B >> 16) >= 1; snprintf(d, sizeof d, "A: %s · B: %s", va, vb); addCheck("fw", "Distance detector firmware", ok, "F1", d); break; }
-      case 2: { uint32_t sa = sensing::sensorStatus('A'), sb = sensing::sensorStatus('B'); bool ok = !((sa | sb) & (xm125::ST_ERROR_MASK | xm125::ST_DETECTOR_ERROR)); snprintf(d, sizeof d, ok ? "no error flags" : "A 0x%08lx · B 0x%08lx", (unsigned long)sa, (unsigned long)sb); addCheck("status", "Sensor status flags", ok, "F2", d); break; }
-      case 3: { char ra = '0', rb = '0'; bool a = sensing::resetTest('A', ra), b = sensing::resetTest('B', rb); bool ok = a && b; if (ok) snprintf(d, sizeof d, "A and B each restart on their own line"); else if (ra == 'B' || rb == 'A') snprintf(d, sizeof d, "Resetting %c restarted %c", ra == 'B' ? 'A' : 'B', ra == 'B' ? 'B' : 'A'); else snprintf(d, sizeof d, "Sensor %c did not restart when reset", a ? 'B' : 'A'); addCheck("rst", "Reset lines", ok, "W4", d); g.pauseSensing = false; break; }
-      case 4: { if (!waveA && !waveB && now - phaseT < 100) { setPrompt("Wave the foil ball 20 cm in front of sensor A, then sensor B"); return; }
-                for (int i = 0; i < f.A.n; i++) if (f.A.e[i].d < 300) waveA = true; for (int i = 0; i < f.B.n; i++) if (f.B.e[i].d < 300) waveB = true;
-                if (now - phaseT < 6000 && !(waveA && waveB)) return;
-                snprintf(d, sizeof d, "%s %s", waveA ? "A sees the ball." : "A sees nothing.", waveB ? "B sees the ball." : "B sees nothing."); addCheck("wave", "Wave test: each sensor sees the ball", waveA && waveB, "S1", d); phaseT = now; break; }
+      case 0: { takeBus(); bool ok=true; for(char k='A';k<='C';k++) ok=sensing::sensorPresent(k) && ok; addCheck("found","All three sensors answer",ok,"W1",ok?"A, B, C answer at 0x52":"Check A/B/C on Hardware screen"); break; }
+      case 1: { bool ok=true; for(char k='A';k<='C';k++) { uint32_t v=sensing::sensorVersion(k); ok=(v>>16)>=1 && ok; } addCheck("fw","A/B/C detector firmware",ok,"F1","See per-sensor versions on Hardware screen"); break; }
+      case 2: { bool ok=true; for(char k='A';k<='C';k++) ok=!(sensing::sensorStatus(k)&(xm125::ST_ERROR_MASK|xm125::ST_DETECTOR_ERROR)) && ok; addCheck("status","A/B/C status flags",ok,"F2","See per-sensor status on Hardware screen"); break; }
+      case 3: { bool ok=true; for(char k='A';k<='C';k++) { char restarted; ok=sensing::resetTest(k,restarted) && ok; } addCheck("rst","Three independent reset lines",ok,"W4",ok?"A, B, C reset independently":"Reset test failed; check GPIO6/7/12"); g.pauseSensing=false; break; }
+      case 4: { if(!waveA && !waveB && !waveC && now-phaseT<100) { setPrompt("Wave the ball in front of A, then B, then front-left C"); return; }
+        for(int i=0;i<f.A.n;i++) if(f.A.e[i].d<300) waveA=true;
+        for(int i=0;i<f.B.n;i++) if(f.B.e[i].d<300) waveB=true;
+        for(int i=0;i<f.C.n;i++) if(f.C.e[i].d<300) waveC=true;
+        if(now-phaseT<12000 && !(waveA&&waveB&&waveC)) return;
+        snprintf(d,sizeof d,"A %s / B %s / C %s",waveA?"seen":"missing",waveB?"seen":"missing",waveC?"seen":"missing");
+        addCheck("wave","All three see the ball",waveA&&waveB&&waveC,"S1",d);phaseT=now;break; }
       case 5: { if (noiseSpread < 0 && now - phaseT < 100) { setPrompt("Hold the ball still in the middle of the sink for 3 seconds"); return; }
                 if (now - phaseT < 3200) return; noiseSpread = sensing::stillSpread(); if (noiseSpread < 0) noiseSpread = 99; snprintf(d, sizeof d, "spread %.1f mm", noiseSpread); addCheck("noise", "Still-target noise under 5 mm", noiseSpread < 5, "S4", d); break; }
       case 6: addCheck("led", "LED ring (answer the questions)", -1, "", "white test, colour order, count"); st = DONE; break;
     }
     return;
   }
+  static uint32_t lastFrame=0;
+  if(cur!=C0 && !g.pauseSensing) { if(f.n==lastFrame) return; lastFrame=f.n; }
   if (cur == IDENT) {
     if (st != WAITING) return;
     for (int i = 0; i < f.A.n; i++) if (f.A.e[i].d < 300 && f.A.e[i].s > g.cfg.hand.strMin) identA = true;
@@ -124,31 +131,31 @@ void step() {
   }
   if (cur == C6) {
     if (st != RUNNING) return;
-    if (g.pauseSensing) { for (int i = 0; i < 60 && g.sensingBusy; i++) delay(5); bool ok = sensing::recordBackground(); g.pauseSensing = false; c6Ok = ok; phaseT = now; if (!ok) { st = FAILED; mark(); } return; }
+    if (g.pauseSensing) { while (g.sensingBusy) { if (esp_task_wdt_status(nullptr) == ESP_OK) esp_task_wdt_reset(); delay(5); } bool ok = sensing::recordBackground(); g.pauseSensing = false; c6Ok = ok; phaseT = now; if (!ok) { st = FAILED; mark(); } return; }
     if (now - phaseT < 600) return;   // let the first frames after the capture arrive
     auto acc = [&](const SensorFrame& S, decltype(accA)& A, int& n) { for (int i = 0; i < S.n; i++) { bool seen = false; for (int k = 0; k < n; k++) if (fabsf(A[k].d - S.e[i].d) <= 20) { A[k].n++; if (S.e[i].s > A[k].s) A[k].s = S.e[i].s; seen = true; break; } if (!seen && n < 12) { A[n].d = S.e[i].d; A[n].s = S.e[i].s; A[n].n = 1; n++; } } };
-    acc(f.A, accA, nAccA); acc(f.B, accB, nAccB); capFrames++; if (capFrames % 5 == 0) mark();
-    if (capFrames >= 40) { c6Max = 0; for (int k = 0; k < nAccA; k++) if (accA[k].n >= 24 && accA[k].s > c6Max) c6Max = accA[k].s; for (int k = 0; k < nAccB; k++) if (accB[k].n >= 24 && accB[k].s > c6Max) c6Max = accB[k].s; st = DONE; mark(); }
+    acc(f.A, accA, nAccA); acc(f.B, accB, nAccB); acc(f.C, accC, nAccC); capFrames++; if (capFrames % 5 == 0) mark();
+    if (capFrames >= 40) { c6Max = 0; for (int k = 0; k < nAccA; k++) if (accA[k].n >= 24 && accA[k].s > c6Max) c6Max = accA[k].s; for (int k = 0; k < nAccB; k++) if (accB[k].n >= 24 && accB[k].s > c6Max) c6Max = accB[k].s; for (int k=0;k<nAccC;k++) if(accC[k].n>=24 && accC[k].s>c6Max) c6Max=accC[k].s; st = DONE; mark(); }
     return;
   }
   if (cur == C7 || cur == C8) {
     if (st != RUNNING) return;
     if (stillPhase) {
-      if (f.hasHand && f.A.p >= 0 && f.B.p >= 0 && stillN < 120) { stillA[stillN] = f.A.e[f.A.p].d; stillB[stillN] = f.B.e[f.B.p].d; stillN++; if (stillN % 6 == 0) mark(); }
+      if (f.hasHand && f.A.p >= 0 && f.B.p >= 0 && f.C.p >= 0 && stillN < 120) { stillA[stillN] = f.A.e[f.A.p].d; stillB[stillN] = f.B.e[f.B.p].d; stillC[stillN] = f.C.e[f.C.p].d; stillN++; if (stillN % 6 == 0) mark(); }
       if (now - phaseT > 5200) { stillDone = true; stillPhase = false; st = DONE; g.calTargetHole = 0; mark(); }
       return;
     }
     if (!qn) { st = DONE; mark(); return; }
-    const Pair& p = queue[0]; const Hole& H = holes[p.hole - 1]; float depth = cur == C7 ? p.depth : (p.high ? 60 : 160);
-    float dA, sA, dB, sB; bool a = pickNear(f.A, g.cfg.A, H, depth, dA, sA), b = pickNear(f.B, g.cfg.B, H, depth, dB, sB);
+    const Pair& p = queue[0]; const Hole& H = holes[p.hole - 1]; float depth = cur == C7 ? p.depth : (!strcmp(g.cfg.rig.mount,"flat") ? (p.high?5:35) : (p.high?55:150));
+    float dA, sA, dB, sB, dC, sC; bool a = pickNear(f.A, g.cfg.A, H, depth, dA, sA), b = pickNear(f.B, g.cfg.B, H, depth, dB, sB), c = pickNear(f.C, g.cfg.C, H, depth, dC, sC);
     if (cur == C7) { if (a) dA -= 0; }   // readings are to the ball surface; the browser adds the ball radius
-    if (a && b && bufN < 14) { bufA[bufN] = dA; bufSA[bufN] = sA; bufB[bufN] = dB; bufSB[bufN] = sB; bufN++; readA = dA; readB = dB; haveRead = true; if (bufN % 3 == 0) mark(); }
+    if (a && b && c && bufN < 14) { bufA[bufN] = dA; bufSA[bufN] = sA; bufB[bufN] = dB; bufSB[bufN] = sB; bufC[bufN]=dC; bufSC[bufN]=sC; bufN++; readA = dA; readB = dB; readC=dC; haveRead = true; if (bufN % 3 == 0) mark(); }
     if (bufN >= 12) {
       Sample& S = samples[ns < 40 ? ns : 39]; if (ns < 40) ns++;
-      S.hole = p.hole; S.depth = p.depth; S.high = p.high; S.hasA = S.hasB = true;
-      float tA[14], tB[14]; memcpy(tA, bufA, sizeof tA); memcpy(tB, bufB, sizeof tB);
-      S.spread = (spread(bufA, bufN) + spread(bufB, bufN)) / 2; S.dA = median(tA, bufN); S.dB = median(tB, bufN);
-      float sa2[14], sb2[14]; memcpy(sa2, bufSA, sizeof sa2); memcpy(sb2, bufSB, sizeof sb2); S.sA = median(sa2, bufN); S.sB = median(sb2, bufN);
+      S.hole = p.hole; S.depth = p.depth; S.high = p.high; S.hasA = S.hasB = S.hasC = true;
+      float tA[14], tB[14], tC[14]; memcpy(tC,bufC,sizeof tC); memcpy(tA, bufA, sizeof tA); memcpy(tB, bufB, sizeof tB);
+      S.spread = (spread(bufA, bufN) + spread(bufB, bufN) + spread(bufC,bufN)) / 3; S.dA = median(tA, bufN); S.dB = median(tB, bufN); S.dC=median(tC,bufN);
+      float sa2[14], sb2[14], sc2[14]; memcpy(sc2,bufSC,sizeof sc2); memcpy(sa2, bufSA, sizeof sa2); memcpy(sb2, bufSB, sizeof sb2); S.sA = median(sa2, bufN); S.sB = median(sb2, bufN); S.sC=median(sc2,bufN);
       Event e; e.type = Ev::Bg; char line[EVLEN]; snprintf(line, sizeof line, "{\"ev\":\"beep\",\"t\":%lu}", (unsigned long)now); g.events.push(line); (void)e;
       for (int i = 1; i < qn; i++) queue[i - 1] = queue[i]; qn--;
       nextWaiting();
@@ -173,7 +180,7 @@ void toJson(JsonObject o) {
     if (st == DONE || st == FAILED) {
       JsonObject r = o["result"].to<JsonObject>(); JsonArray codes = r["codes"].to<JsonArray>();
       auto dump = [&](const char* k, decltype(accA)& A, int n) { JsonArray arr = r[k].to<JsonArray>(); for (int i = 0; i < n; i++) if (A[i].n >= 24) { JsonObject e = arr.add<JsonObject>(); e["d"] = (int)A[i].d; e["s"] = (int)A[i].s; e["n"] = A[i].n; } };
-      dump("A", accA, nAccA); dump("B", accB, nAccB);
+      dump("A", accA, nAccA); dump("B", accB, nAccB); dump("C",accC,nAccC);
       bool strong = c6Max > 1200; if (!c6Ok) codes.add("F2"); if (strong) codes.add("B1"); else if (c6Max > 1000) codes.add("B2");
       r["ok"] = c6Ok && !strong; r["maxStrength"] = (int)c6Max;
     }
@@ -181,10 +188,10 @@ void toJson(JsonObject o) {
     o["n"] = cur == C7 ? 32 : 33; o["i"] = ns;
     if (qn && !stillPhase) { o["hole"] = queue[0].hole; if (cur == C7) o["depth"] = queue[0].depth; else o["high"] = queue[0].high; }
     if (stillPhase) { o["phase"] = "still"; o["stillN"] = stillN; }
-    if (haveRead) { JsonObject rd = o["reading"].to<JsonObject>(); JsonArray a = rd["A"].to<JsonArray>(); a.add((int)readA); a.add(0); JsonArray b = rd["B"].to<JsonArray>(); b.add((int)readB); b.add(0); rd["steady"] = bufN / 12.0f; }
+    if (haveRead) { JsonObject rd = o["reading"].to<JsonObject>(); JsonArray a = rd["A"].to<JsonArray>(); a.add((int)readA); a.add(0); JsonArray b = rd["B"].to<JsonArray>(); b.add((int)readB); b.add(0); JsonArray c = rd["C"].to<JsonArray>(); c.add((int)readC); c.add(0); rd["steady"] = bufN / 12.0f; }
     JsonArray arr = o["samples"].to<JsonArray>();
-    for (int i = 0; i < ns; i++) { JsonObject s = arr.add<JsonObject>(); s["hole"] = samples[i].hole; if (cur == C7) s["depth"] = samples[i].depth; else s["high"] = samples[i].high; JsonArray a = s["A"].to<JsonArray>(); a.add(samples[i].dA); a.add(samples[i].sA); JsonArray b = s["B"].to<JsonArray>(); b.add(samples[i].dB); b.add(samples[i].sB); s["spread"] = samples[i].spread; }
-    if (cur == C8 && (stillN || stillDone)) { JsonArray sa = o["still"].to<JsonArray>(); for (int i = 0; i < stillN; i++) { JsonObject s = sa.add<JsonObject>(); s["A"] = stillA[i]; s["B"] = stillB[i]; } }
+    for (int i = 0; i < ns; i++) { JsonObject s = arr.add<JsonObject>(); s["hole"] = samples[i].hole; if (cur == C7) s["depth"] = samples[i].depth; else s["high"] = samples[i].high; JsonArray a = s["A"].to<JsonArray>(); a.add(samples[i].dA); a.add(samples[i].sA); JsonArray b = s["B"].to<JsonArray>(); b.add(samples[i].dB); b.add(samples[i].sB); JsonArray c = s["C"].to<JsonArray>(); c.add(samples[i].dC); c.add(samples[i].sC); s["spread"] = samples[i].spread; }
+    if (cur == C8 && (stillN || stillDone)) { JsonArray sa = o["still"].to<JsonArray>(); for (int i = 0; i < stillN; i++) { JsonObject s = sa.add<JsonObject>(); s["A"] = stillA[i]; s["B"] = stillB[i]; s["C"] = stillC[i]; } }
     if (st == DONE) o["result"] = nullptr;   // the browser computes the fit from samples (RS.fit)
     o["skips"] = skips;
   }

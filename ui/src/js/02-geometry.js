@@ -181,6 +181,46 @@ var RS = globalThis.RS || (globalThis.RS = {});
     return best;
   };
 
+
+  // Mirrors firmware associate3: fixed calibrated depth, all three ranges required.
+  G.associate3 = function(eA,eB,eC,o) {
+    var P=[o.A,o.B,o.C], E=[eA,eB,eC], bg=o.bg||{}, keys=['A','B','C'];
+    var empty={flag:RS.FLAG.NO_HAND}, ids=[], bad=false;
+    if(P.some(function(p){return !p || p.on===false;})) return empty;
+    for(var k=0;k<3;k++) {
+      var cand=[];
+      for(var i=0;i<E[k].length && i<10;i++) {
+        var e=E[k][i];
+        if(!Number.isFinite(e[0]) || !Number.isFinite(e[1]) || e[0]<=(P[k].off||0) || e[1]<o.hand.strMin || e[1]>o.hand.strMax || !G.strengthInEnvelope(o.hand,e[0],e[1])) {bad=true;continue;}
+        if(!(bg[keys[k]]||[]).some(function(b){return Math.abs(b[0]-e[0])<=15 && e[1]<b[1]*1.8+1;})) cand.push(i);
+      } ids.push(cand);
+    }
+    if(ids.some(function(a){return !a.length;})) return {flag:bad?RS.FLAG.STRENGTH:RS.FLAG.NO_HAND};
+    var ax=2*(P[1].x-P[0].x),ay=2*(P[1].y-P[0].y),bx=2*(P[2].x-P[0].x),by=2*(P[2].y-P[0].y),det=ax*by-ay*bx;
+    if(Math.abs(det)<1) return empty;
+    var best=null,outside=false,masked=false;
+    ids[0].forEach(function(ia){ids[1].forEach(function(ib){ids[2].forEach(function(ic){
+      var id=[ia,ib,ic],r=[],q=[];
+      for(var k=0;k<3;k++){r[k]=E[k][id[k]][0]-(P[k].off||0);var v=o.hand.zwork+P[k].z;if(r[k]<Math.abs(v))return;q[k]=r[k]*r[k]-v*v-P[k].x*P[k].x-P[k].y*P[k].y;}
+      var u=q[0]-q[1],v=q[0]-q[2],x=(u*by-ay*v)/det,y=(ax*v-u*bx)/det;
+      for(var it=0;it<6;it++) {
+        var xx=0,xy=0,yy=0,rx=0,ry=0;
+        for(k=0;k<3;k++){var d=Math.max(1,G.range(P[k],x,y,o.hand.zwork)),jx=(x-P[k].x)/d,jy=(y-P[k].y)/d,e=d-r[k];xx+=jx*jx;xy+=jx*jy;yy+=jy*jy;rx+=jx*e;ry+=jy*e;}
+        var dd=xx*yy-xy*xy;if(dd<1e-5)return;
+        var dx=(yy*rx-xy*ry)/dd,dy=(xx*ry-xy*rx)/dd;if(Math.hypot(dx,dy)>200)return;x-=dx;y-=dy;if(Math.hypot(dx,dy)<.01)break;
+      }
+      if(!Number.isFinite(x)||!Number.isFinite(y))return;
+      var res=0;for(k=0;k<3;k++)res=Math.max(res,Math.abs(G.range(P[k],x,y,o.hand.zwork)-r[k]));
+      if(res>35||x<0||x>o.plane.w||y<0||y>o.plane.d){outside=true;return;}
+      if(G.maskHit(o.masks,x,y)){masked=true;return;}
+      var score=r[0]+r[1]+r[2]+6*res+(o.prev?2.5*Math.hypot(x-o.prev.x,y-o.prev.y):0);
+      if(!best||score<best.score)best={x:U.clamp(x,0,o.plane.w),y:U.clamp(y,0,o.plane.d),ux:x,uy:y,iA:ia,iB:ib,iC:ic,rA:r[0],rB:r[1],res:res,score:score,flag:RS.FLAG.NONE};
+    });});});
+    if(!best)return {flag:masked?RS.FLAG.MASKED:(outside?RS.FLAG.OUTSIDE:RS.FLAG.NO_HAND)};
+    if(o.prev&&o.maxJump>0&&Math.hypot(best.ux-o.prev.x,best.uy-o.prev.y)>o.maxJump)best.flag=RS.FLAG.JUMP;
+    return best;
+  };
+
   // ---- Alpha-beta tracker for a 2D position; gives a smoothed position and speed (mm/s) ------------------------
   G.Tracker = function (alpha, beta) { this.a = alpha || 0.6; this.b = beta || 0.15; this.reset(); };
   G.Tracker.prototype.setAlpha = function (a) { this.a = U.clamp(a, 0.05, 1); this.b = 0.25 * this.a; };
@@ -235,6 +275,23 @@ var RS = globalThis.RS || (globalThis.RS = {});
         cell.err = Math.sqrt(ex * ex + ey * ey); cell.ex = ex; cell.ey = ey;
       }
       if (cell.blind || !cell.beamA || !cell.beamB || !cell.vokA || !cell.vokB) cell.err = Math.max(cell.err, 150);
+      if(cfg.sensors.C && cfg.sensors.C.on) {
+        var all=[A,B,cfg.sensors.C], xx=0,xy=0,yy=0,visible=true;
+        all.forEach(function(p,k){
+          var d=G.range(p,x,y,hand.zwork), pl=Math.max(1,G.planar(p,x,y));
+          var a=Math.atan2(y-p.y,x-p.x)-U.rad(p.yaw);while(a>Math.PI)a-=2*Math.PI;while(a< -Math.PI)a+=2*Math.PI;
+          var inBeam=Math.abs(a)<=half && Math.abs(G.vertOff(p,pl,hand.zwork))<=G.vHalf(cfg);
+          visible=visible && p.on!==false && inBeam && d>=tun.rangeStart && d<=tun.rangeEnd;
+          if(k===2) cell.beamC=inBeam;
+          var dz=Math.max(Math.abs(dzs[0]),Math.abs(dzs[1]))/1.7;
+          var variance=sigR*sigR+Math.pow((hand.zwork+p.z)/pl*dz,2);
+          var jx=(x-p.x)/Math.max(1,d),jy=(y-p.y)/Math.max(1,d);
+          xx+=jx*jx/variance;xy+=jx*jy/variance;yy+=jy*jy/variance;
+        });
+        var det3=xx*yy-xy*xy;cell.blind=!visible;cell.mirror=false;
+        if(det3>1e-10){cell.ex=Math.sqrt(yy/det3);cell.ey=Math.sqrt(xx/det3);cell.err=Math.hypot(cell.ex,cell.ey);}else cell.err=400;
+        if(!visible){cell.err=Math.max(150,cell.err);cell.ex=cell.ey=cell.err/Math.sqrt(2);}
+      }
       if (cell.masked) cell.err = Math.max(cell.err, 400);
       // Probability the fix lands in the right zone: product of per-axis probabilities of staying inside the zone
       var z = G.rawZone(zones, xf, yf); cell.zone = z ? z.id : null; cell.fn = z ? z.fn : null;

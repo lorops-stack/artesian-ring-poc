@@ -5,9 +5,20 @@
 
 namespace xm125 {
 
+Sensor* Sensor::active_[2] = { nullptr, nullptr };
+bool Sensor::selectBus() {
+  const int bus = &w_ == &Wire ? 0 : 1;
+  if (active_[bus] != this) {
+    if (active_[bus]) w_.end();
+    active_[bus] = nullptr;
+    if (!w_.begin(sda_, scl_, hz_)) { lastBusErr_ = 5; errors_++; return false; }
+    w_.setTimeOut(50); active_[bus] = this;
+  }
+  w_.setClock(hz_); return true;
+}
 void Sensor::beginBus(uint32_t hz) {
   pinMode(rst_, OUTPUT_OPEN_DRAIN); digitalWrite(rst_, HIGH);   // released (floating high through the module's pull-up)
-  w_.begin(sda_, scl_, hz); w_.setTimeOut(50);
+  hz_ = hz; selectBus();
 }
 void Sensor::hardReset() {
   digitalWrite(rst_, LOW); delay(20); digitalWrite(rst_, HIGH);
@@ -24,9 +35,10 @@ static bool probeHigh(int pin) {
   return digitalRead(pin) != 0;
 #endif
 }
-void Sensor::lineLevels(bool& sda, bool& scl) { sda = probeHigh(sda_); scl = probeHigh(scl_); }
-bool Sensor::present() { w_.beginTransmission(I2C_ADDR); lastBusErr_ = w_.endTransmission(); return lastBusErr_ == 0; }
+void Sensor::lineLevels(bool& sda, bool& scl) { selectBus(); sda = probeHigh(sda_); scl = probeHigh(scl_); }
+bool Sensor::present() { if (!selectBus()) return false; w_.beginTransmission(I2C_ADDR); lastBusErr_ = w_.endTransmission(); return lastBusErr_ == 0; }
 bool Sensor::readOnce(uint16_t reg, uint32_t& value, bool stop) {
+  if (!selectBus()) return false;
   w_.beginTransmission(I2C_ADDR); w_.write((uint8_t)(reg >> 8)); w_.write((uint8_t)(reg & 0xFF));
   lastBusErr_ = w_.endTransmission(stop); if (lastBusErr_ != 0) return false;
   if (w_.requestFrom((int)I2C_ADDR, 4) != 4) return false;
@@ -40,6 +52,7 @@ bool Sensor::readReg(uint16_t reg, uint32_t& value) {
   errors_++; return false;
 }
 bool Sensor::writeReg(uint16_t reg, uint32_t value) {
+  if (!selectBus()) return false;
   for (int attempt = 0; attempt < 3; attempt++) {
     w_.beginTransmission(I2C_ADDR); w_.write((uint8_t)(reg >> 8)); w_.write((uint8_t)(reg & 0xFF));
     w_.write((uint8_t)(value >> 24)); w_.write((uint8_t)(value >> 16)); w_.write((uint8_t)(value >> 8)); w_.write((uint8_t)value);
@@ -50,7 +63,7 @@ bool Sensor::writeReg(uint16_t reg, uint32_t value) {
 }
 bool Sensor::waitNotBusy(uint32_t timeoutMs) {
   uint32_t t0 = millis(); uint32_t st = 0;
-  while (millis() - t0 < timeoutMs) { if (readReg(REG_DETECTOR_STATUS, st)) { lastStatus_ = st; if (!(st & ST_BUSY)) return true; } delay(1); }
+  while (millis() - t0 < timeoutMs) { if (waitHook_) waitHook_(); if (readReg(REG_DETECTOR_STATUS, st)) { lastStatus_ = st; if (!(st & ST_BUSY)) return true; } delay(1); }
   return false;
 }
 bool Sensor::configure(const Settings& s, uint32_t timeoutMs) {

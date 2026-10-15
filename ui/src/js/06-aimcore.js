@@ -7,14 +7,15 @@ var RS = globalThis.RS || (globalThis.RS = {});
 
   // ---- Sweep: collects hand fixes and the strengths each sensor reported for them -----------------------------------------------------
   function Sweep() { this.reset(); }
-  Sweep.prototype.reset = function () { this.A = []; this.B = []; this.pairs = []; this.visited = {}; this.nVisited = 0; this.n = 0; this.cap = 3000; };
+  Sweep.prototype.reset = function () { this.A = []; this.B = []; this.C=[]; this.pairs = []; this.visited = {}; this.nVisited = 0; this.n = 0; this.cap = 3000; };
   // f is a protocol frame {hx, hy, A:{e:[[d,s]..], p}, B:{...}}
   Sweep.prototype.add = function (f, cfg) {
     if (!f || f.hx == null || !f.A || !f.B || f.A.p == null || f.B.p == null || f.A.p < 0 || f.B.p < 0) return false;
     var ea = f.A.e[f.A.p], eb = f.B.e[f.B.p]; if (!ea || !eb) return false;
     var x = f.hx, y = f.hy;
+    if(f.C && f.C.p>=0 && f.C.e[f.C.p]) this.C.push({x:x,y:y,s:f.C.e[f.C.p][1]});
     this.A.push({ x: x, y: y, s: ea[1] }); this.B.push({ x: x, y: y, s: eb[1] }); this.pairs.push({ rA: ea[0], rB: eb[0] });
-    if (this.A.length > this.cap) { this.A.shift(); this.B.shift(); this.pairs.shift(); }
+    if (this.A.length > this.cap) { if(this.C.length>this.cap)this.C.shift(); this.A.shift(); this.B.shift(); this.pairs.shift(); }
     var P = cfg.plane, key = Math.floor(x / P.w * 12) + ',' + Math.floor(y / P.d * 12);
     if (!this.visited[key]) { this.visited[key] = 1; this.nVisited++; }
     this.n++; return true;
@@ -22,7 +23,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   Sweep.prototype.coverage = function () { return Math.min(1, this.nVisited / 120); };      // 12 x 12 cells, about 120 reachable
   Sweep.prototype.result = function (cfg) {
     var A = cfg.sensors.A, B = cfg.sensors.B;
-    return { n: this.A.length, coverage: this.coverage(), A: F.aimFromSamples(this.A, A), B: F.aimFromSamples(this.B, B), base: F.baselineBracket(this.pairs, cfg) };
+    return { n: this.A.length, coverage: this.coverage(), A: F.aimFromSamples(this.A, A), B: F.aimFromSamples(this.B, B), C:F.aimFromSamples(this.C,cfg.sensors.C), base: F.baselineBracket(this.pairs, cfg) };
   };
   // Plain-language advice for one sensor. Positions never depend on the aim, only the echo strength does.
   AIM.hint = function (key, res, cfg) {

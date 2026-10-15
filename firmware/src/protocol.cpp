@@ -26,7 +26,7 @@ int frameJson(const Frame& f, char* out, int n) {
   w.append(",\"spd\":%d,\"set\":%.3f,\"ex\":%.3f,\"dsp\":%.1f,\"cup\":%d,\"lk\":%d,\"flag\":%d,\"still\":%.1f", (int)f.spd, f.set, f.ex, f.dsp, (int)f.cup, f.lk, f.flag, f.still);
   if (f.st == CLEAN) w.append(",\"cln\":%.1f", f.cln);
   if (f.lat >= 0) w.append(",\"lat\":%d", f.lat);
-  w.append(",\"A\":"); sensorJson(f.A, w); w.append(",\"B\":"); sensorJson(f.B, w); w.append("}}");
+  w.append(",\"A\":"); sensorJson(f.A, w); w.append(",\"B\":"); sensorJson(f.B, w); w.append(",\"C\":"); sensorJson(f.C,w); w.append("}}");
   return (int)w.size();
 }
 void eventJson(const Event& e, char* out, int n) {
@@ -47,13 +47,13 @@ void statusJson(JsonObject o) {
   o["sess"] = totals.sess; o["ml"] = (int)totals.ml; o["savedOff"] = (int)totals.savedOff; o["savedFlow"] = (int)totals.savedFlow;
 }
 void healthJson(JsonObject o) {
-  Frame f; SensorInfo infoA, infoB; Health health; uint8_t ledBright;
-  { Lock lk; f = g.frame; infoA = g.infoA; infoB = g.infoB; health = g.health; ledBright = g.cfg.tuning.ledBright; }
+  Frame f; SensorInfo infoA, infoB, infoC; Health health; uint8_t ledBright;
+  { Lock lk; f = g.frame; infoA = g.infoA; infoB = g.infoB; infoC=g.infoC; health = g.health; ledBright = g.cfg.tuning.ledBright; }
   auto sensor = [&](const char* key, const SensorFrame& sf, const SensorInfo& inf) {
     JsonObject a = o[key].to<JsonObject>(); a["hz"] = sf.hz; a["er"] = sf.er; a["calNeeded"] = sf.calNeeded; a["str"] = (int)sf.topStr; a["alive"] = sf.alive;
     a["sda"] = inf.sda; a["scl"] = inf.scl; a["pres"] = inf.present; a["cfg"] = inf.cfgOk; a["ver"] = inf.ver; a["st"] = inf.status; a["bus"] = inf.busErr; a["stop"] = inf.stop; a["setups"] = inf.setups;
   };
-  sensor("A", f.A, infoA); sensor("B", f.B, infoB);
+  sensor("A", f.A, infoA); sensor("B", f.B, infoB); sensor("C",f.C,infoC);
   o["bgDrift"] = health.bgDrift; o["ghosts"] = health.ghosts; o["front"] = health.front; o["trigNoHand"] = health.trigNoHand;
   o["eventDrops"] = g.events.droppedCount();
   o["falseOff"] = 0; o["heldOn"] = 0;

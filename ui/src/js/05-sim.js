@@ -16,23 +16,24 @@ var RS = globalThis.RS || (globalThis.RS = {});
     this.cfg = U.deepClone(cfg || RS.DEFAULTS);
     this.rnd = U.rng(11);
     this.truth = {                   // hidden errors: what C7 is meant to discover
-      A: { dx: 8, dy: -5, dz: 6, off: 18, yawErr: 6 }, B: { dx: -10, dy: 4, dz: -3, off: 24, yawErr: -5 },   // yawErr: the blocks are never aimed perfectly
-      basin: { A: [[520, 380], [700, 220]], B: [[560, 340], [740, 240]] }   // stainless basin reflections (recorded by C6)
+      A: { dx: 8, dy: -5, dz: 6, off: 18, yawErr: 6 }, B: { dx: -10, dy: 4, dz: -3, off: 24, yawErr: -5 }, C: {dx:0,dy:4,dz:0,off:12,yawErr:0},   // yawErr: the blocks are never aimed perfectly
+      basin: { A: [[520, 380], [700, 220]], B: [[560, 340], [740, 240]], C: [[580,300]] }   // stainless basin reflections (recorded by C6)
     };
     // Two kinds of background. `recorded` is the detector's recorded threshold (C6 capture of the empty sink):
     // echoes at those distances are suppressed inside the sensor. `bg` is the list of still objects learned by the
     // stillness rule, used by the association. A real device loads both from flash; the simulator starts as a rig
     // whose empty sink was captured at boot.
     this.recorded = { A: this.truth.basin.A.map(function (e) { return [e[0], e[1]]; }), B: this.truth.basin.B.map(function (e) { return [e[0], e[1]]; }) };
-    this.bg = { A: [], B: [] };
+    this.recorded.C=this.truth.basin.C.map(function(e){return e.slice();});
+    this.bg = { A: [], B: [], C: [] };
     this.idleSince = 0; this.idleAcc = null;
-    this.faults = {}; this.setups = { A: 1, B: 1 };
+    this.faults = {}; this.setups = { A: 1, B: 1, C: 1 };
     this.sm = new RS.StateMachine(this.cfg);
     var self = this;
     this.sm.ev.on('event', function (e) { self.onEvent(e); });
     this.tracker = new G.Tracker();
     this.hand = null; this.ghost = false; this.t0 = null; this.t = 0; this.n = 0; this.lastTick = -1e9; this.prev = null;
-    this.err = { A: 0, B: 0 }; this.fps = { A: 22, B: 22 }; this.lastStatus = -1e9; this.lastHealth = -1e9;
+    this.err = { A: 0, B: 0, C: 0 }; this.fps = { A: 22, B: 22, C: 22 }; this.lastStatus = -1e9; this.lastHealth = -1e9;
     this.cal = { step: null, state: 'idle' }; this.auth = true; this.setup = false; this.ledTest = null;
     this.savedCals = U.store.get('sim.cals', {}); this.uptime0 = U.now(); this.resetReason = 'POWERON';
     this.stillFlag = 0; this.trigNoHand = 0; this.frontEcho = 0; this.ghostEcho = 0;
@@ -48,7 +49,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
 
   // ---- physics ----------------------------------------------------------------------------------------------
   Sim.prototype.truePose = function (k) {
-    var kk = this.faults.swapAB ? (k === 'A' ? 'B' : 'A') : k, typed = this.cfg.sensors[kk], tr = this.truth[kk];
+    var kk = this.faults.swapAB && k !== 'C' ? (k === 'A' ? 'B' : 'A') : k, typed = this.cfg.sensors[kk], tr = this.truth[kk];
     return { x: typed.x + tr.dx, y: typed.y + tr.dy, z: typed.z + tr.dz, tilt: typed.tilt || 0, yaw: typed.yaw + tr.yawErr + (this.faults.A_yaw30 && kk === 'A' ? -30 : 0) + (this.faults.aimOff ? (kk === 'A' ? 16 : -12) : 0), off: tr.off };
   };
   Sim.prototype.echoStrength = function (pose, x, y, h, d, kind) {
@@ -61,7 +62,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // Echo list for one sensor given an optional target {x,y,h,kind}
   Sim.prototype.echoes = function (k, target) {
     var f = this.faults, list = [], pose = this.truePose(k);
-    if ((k === 'A' && f.A_swapSdaScl) || (k === 'B' && f.B_noPower)) { this.err[k] += 1; return null; }         // not found on the bus
+    if ((k === 'A' && f.A_swapSdaScl) || (k === 'B' && f.B_noPower) || (k === 'C' && f.C_noPower)) { this.err[k] += 1; return null; }         // not found on the bus
     if (k === 'A' && f.A_loose && this.rnd() < 0.3) { this.err[k] += 1; return null; }
     var atten = (k === 'B' && f.B_foil) ? 0.02 : 1;
     var rec = this.recorded[k], self = this;
@@ -78,8 +79,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
         if (this.rnd() < 0.3) push(d + 240 + 40 * this.rnd(), s * 0.5);
       }
     }
-    if (f.hotspot && this.rnd() < 0.55) {     // a flickering reflector inside the sink (drip, steam, a swinging brush): false fixes at one spot
-      var hs = { x: 430 + 7 * this.rnd.gauss(), y: 150 + 7 * this.rnd.gauss(), h: this.cfg.hand.zwork };
+    if (f.hotspot && this.hotspotTarget) {     // a flickering reflector inside the sink (drip, steam, a swinging brush): false fixes at one spot
+      var hs = this.hotspotTarget;
       var hd = G.range(pose, hs.x, hs.y, hs.h) + pose.off + NOISE_MM * this.rnd.gauss(); push(hd, this.echoStrength(pose, hs.x, hs.y, hs.h, hd, 'hand') * 0.8 * atten);
     }
     var basin = this.truth.basin[k];
@@ -98,13 +99,15 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var t = Math.round(nowMs - this.t0); this.t = t; this.n += 1;
     var cfg = this.cfg, hand = this.hand; this.tracker.setAlpha(cfg.tuning.smooth || 0.35);
     var target = hand ? { x: hand.x, y: hand.y, h: hand.h == null ? cfg.hand.zwork : hand.h, kind: 'hand' } : null;
-    var eA = this.echoes('A', target), eB = this.echoes('B', target);
+    this.hotspotTarget=this.faults.hotspot&&this.rnd()<.55?{x:430+7*this.rnd.gauss(),y:150+7*this.rnd.gauss(),h:cfg.hand.zwork}:null;
+    var eA = this.echoes('A', target), eB = this.echoes('B', target), eC=this.echoes('C',target);
     var fpsA = eA ? 1000 / RATE_MS / late : 0, fpsB = eB ? 1000 / RATE_MS / late : 0;
     this.fps.A = 0.9 * this.fps.A + 0.1 * fpsA; this.fps.B = 0.9 * this.fps.B + 0.1 * fpsB;
+    this.fps.C=.9*this.fps.C+.1*(eC?1000/RATE_MS/late:0);
     // Kinematic gate: compare candidates against where the track should be now, not where it was last frame
     var gate = (this.prev && this.tracker.x !== null) ? this.tracker.predict(t) : this.prev;
-    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: gate, maxJump: 220, masks: cfg.masks, nearWin: cfg.tuning.nearWin };
-    var assoc = (eA && eB) ? G.associate(eA, eB, opts) : { flag: FLAG.NO_HAND };
+    var opts = { A: cfg.sensors.A, B: cfg.sensors.B, C: cfg.sensors.C, hand: cfg.hand, plane: cfg.plane, bg: this.bg, prev: gate, maxJump: 220, masks: cfg.masks, nearWin: cfg.tuning.nearWin };
+    var assoc = (eA && eB && eC) ? G.associate3(eA, eB, eC, opts) : { flag: FLAG.NO_HAND };
     var pos = null, speed = 0;
     if (assoc.flag === FLAG.NONE) { this.miss = 0; this.jumps = 0; var tr = this.tracker.update(assoc.x, assoc.y, t); pos = { x: tr.x, y: tr.y }; speed = tr.speed; this.prev = { x: assoc.ux, y: assoc.uy }; }   // prev is the raw fix
     else if (assoc.flag === FLAG.JUMP) {
@@ -124,40 +127,41 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (this.faults.personFront && !hand && assoc.flag === FLAG.OUTSIDE) this.frontEcho += 1;
     var wasSession = this.sm.session;
     var snap = this.sm.step({ t: t, pos: pos, speed: speed, flag: assoc.flag });
-    this.idleRelearn(t, eA, eB, snap);
+    this.idleRelearn(t, eA, eB, snap, eC);
     if (!wasSession && this.sm.session && !hand) this.trigNoHand += 1;
     var f = { t: t, n: this.n, st: snap.st, set: U.round(snap.set, 3), ex: U.round(snap.ex, 3), dsp: U.round(snap.dsp, 1), cup: Math.round(snap.cup), lk: snap.lk, flag: snap.flag, still: U.round(snap.still, 1), spd: Math.round(speed) };
     if (snap.fn) f.fn = snap.fn; if (snap.zn) f.zn = snap.zn;
     if (pos) { f.hx = U.round(pos.x, 1); f.hy = U.round(pos.y, 1); }
     if (snap.clean) f.cln = U.round(snap.clean, 1);
     f.A = { e: eA || [], hz: U.round(this.fps.A, 1), er: this.err.A }; f.B = { e: eB || [], hz: U.round(this.fps.B, 1), er: this.err.B };
-    if (assoc.flag === FLAG.NONE) { f.A.p = assoc.iA; f.B.p = assoc.iB; }
+    f.C={e:eC||[],hz:U.round(this.fps.C,1),er:this.err.C};
+    if (assoc.flag === FLAG.NONE) { f.C.p=assoc.iC; f.A.p = assoc.iA; f.B.p = assoc.iB; }
     if (this.ghost) f.g = 1;
     this.out.emit('msg', { f: f });
     if (nowMs - this.lastStatus > 5000) { this.lastStatus = nowMs; this.out.emit('msg', { status: this.status() }); }
     if (nowMs - this.lastHealth > 1000) { this.lastHealth = nowMs; this.out.emit('msg', { health: this.health() }); }
-    if (this.cal.state === 'running' || this.cal.state === 'waiting') this.calTick(eA, eB, target);
+    if (this.cal.state === 'running' || this.cal.state === 'waiting') this.calTick(eA, eB, target, eC);
     return f;
   };
   // Spec 4.4: after 30 s in IDLE with no session, whatever echoes are steadily present are background.
-  Sim.prototype.idleRelearn = function (t, eA, eB, snap) {
+  Sim.prototype.idleRelearn = function (t, eA, eB, snap, eC) {
     if (snap.st !== ST.IDLE || this.sm.session || this.cal.state === 'running') { this.idleSince = t; this.idleAcc = null; return; }
     if (t - this.idleSince < (this.cfg.tuning.bgRelearnIdleMs || 30000)) return;
-    if (!this.idleAcc) this.idleAcc = { A: [], B: [] };
-    this.idleAcc.A.push(eA || []); this.idleAcc.B.push(eB || []);
+    if (!this.idleAcc) this.idleAcc = { A: [], B: [], C: [] };
+    this.idleAcc.A.push(eA || []); this.idleAcc.B.push(eB || []); this.idleAcc.C.push(eC||[]);
     if (this.idleAcc.A.length < 40) return;
     var toRec = function (frames, into) {
       var counts = {}; frames.forEach(function (fr) { fr.forEach(function (e) { var b = Math.round(e[0] / 20) * 20; counts[b] = counts[b] || { n: 0, s: 0 }; counts[b].n += 1; counts[b].s += e[1]; }); });
       Object.keys(counts).forEach(function (b) { if (counts[b].n >= frames.length * 0.8) { var d = +b, seen = false; for (var i = 0; i < into.length; i++) if (Math.abs(into[i][0] - d) <= 25) { seen = true; into[i][1] = Math.max(into[i][1], counts[b].s / counts[b].n); } if (!seen) into.push([d, Math.round(counts[b].s / counts[b].n)]); } });
     };
-    toRec(this.idleAcc.A, this.recorded.A); toRec(this.idleAcc.B, this.recorded.B); this.bg = { A: [], B: [] };
+    toRec(this.idleAcc.A, this.recorded.A); toRec(this.idleAcc.B, this.recorded.B); toRec(this.idleAcc.C,this.recorded.C); this.bg = { A: [], B: [], C: [] };
     this.idleAcc = null; this.idleSince = t; this.out.emit('msg', { ev: 'bg', t: t, A: this.recorded.A.slice(), B: this.recorded.B.slice(), why: 'idle' });
   };
   Sim.prototype.onEvent = function (e) {
     if (this.ghost) e.g = 1;
     if (e.ev === 'still' && e.x != null) { // learn the still object as background
-      var self = this, poses = { A: this.cfg.sensors.A, B: this.cfg.sensors.B };
-      ['A', 'B'].forEach(function (k) { var d = G.range(poses[k], e.x, e.y, self.cfg.hand.zwork) + (poses[k].off || 0); self.bg[k].push([Math.round(d), 2500]); });
+      var self = this, poses = { A: this.cfg.sensors.A, B: this.cfg.sensors.B, C:this.cfg.sensors.C };
+      ['A', 'B', 'C'].forEach(function (k) { var d = G.range(poses[k], e.x, e.y, self.cfg.hand.zwork) + (poses[k].off || 0); self.bg[k].push([Math.round(d), 2500]); });
       this.out.emit('msg', { ev: 'bg', t: e.t, A: this.bg.A.slice(), B: this.bg.B.slice() });
     }
     this.out.emit('msg', e);
@@ -169,7 +173,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   };
   // Per-sensor wiring detail, as the firmware reports it (docs/10-protocol.md)
   Sim.prototype.hwInfo = function (k) {
-    var f = this.faults, noPower = k === 'B' && f.B_noPower, swapped = k === 'A' && f.A_swapSdaScl, badFw = k === 'B' && f.wrongFw, statusErr = k === 'A' && f.statusErr;
+    var f = this.faults, noPower = (k === 'B' && f.B_noPower)||(k==='C'&&f.C_noPower), swapped = k === 'A' && f.A_swapSdaScl, badFw = k === 'B' && f.wrongFw, statusErr = k === 'A' && f.statusErr;
     var pres = !noPower && !swapped, cfg = pres && !badFw && !statusErr;
     return { sda: !noPower, scl: !noPower, pres: pres, cfg: cfg, ver: pres ? 0x010400 : 0, st: !pres ? 0 : (cfg ? 0x0380 : (statusErr ? 0x00010080 : 0x0)), bus: pres ? 0 : (noPower ? 5 : 2), stop: false, setups: this.setups[k] || 1 };
   };
@@ -177,7 +181,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var f = this.faults, cfg = this.cfg, hwA = this.hwInfo('A'), hwB = this.hwInfo('B');
     var ha = { hz: U.round(this.fps.A, 1), er: this.err.A, calNeeded: !!f.calNeeded, str: f.A_swapSdaScl ? 0 : 1800 }, hb = { hz: U.round(this.fps.B, 1), er: this.err.B, calNeeded: false, str: f.B_foil ? 30 : 1700 };
     ha.alive = hwA.cfg && this.fps.A > 0; hb.alive = hwB.cfg && this.fps.B > 0; Object.assign(ha, hwA); Object.assign(hb, hwB);
-    return { A: ha, B: hb,
+    var hc=Object.assign({hz:U.round(this.fps.C,1),er:this.err.C,str:1700,calNeeded:false},this.hwInfo("C")); hc.alive=hc.cfg&&this.fps.C>0;
+    return { A: ha, B: hb, C:hc,
       bgDrift: f.bgDrift ? 38 : 3, ghosts: this.ghostEcho, front: this.frontEcho, trigNoHand: this.trigNoHand, falseOff: this.sm.falseOff, heldOn: this.sm.heldOn,
       led: cfg.tuning.ledBright, rssi: -38, heap: 182000, rst: this.resetReason, temp: 41 + (this.t / 60000) * 0.3, faults: Object.keys(f) };
   };
@@ -200,15 +205,15 @@ var RS = globalThis.RS || (globalThis.RS = {});
       case 'cal': this.calCmd(c, ack, err); break;
       case 'led': this.ledTest = c.test === 'off' ? null : { test: c.test, n: c.n }; ack(); this.out.emit('msg', { led: this.ledTest }); break;
       case 'save': if (!c.name) return err('name required'); this.savedCals[c.name] = { name: c.name, notes: c.notes || '', when: U.stamp(), cfg: U.deepClone(this.cfg), bg: U.deepClone(this.bg), recorded: U.deepClone(this.recorded) }; this.calName = c.name; this.calWhen = U.stamp(); U.store.set('sim.cals', this.savedCals); ack(); this.out.emit('msg', { cals: this.calList() }); this.out.emit('msg', { status: this.status() }); break;
-      case 'load': var s = this.savedCals[c.name]; if (!s) return err('no such calibration'); this.cfg = U.deepClone(s.cfg); this.bg = U.deepClone(s.bg || { A: [], B: [] }); if (s.recorded) this.recorded = U.deepClone(s.recorded); this.sm.setConfig(this.cfg); this.calName = c.name; this.calWhen = s.when; ack(); this.out.emit('msg', { cfg: this.cfg }); this.out.emit('msg', { status: this.status() }); break;
+      case 'load': var s = this.savedCals[c.name]; if (!s) return err('no such calibration'); this.cfg = U.deepClone(s.cfg); this.bg = U.deepClone(s.bg || { A: [], B: [], C: [] }); if (s.recorded) this.recorded = U.deepClone(s.recorded); this.sm.setConfig(this.cfg); this.calName = c.name; this.calWhen = s.when; ack(); this.out.emit('msg', { cfg: this.cfg }); this.out.emit('msg', { status: this.status() }); break;
       case 'delete': delete this.savedCals[c.name]; U.store.set('sim.cals', this.savedCals); ack(); this.out.emit('msg', { cals: this.calList() }); break;
       case 'list': ack(); this.out.emit('msg', { cals: this.calList() }); break;
       case 'wifi': if (!c.pass || c.pass.length < 8 || c.pass.length > 63) return err('Password must be 8 to 63 characters'); ack({ restart: true }); break;
       case 'pin': if (!/^\d{4,8}$/.test(c.pin || '')) return err('PIN must be 4 to 8 digits'); ack(); break;
       case 'get': if (c.what === 'cfg') this.out.emit('msg', { cfg: this.cfg }); else if (c.what === 'health') this.out.emit('msg', { health: this.health() }); else if (c.what === 'cal') this.out.emit('msg', { cal: this.cal }); else this.out.emit('msg', { status: this.status() }); ack(); break;
-      case 'reset': if (c.what === 'totals') this.sm.totals = { sess: 0, ml: 0, savedOff: 0, savedFlow: 0 }; else { this.cfg = U.deepClone(RS.DEFAULTS); this.bg = { A: [], B: [] }; this.recorded = { A: [], B: [] }; this.sm.setConfig(this.cfg); this.calName = null; this.out.emit('msg', { cfg: this.cfg }); } ack(); this.out.emit('msg', { status: this.status() }); break;
+      case 'reset': if (c.what === 'totals') this.sm.totals = { sess: 0, ml: 0, savedOff: 0, savedFlow: 0 }; else { this.cfg = U.deepClone(RS.DEFAULTS); this.bg = { A: [], B: [], C: [] }; this.recorded = { A: [], B: [], C: [] }; this.sm.setConfig(this.cfg); this.calName = null; this.out.emit('msg', { cfg: this.cfg }); } ack(); this.out.emit('msg', { status: this.status() }); break;
       case 'reboot': this.resetReason = 'SW_RESET'; this.uptime0 = U.now(); this.sm.reset(); ack(); this.out.emit('msg', { status: this.status() }); break;
-      case 'sensors': if (c.a === 'recheck') { this.setups.A = (this.setups.A || 1) + 1; this.setups.B = (this.setups.B || 1) + 1; ack(); } else err('unknown sensors action'); break;
+      case 'sensors': if (c.a === 'recheck') { this.setups.A = (this.setups.A || 1) + 1; this.setups.B = (this.setups.B || 1) + 1; this.setups.C=(this.setups.C||1)+1; ack(); } else err('unknown sensors action'); break;
       case 'fault': this.setFault(c.name, c.on); ack(); break;   // simulator only (T30 rehearsal)
       default: err('unknown command ' + c.c);
     }
@@ -221,7 +226,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var self = this, step = c.step, a = c.a;
     if (a === 'stop') { this.cal = { step: null, state: 'idle' }; this.calEmit(); return ack(); }
     if (a === 'apply') {        // fitted results computed in the browser
-      if (c.sensors) ['A', 'B'].forEach(function (k) { if (c.sensors[k]) Object.assign(self.cfg.sensors[k], c.sensors[k]); });
+      if (c.sensors) ['A', 'B', 'C'].forEach(function (k) { if (c.sensors[k]) Object.assign(self.cfg.sensors[k], c.sensors[k]); });
       if (c.hand) Object.assign(this.cfg.hand, c.hand);
       this.sm.setConfig(this.cfg); this.out.emit('msg', { cfg: this.cfg }); return ack();
     }
@@ -229,7 +234,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       this.cal = { step: step, state: 'running', i: 0, n: 0, t0: this.t, checks: [], samples: [] };
       if (step === 'c0') { this.cal.n = 7; this.cal.checks = []; }
       else if (step === 'identify') { this.cal.n = 1; this.cal.state = 'waiting'; this.cal.prompt = 'Hold your hand 20 cm in front of the back-left sensor'; }
-      else if (step === 'c6') { this.cal.n = 40; this.cal.frames = { A: [], B: [] }; }
+      else if (step === 'c6') { this.cal.n = 40; this.cal.frames = { A: [], B: [], C: [] }; }
       else if (step === 'c7') { this.cal.n = 32; this.cal.hole = 1; this.cal.depth = RS.calDepths(this.cfg)[0]; this.cal.state = 'waiting'; this.cal.buf = []; }
       else if (step === 'c8') { this.cal.n = 33; this.cal.hole = 1; this.cal.high = true; this.cal.state = 'waiting'; this.cal.buf = []; this.cal.samples = []; this.cal.still = []; }
       else return err('unknown step');
@@ -267,7 +272,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     this.calEmit();
   };
   // Called every frame while a step runs. eA/eB are this frame's echo lists; target is the true hand (if any).
-  Sim.prototype.calTick = function (eA, eB, target) {
+  Sim.prototype.calTick = function (eA, eB, target, eC) {
     var cal = this.cal, f = this.faults, self = this, holes = G.templateHoles(this.cfg.plane);
     if (cal.step === 'c0') {
       if (cal.state !== 'running') return;
@@ -275,13 +280,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
       if (elapsed < (idx + 1) * 700) return;              // one check per 0.7 s for a visible sequence
       var chk = null;
       switch (idx) {
-        case 0: chk = { id: 'found', label: 'Sensors answer on their buses', ok: !f.A_swapSdaScl && !f.B_noPower, code: 'W1', detail: (f.A_swapSdaScl ? 'Sensor A not found. ' : '') + (f.B_noPower ? 'Sensor B not found.' : '') }; break;
+        case 0: chk = { id: 'found', label: 'Sensors answer on their buses', ok: !f.A_swapSdaScl && !f.B_noPower && !f.C_noPower, code: 'W1', detail: (f.A_swapSdaScl ? 'Sensor A not found. ' : '') + (f.B_noPower ? 'Sensor B not found.' : '') }; break;
         case 1: chk = { id: 'fw', label: 'Distance detector firmware', ok: !f.wrongFw, code: 'F1', detail: f.wrongFw ? 'Sensor B reports the presence detector' : 'A: distance detector v1.x · B: distance detector v1.x' }; break;
         case 2: chk = { id: 'status', label: 'Sensor status flags', ok: !f.statusErr, code: 'F2', detail: f.statusErr ? 'A: CONFIG_APPLY_ERROR' : 'no error flags' }; break;
-        case 3: chk = { id: 'rst', label: 'Reset lines', ok: !f.B_rstOff && !f.rstSwapped, code: 'W4', detail: f.rstSwapped ? 'Resetting A restarted B' : (f.B_rstOff ? 'Sensor B did not restart when reset' : 'A and B each restart on their own line') }; break;
-        case 4: if (!cal.wavePrompted) { cal.wavePrompted = true; cal.state = 'waiting'; cal.prompt = 'Wave the foil ball 20 cm in front of sensor A, then sensor B'; this.calEmit(); return; }
+        case 3: chk = { id: 'rst', label: 'Reset lines', ok: !f.B_rstOff && !f.rstSwapped, code: 'W4', detail: f.rstSwapped ? 'Resetting A restarted B' : (f.B_rstOff ? 'Sensor B did not restart when reset' : 'A, B and C each restart on their own line') }; break;
+        case 4: if (!cal.wavePrompted) { cal.wavePrompted = true; cal.state = 'waiting'; cal.prompt = 'Wave the foil ball 20 cm in front of sensor A, then sensor B and C'; this.calEmit(); return; }
           var seenA = !f.A_swapSdaScl && !f.A_dead, seenB = !f.B_foil && !f.B_noPower;
-          chk = { id: 'wave', label: 'Wave test: each sensor sees the ball', ok: seenA && seenB, code: 'S1', detail: (seenA ? 'A sees the ball. ' : 'A sees nothing. ') + (seenB ? 'B sees the ball.' : 'B sees nothing.') }; break;
+          chk = { id: 'wave', label: 'Wave test: each sensor sees the ball', ok: seenA && seenB && !f.C_noPower, code: 'S1', detail: (seenA ? 'A sees the ball. ' : 'A sees nothing. ') + (seenB ? 'B sees the ball.' : 'B sees nothing.') }; break;
         case 5: if (!cal.stillPrompted) { cal.stillPrompted = true; cal.state = 'waiting'; cal.prompt = 'Hold the ball still in the middle of the sink for 3 seconds'; this.calEmit(); return; }
           var spread = f.noisy ? 9.5 : NOISE_MM * 1.1; this.lastStaticSpread = spread;
           chk = { id: 'noise', label: 'Still-target noise under 5 mm', ok: spread < 5, code: 'S4', detail: 'spread ' + spread.toFixed(1) + ' mm' }; break;
@@ -300,13 +305,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     if (cal.step === 'c6') {
       if (target && !this.ghost) { cal.warn = 'Something is in the sink'; }
-      cal.frames.A.push(eA || []); cal.frames.B.push(eB || []); cal.i = cal.frames.A.length; if (cal.i % 5 === 0) this.calEmit();
+      cal.frames.A.push(eA || []); cal.frames.B.push(eB || []); cal.frames.C.push(eC||[]); cal.i = cal.frames.A.length; if (cal.i % 5 === 0) this.calEmit();
       if (cal.i >= cal.n) {
         var stable = function (frames) { var counts = {}; frames.forEach(function (fr) { fr.forEach(function (e) { var b = Math.round(e[0] / 20) * 20; counts[b] = counts[b] || { n: 0, s: 0 }; counts[b].n += 1; counts[b].s += e[1]; }); }); return Object.keys(counts).filter(function (b) { return counts[b].n >= frames.length * 0.6; }).map(function (b) { return { d: +b, s: Math.round(counts[b].s / counts[b].n), n: counts[b].n }; }); };
-        var bgA = stable(cal.frames.A), bgB = stable(cal.frames.B), addRec = function (list, into) { list.forEach(function (e) { var seen = false; for (var i = 0; i < into.length; i++) if (Math.abs(into[i][0] - e.d) <= 25) { seen = true; into[i][1] = Math.max(into[i][1], e.s); } if (!seen) into.push([e.d, e.s]); }); };
-        addRec(bgA, this.recorded.A); addRec(bgB, this.recorded.B); this.bg = { A: [], B: [] };
-        var strong = bgA.concat(bgB).filter(function (e) { return e.s > 1200; }), maxS = Math.max.apply(null, [0].concat(bgA.concat(bgB).map(function (e) { return e.s; })));
-        cal.state = 'done'; cal.result = { A: bgA, B: bgB, codes: (strong.length ? ['B1'] : []).concat(maxS > 1000 && !strong.length ? ['B2'] : []), ok: !strong.length, maxStrength: maxS };
+        var bgA = stable(cal.frames.A), bgB = stable(cal.frames.B), bgC=stable(cal.frames.C), addRec = function (list, into) { list.forEach(function (e) { var seen = false; for (var i = 0; i < into.length; i++) if (Math.abs(into[i][0] - e.d) <= 25) { seen = true; into[i][1] = Math.max(into[i][1], e.s); } if (!seen) into.push([e.d, e.s]); }); };
+        addRec(bgA, this.recorded.A); addRec(bgB, this.recorded.B); addRec(bgC,this.recorded.C); this.bg = { A: [], B: [], C: [] };
+        var strong = bgA.concat(bgB,bgC).filter(function (e) { return e.s > 1200; }), maxS = Math.max.apply(null, [0].concat(bgA.concat(bgB,bgC).map(function (e) { return e.s; })));
+        cal.state = 'done'; cal.result = { A: bgA, B: bgB, C:bgC, codes: (strong.length ? ['B1'] : []).concat(maxS > 1000 && !strong.length ? ['B2'] : []), ok: !strong.length, maxStrength: maxS };
         this.calEmit();
       }
       return;
@@ -319,20 +324,20 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var jitter = cal.step === 'c8' ? 12 : 1.5, tgt;
       if (cal.phase === 'still') tgt = { x: this.cfg.plane.w / 2 + 4 * this.rnd.gauss(), y: this.cfg.plane.d / 2 + 4 * this.rnd.gauss(), h: this.cfg.hand.zwork, kind: 'hand' };
       else tgt = { x: H.x + jitter * this.rnd.gauss(), y: H.y + jitter * this.rnd.gauss(), h: depth, kind: cal.step === 'c7' ? 'ball' : 'hand' };
-      var rA = null, rB = null;
-      ['A', 'B'].forEach(function (k) {
+      var rA = null, rB = null, rC=null;
+      ['A', 'B', 'C'].forEach(function (k) {
         var pose = self.truePose(k), d = G.range(pose, tgt.x, tgt.y, tgt.h) + pose.off + NOISE_MM * self.rnd.gauss() - (cal.step === 'c7' ? RS.CAL.ballR : 0);
         var s = self.echoStrength(pose, tgt.x, tgt.y, tgt.h, d, tgt.kind) * ((k === 'B' && f.B_foil) ? 0.02 : 1);
         if ((k === 'A' && f.A_swapSdaScl) || s < 60) return;
-        if (k === 'A') rA = [Math.round(d), Math.round(s)]; else rB = [Math.round(d), Math.round(s)];
+        if (k === 'A') rA = [Math.round(d), Math.round(s)]; else if(k==='B') rB = [Math.round(d), Math.round(s)]; else rC=[Math.round(d),Math.round(s)];
       });
-      cal.buf.push({ A: rA, B: rB });
-      cal.reading = { A: rA, B: rB, steady: Math.min(1, cal.buf.length / 12) };
-      if (cal.phase === 'still') { if (rA && rB) cal.still.push({ A: rA[0], B: rB[0] }); if (cal.buf.length >= 110) { cal.stillDone = true; cal.phase = null; cal.hole = 17; this.calAdvance(); } else if (cal.buf.length % 6 === 0) this.calEmit(); return; }
+      cal.buf.push({ A: rA, B: rB, C:rC });
+      cal.reading = { A: rA, B: rB, C:rC, steady: Math.min(1, cal.buf.length / 12) };
+      if (cal.phase === 'still') { if (rA && rB && rC) cal.still.push({ A: rA[0], B: rB[0], C:rC[0] }); if (cal.buf.length >= 110) { cal.stillDone = true; cal.phase = null; cal.hole = 17; this.calAdvance(); } else if (cal.buf.length % 6 === 0) this.calEmit(); return; }
       if (cal.buf.length >= 12) {                 // steady for ~0.5 s: take the median reading
         var med = function (k) { var v = cal.buf.filter(function (b) { return b[k]; }); if (v.length < 6) return null; var ds = v.map(function (b) { return b[k][0]; }), ss = v.map(function (b) { return b[k][1]; }); return [U.median(ds), U.median(ss), U.std(ds)]; };
-        var mA = med('A'), mB = med('B');
-        var sample = { hole: cal.hole, A: mA ? [mA[0], mA[1]] : null, B: mB ? [mB[0], mB[1]] : null, spread: mA && mB ? (mA[2] + mB[2]) / 2 : null };
+        var mA = med('A'), mB = med('B'), mC=med('C');
+        var sample = { hole: cal.hole, A: mA ? [mA[0], mA[1]] : null, B: mB ? [mB[0], mB[1]] : null, C:mC?[mC[0],mC[1]]:null, spread: mA && mB ? (mA[2] + mB[2]) / 2 : null };
         if (cal.step === 'c7') sample.depth = cal.depth; else sample.high = cal.high;
         cal.samples.push(sample); cal.lastSample = sample; this.out.emit('msg', { ev: 'beep', t: this.t });
         this.calAdvance();

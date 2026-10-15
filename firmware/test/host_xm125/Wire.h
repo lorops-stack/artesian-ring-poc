@@ -12,7 +12,8 @@ class TwoWire {
   uint32_t distResult = 0; std::vector<uint32_t> dist, str;   // what MEASURE returns
   uint32_t calErrorBits = 0;       // set to put an error flag in the status after APPLY
   std::map<uint16_t, uint32_t> reg; uint32_t status = 0; int busyLeft = 0; int writes = 0, failNextWrites = 0;
-  bool begin(int, int, uint32_t) { return true; } void setClock(uint32_t) {} void setTimeOut(uint16_t) {}
+  int selectedSda=-1, selectedScl=-1, begins=0, ends=0;
+  bool begin(int sda, int scl, uint32_t) {selectedSda=sda;selectedScl=scl;begins++;return true;} void end(){ends++;} void setClock(uint32_t) {} void setTimeOut(uint16_t) {}
   void beginTransmission(uint8_t a) { addr = a; tx.clear(); }
   size_t write(uint8_t b) { tx.push_back(b); return 1; }
   uint8_t endTransmission(bool stop = true) {

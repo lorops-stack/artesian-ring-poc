@@ -49,24 +49,26 @@ for (const mount of MOUNTS) {
     assert.equal(g2.flag, 0); assert.equal(g2.iA, 1, 'a faint blip nearer than the hand does not drop it');
   });
 
-  test(`[${mount}] coverage prediction: back row is the weakest, overall high`, () => {
+  test(`[${mount}] coverage prediction: third view improves back geometry and exposes front coverage gaps`, () => {
     const cov = RS.geo.coverage(c, 23, 21, 'kitchen');
     const rows = [0, 1, 2].map(r => cov.zones.filter(z => z.row === r).map(z => cov.perZone[z.id]).reduce((a, b) => a + b, 0) / 3);
-    assert.ok(cov.overall > 0.85, 'overall ' + cov.overall);
-    assert.ok(rows[0] <= rows[2] + 0.02, 'back row should not beat the front row: ' + rows);
+    assert.ok(cov.cells.every(x=>Number.isFinite(x.err)&&x.acc>=0&&x.acc<=1));
+    assert.ok(cov.cells.some(x=>x.blind), 'front-centre sensor has near-range / beam gaps');
+    const two=RS.util.deepClone(c);two.sensors.C.on=false;const old=RS.geo.coverage(two,23,21);
+    const mid=cov.cells.find(x=>x.yf<.05&&Math.abs(x.xf-.5)<.03);const oldMid=old.cells.find(x=>x.yf<.05&&Math.abs(x.xf-.5)<.03);assert.ok(mid.err<oldMid.err);
   });
 
   test(`[${mount}] wand fit finds hidden sensor errors and offsets`, () => {
-    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: 8, y: -5, z: 6, off: 18 }, B: { x: 574.2, y: 4, z: -3, off: 24 } };
-    const samples = [];
+    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: 8, y: -5, z: 6, off: 18 }, B: { x: 574.2, y: 4, z: -3, off: 24 }, C:{x:c.sensors.C.x+4,y:c.sensors.C.y+4,z:0,off:12} };
+    const samples = [], rndC=RS.util.rng(9);
     for (const H of holes) for (const depth of RS.calDepths(c)) {
       const s = { hole: H.n, depth };
-      for (const k of ['A', 'B']) { const d = RS.geo.range(truth[k], H.x, H.y, depth) + truth[k].off - 20 + 3 * rnd.gauss(); s[k] = [d, 1500]; }
+      for (const k of ['A', 'B', 'C']) { const d = RS.geo.range(truth[k], H.x, H.y, depth) + truth[k].off - 20 + 3 * (k==='C'?rndC:rnd).gauss(); s[k] = [d, 1500]; }
       samples.push(s);
     }
     const fit = RS.fit.wandFit(samples, c);
     assert.ok(fit.rms < 12, 'rms ' + fit.rms);
-    for (const k of ['A', 'B']) {
+    for (const k of ['A', 'B', 'C']) {
       assert.ok(Math.abs(fit.fits[k].off - truth[k].off) < 10, k + ' offset ' + fit.fits[k].off);
       assert.ok(Math.hypot(fit.fits[k].x - truth[k].x, fit.fits[k].y - truth[k].y) < 14, k + ' pose');
     }
@@ -151,8 +153,8 @@ test('geometry uncertainty rises near the sensor baseline', () => {
 });
 
 test('robust wand fit resists a large multipath outlier and reports validation quality', () => {
-  const c=RS.presetConfig('flat'), rnd=RS.util.rng(77), holes=RS.geo.templateHoles(c.plane), truth={A:{x:7,y:-4,z:0,off:18},B:{x:577,y:5,z:0,off:23}}, samples=[];
-  for(const H of holes) for(const depth of RS.calDepths(c)){ const s={hole:H.n,depth}; for(const k of ['A','B']) s[k]=[RS.geo.range(truth[k],H.x,H.y,depth)+truth[k].off-20+2*rnd.gauss(),1200]; samples.push(s); }
+  const c=RS.presetConfig('flat'), rnd=RS.util.rng(77), holes=RS.geo.templateHoles(c.plane), truth={A:{x:7,y:-4,z:0,off:18},B:{x:577,y:5,z:0,off:23},C:{x:292.1,y:537,z:0,off:12}}, samples=[];
+  for(const H of holes) for(const depth of RS.calDepths(c)){ const s={hole:H.n,depth}; for(const k of ['A','B','C']) s[k]=[RS.geo.range(truth[k],H.x,H.y,depth)+truth[k].off-20+2*rnd.gauss(),1200]; samples.push(s); }
   samples.find(s=>s.hole===6).A[0]+=140;
   const fit=RS.fit.wandFit(samples,c); assert.ok(fit.fits.A.outliers.length>=1); assert.ok(Math.abs(fit.fits.A.off-truth.A.off)<12,'offset '+fit.fits.A.off);
   assert.ok(fit.validationRms!==null && fit.validation.length>=14); assert.equal(fit.quality,'fail','independent validation must expose the corrupted held-out hole instead of blessing the training fit'); assert.ok(fit.validationWorst && fit.validationWorst.err>55,'worst held-out error '+(fit.validationWorst&&fit.validationWorst.err));

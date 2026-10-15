@@ -34,7 +34,9 @@ static constexpr uint32_t FRAME_INTERVAL_MS = 100; // 10 Hz UI telemetry; sensin
 #endif
 static uint8_t httpAuthFails = 0; static uint32_t httpAuthBlockedUntil = 0;
 static bool httpAuthed(AsyncWebServerRequest* r) {
-  if (!g.pin[0]) return g.setupNeeded;
+  // HTTP and WebSocket share the WPA2-only access model. Legacy PINs, if set,
+  // still take the explicit header path below; normal setup clears that PIN.
+  if (!g.pin[0]) return true;
   uint32_t now = millis(); if ((int32_t)(now - httpAuthBlockedUntil) < 0) return false;
   bool ok = r->hasHeader("X-Ring-PIN") && r->getHeader("X-Ring-PIN")->value().equals(g.pin);
   if (ok) { httpAuthFails = 0; httpAuthBlockedUntil = 0; return true; }
@@ -48,7 +50,7 @@ static bool requireHttpAuth(AsyncWebServerRequest* r) {
 }
 static uint32_t lastFrameSent = 0, lastStatus = 0, lastHealth = 0, lastN = 0;
 static uint32_t wsBackpressureDrops = 0;
-static char frameBuf[1400];
+static char frameBuf[2400];
 
 static void makeTempPass() { const char* al = "abcdefghjkmnpqrstuvwxyz23456789"; for (int i = 0; i < 10; i++) g.tempPass[i] = al[esp_random() % strlen(al)]; g.tempPass[10] = 0; }
 static void startAp() {

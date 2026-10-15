@@ -4,6 +4,8 @@
 #include <assert.h>
 uint32_t g_ms = 0; SerialShim Serial; TwoWire Wire, Wire1;
 static int fails = 0;
+static int waitProgress = 0;
+static void progress() { waitProgress++; }
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
 
 int main() {
@@ -49,6 +51,21 @@ int main() {
   { TwoWire& w = Wire; w = TwoWire(); xm125::Sensor s(w, 8, 9, 6, "A"); s.beginBus(400000);
     w.distResult = 15; w.dist.assign(10, 500); w.str.assign(10, 1000); w.busyPolls = 7;
     xm125::Result r; CHECK(s.measure(r)); CHECK(r.n == 10);
+  }
+  // B and C share a controller, never a physical pair; every transaction restores routing.
+  { TwoWire w; xm125::Sensor b(w,17,18,7,"B"), c(w,10,11,12,"C");
+    b.beginBus(400000); CHECK(w.selectedSda==17 && w.selectedScl==18);
+    c.beginBus(400000); CHECK(w.selectedSda==10 && w.selectedScl==11);
+    CHECK(b.present()); CHECK(w.selectedSda==17 && w.selectedScl==18);
+    CHECK(c.version()!=0); CHECK(w.selectedSda==10 && w.selectedScl==11);
+    CHECK(b.writeReg(0x0040,60)); CHECK(w.selectedSda==17);
+    CHECK(w.ends>=4 && w.begins>=5);
+  }
+  // A busy detector reports progress while preserving the caller's finite timeout.
+  { TwoWire w; xm125::Sensor s(w,8,9,6,"A"); s.beginBus(400000); s.setWaitHook(progress);
+    w.busyLeft=10000; waitProgress=0; const uint32_t start=millis();
+    CHECK(!s.waitNotBusy(25)); CHECK(waitProgress>=25); CHECK(millis()-start==25);
+    w.busyLeft=2; CHECK(s.waitNotBusy(25));
   }
   printf(fails ? "xm125 host test: %d FAILED\n" : "xm125 host test: all passed\n", fails);
   return fails ? 1 : 0;

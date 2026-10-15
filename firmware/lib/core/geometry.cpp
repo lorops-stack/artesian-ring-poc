@@ -163,6 +163,54 @@ Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts&
   out.flag = FLAG_NONE; return out;
 }
 
+
+// Three measured ranges, fixed calibrated working depth. All three sensors are
+// required: no silent fallback to an ambiguous two-sensor fix after a fault.
+// Range-difference seed followed by bounded least squares; max residual 35 mm
+// is a commissioning tolerance, not a measured accuracy claim.
+Assoc associate3(const Echo* eA, int nA, const Echo* eB, int nB, const Echo* eC, int nC, const AssocOpts& o) {
+  Assoc out{}; out.flag = FLAG_NO_HAND; out.iA = out.iB = out.iC = -1;
+  if (!o.C || !o.A->on || !o.B->on || !o.C->on) return out;
+  const SensorPose* P[3] = {o.A, o.B, o.C};
+  const Echo* E[3] = {eA, eB, eC}; const Echo* bg[3] = {o.bgA, o.bgB, o.bgC};
+  int N[3] = {nA, nB, nC}, nb[3] = {o.nBgA, o.nBgB, o.nBgC}, ids[3][10], count[3] = {};
+  bool strengthFail = false;
+  for (int k=0;k<3;k++) for (int i=0;i<N[k] && i<10;i++) {
+    const Echo& e=E[k][i];
+    if (!isfinite(e.d) || !isfinite(e.s) || e.d <= P[k]->off || e.s < o.hand->strMin || e.s > o.hand->strMax || !strengthInEnvelope(*o.hand,e.d,e.s)) { strengthFail=true; continue; }
+    if (!isBg(bg[k],nb[k],e.d,e.s)) ids[k][count[k]++]=i;
+  }
+  if (!count[0] || !count[1] || !count[2]) { if (strengthFail) out.flag=FLAG_STRENGTH; return out; }
+  float ax=2*(P[1]->x-P[0]->x), ay=2*(P[1]->y-P[0]->y);
+  float bx=2*(P[2]->x-P[0]->x), by=2*(P[2]->y-P[0]->y), det=ax*by-ay*bx;
+  if (fabsf(det)<1) return out;
+  float best=1e30f; bool outside=false, masked=false;
+  for(int ia=0;ia<count[0];ia++) for(int ib=0;ib<count[1];ib++) for(int ic=0;ic<count[2];ic++) {
+    int id[3]={ids[0][ia],ids[1][ib],ids[2][ic]}; float r[3], q[3]; bool valid=true;
+    for(int k=0;k<3;k++) { r[k]=E[k][id[k]].d-P[k]->off; float v=o.hand->zwork+P[k]->z; if(r[k]<fabsf(v)) valid=false; q[k]=r[k]*r[k]-v*v-P[k]->x*P[k]->x-P[k]->y*P[k]->y; }
+    if(!valid) continue;
+    float u=q[0]-q[1],v=q[0]-q[2],x=(u*by-ay*v)/det,y=(ax*v-u*bx)/det;
+    for(int iter=0;iter<6;iter++) {
+      float xx=0,xy=0,yy=0,rx=0,ry=0;
+      for(int k=0;k<3;k++) { float d=range(*P[k],x,y,o.hand->zwork); if(d<1) d=1; float jx=(x-P[k]->x)/d,jy=(y-P[k]->y)/d,e=d-r[k]; xx+=jx*jx;xy+=jx*jy;yy+=jy*jy;rx+=jx*e;ry+=jy*e; }
+      float dd=xx*yy-xy*xy; if(dd<1e-5f) {valid=false;break;}
+      float dx=(yy*rx-xy*ry)/dd,dy=(xx*ry-xy*rx)/dd;
+      if(hypotf(dx,dy)>200) {valid=false;break;} x-=dx;y-=dy;
+      if(hypotf(dx,dy)<0.01f) break;
+    }
+    if(!valid || !isfinite(x) || !isfinite(y)) continue;
+    float res=0; for(int k=0;k<3;k++) res=fmaxf(res,fabsf(range(*P[k],x,y,o.hand->zwork)-r[k]));
+    if(res>35 || x < 0 || x > o.plane->w || y < 0 || y > o.plane->d) {outside=true;continue;}
+    if(o.masks && maskHit(o.masks,o.nMasks,x,y)) {masked=true;continue;}
+    float score=r[0]+r[1]+r[2]+6*res;
+    if(o.hasPrev) score+=2.5f*hypotf(x-o.prevX,y-o.prevY);
+    if(score<best) {best=score;out.ux=x;out.uy=y;out.x=fmaxf(0,fminf(o.plane->w,x));out.y=fmaxf(0,fminf(o.plane->d,y));out.iA=id[0];out.iB=id[1];out.iC=id[2];out.rA=r[0];out.rB=r[1];out.res=res;out.flag=FLAG_NONE;}
+  }
+  if(out.iA<0) {out.flag=masked?FLAG_MASKED:(outside?FLAG_OUTSIDE:FLAG_NO_HAND);return out;}
+  if(o.hasPrev && o.maxJump>0 && hypotf(out.ux-o.prevX,out.uy-o.prevY)>o.maxJump) out.flag=FLAG_JUMP;
+  return out;
+}
+
 void Tracker::predict(uint32_t t, float& px, float& py) const {
   float dt = (t - t_) / 1000.0f; if (dt < 0) dt = 0; if (dt > 0.5f) dt = 0.5f;
   px = x_ + vx_ * dt; py = y_ + vy_ * dt;

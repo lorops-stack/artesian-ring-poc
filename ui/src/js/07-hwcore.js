@@ -9,7 +9,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   var HW = RS.hw = RS.hw || {};
 
   // Pins as wired (docs/03-pinout-and-wiring.md)
-  HW.PINS = { A: { sda: 8, scl: 9, rst: 6 }, B: { sda: 17, scl: 18, rst: 7 } };
+  HW.PINS = { A: { sda: 8, scl: 9, rst: 6 }, B: { sda: 17, scl: 18, rst: 7 }, C: {sda:10,scl:11,rst:12} };
   HW.ERR_BITS = 0x03FF0000;
 
   function pins(k) { var p = HW.PINS[k]; return 'SDA GPIO' + p.sda + ', SCL GPIO' + p.scl + ', RST GPIO' + p.rst; }
@@ -92,10 +92,10 @@ var RS = globalThis.RS || (globalThis.RS = {});
 
   // Wave test: wave a hand 5 to 20 cm in front of one sensor; its nearest echo should swing.
   HW.Wave = function () { this.reset(); };
-  HW.Wave.prototype.reset = function () { this.k = { A: { min: 1e9, max: -1, n: 0, frames: 0 }, B: { min: 1e9, max: -1, n: 0, frames: 0 } }; this.frames = 0; };
+  HW.Wave.prototype.reset = function () { this.k = { A: { min: 1e9, max: -1, n: 0, frames: 0 }, B: { min: 1e9, max: -1, n: 0, frames: 0 } }; this.k.C={min:1e9,max:-1,n:0,frames:0}; this.frames = 0; };
   HW.Wave.prototype.add = function (f) {
     if (!f) return; this.frames++;
-    var self = this; ['A', 'B'].forEach(function (key) {
+    var self = this; ['A', 'B', 'C'].forEach(function (key) {
       var s = f[key], r = self.k[key]; if (!s) return; r.frames++;
       if (s.e && s.e.length) { var d = s.e[0][0]; r.n++; if (d < r.min) r.min = d; if (d > r.max) r.max = d; }
     });
@@ -103,7 +103,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // Result per sensor: seen (had echoes), swing (max-min of nearest echo, mm), ok
   HW.Wave.prototype.result = function (minSwing) {
     var ms = minSwing || 40, out = {}, self = this;
-    ['A', 'B'].forEach(function (key) {
+    ['A', 'B', 'C'].forEach(function (key) {
       var r = self.k[key], seen = r.n > 3; out[key] = { seen: seen, swing: seen ? Math.round(r.max - r.min) : 0, ok: seen && (r.max - r.min) >= ms, near: seen ? Math.round(r.min) : null, echoFrames: r.n };
     });
     return out;
