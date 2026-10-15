@@ -55,7 +55,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     var byHole = {}, i;
     samples.forEach(function (s) { (byHole[s.hole] || (byHole[s.hole] = [])).push(s); });
     var fits = {};
-    ['A', 'B'].forEach(function (k) {
+    ['A', 'B', 'C'].filter(function(k){return k!=='C'||cfg.sensors.C.on;}).forEach(function (k) {
       var pts = [], meas = [], strs = [];
       samples.forEach(function (s) { if (!s[k]) return; var H = holes[s.hole - 1]; pts.push({ x: H.x, y: H.y, h: s.depth }); meas.push(s[k][0] + ballR); strs.push({ hole: s.hole, depth: s.depth, str: s[k][1] }); });
       if (pts.length < 6) { fits[k] = null; return; }
@@ -64,10 +64,11 @@ var RS = globalThis.RS || (globalThis.RS = {});
       fits[k] = f;
     });
     out.fits = fits;
-    if (!fits.A || !fits.B) { out.ok = false; out.codes.push('P2'); out.message = 'Not enough readings to fit both sensors.'; return out; }
+    if (!fits.A || !fits.B || (cfg.sensors.C.on && !fits.C)) { out.ok = false; out.codes.push('P2'); out.message = 'Not enough readings to fit every enabled sensor.'; return out; }
 
     // Overall RMS and per-hole errors (position error of the located ball vs the hole)
     var rmsAll = Math.sqrt((Math.pow(fits.A.rms, 2) * fits.A.n + Math.pow(fits.B.rms, 2) * fits.B.n) / (fits.A.n + fits.B.n));
+    if(fits.C) rmsAll=Math.sqrt((fits.A.rms**2*fits.A.n+fits.B.rms**2*fits.B.n+fits.C.rms**2*fits.C.n)/(fits.A.n+fits.B.n+fits.C.n));
     out.rms = rmsAll;
     var worst = null;
     holes.forEach(function (H) {
@@ -75,7 +76,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
       ss.forEach(function (s) {
         if (!s.A || !s.B) return;
         var p = G.locate(s.A[0] + ballR - fits.A.off, s.B[0] + ballR - fits.B.off, fits.A, fits.B, s.depth, { x: H.x, y: H.y }, plane);
-        errs.push(U.hypot(p.x - H.x, p.y - H.y));
+        if(fits.C && s.C) p=G.associate3([[s.A[0]+ballR,s.A[1]]],[[s.B[0]+ballR,s.B[1]]],[[s.C[0]+ballR,s.C[1]]],{A:fits.A,B:fits.B,C:fits.C,hand:Object.assign({},cfg.hand,{zwork:s.depth,strMin:0,strMax:1e12,envRef:0}),plane:plane});
+        if(p.x!=null) errs.push(U.hypot(p.x - H.x, p.y - H.y));
       });
       var e = errs.length ? U.mean(errs) : null, rec = { n: H.n, x: H.x, y: H.y, err: e, near: near, skipped: !ss.length };
       out.holes.push(rec); if (e !== null && (!worst || e > worst.err)) worst = rec;
@@ -87,16 +89,16 @@ var RS = globalThis.RS || (globalThis.RS = {});
     // P6 holes too near a sensor
     if (out.holes.some(function (h) { return h.near < CAL.nearMm; })) out.codes.push('P6');
     // P1 fitted vs typed
-    ['A', 'B'].forEach(function (k) { if (fits[k].moved > CAL.poseFailMm) { out.ok = false; out.codes.push('P1'); } });
+    ['A', 'B', 'C'].filter(function(k){return k!=='C'||cfg.sensors.C.on;}).forEach(function (k) { if (fits[k].moved > CAL.poseFailMm) { out.ok = false; out.codes.push('P1'); } });
     // P9 heights differ
     if (!flat && Math.abs(fits.A.z - fits.B.z) > CAL.heightDiffMm) out.codes.push('P9');
     // S2 offsets (informational unless extreme)
-    ['A', 'B'].forEach(function (k) { if (Math.abs(fits[k].off) > 80) { out.ok = false; out.codes.push('S2'); } });
+    ['A', 'B', 'C'].filter(function(k){return k!=='C'||cfg.sensors.C.on;}).forEach(function (k) { if (Math.abs(fits[k].off) > 80) { out.ok = false; out.codes.push('S2'); } });
     // S5 A vs B strength on mirror-image holes (hole n ↔ hole with mirrored column)
     var dbGap = F.mirrorStrengthGap(fits, holes); out.strengthGapDb = dbGap;
     if (dbGap !== null && Math.abs(dbGap) > CAL.strengthGapDb) out.codes.push('S5');
     // P4 yaw estimate from the strength map, P5 tilt from 60 vs 160 strength
-    ['A', 'B'].forEach(function (k) {
+    ['A', 'B', 'C'].filter(function(k){return k!=='C'||cfg.sensors.C.on;}).forEach(function (k) {
       var yaw = F.yawFromStrength(fits[k], holes, cfg.tuning.beamHalf), tilt = F.tiltFromStrength(fits[k]);
       fits[k].yawEst = yaw; fits[k].tiltRatio = tilt;
       if (yaw !== null && Math.abs(yaw - cfg.sensors[k].yaw) > 20) out.codes.push('P4');
@@ -109,7 +111,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     out.staticSpread = stillSpread.length ? U.median(stillSpread) : null;
     return out;
   };
-  F.depthsOf = function (fits) { var d = {}; ['A', 'B'].forEach(function (k) { if (fits[k]) fits[k].strs.forEach(function (s) { d[s.depth] = 1; }); }); return Object.keys(d).map(Number).sort(function (a, b) { return a - b; }); };
+  F.depthsOf = function (fits) { var d = {}; ['A', 'B', 'C'].forEach(function (k) { if (fits[k]) fits[k].strs.forEach(function (s) { d[s.depth] = 1; }); }); return Object.keys(d).map(Number).sort(function (a, b) { return a - b; }); };
   F.mirrorStrengthGap = function (fits, holes) {
     var byA = {}, byB = {};
     fits.A.strs.forEach(function (s) { byA[s.hole + '/' + s.depth] = s.str; });
@@ -154,6 +156,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     holes.forEach(function (H) {
       var ss = byHole[H.n] || [], est = [];
       ss.forEach(function (s) {
+        if(s.C){strs.push(s.C[1]);env.push(s.C);}
         strs.push(s.A[1], s.B[1]); env.push([s.A[0], s.A[1]], [s.B[0], s.B[1]]);
         var rr = [s.A[0] - (A.off || 0), s.B[0] - (B.off || 0)], hs = [];
         [[A, rr[0]], [B, rr[1]]].forEach(function (q) { var pl = G.planar(q[0], H.x, H.y), v2 = q[1] * q[1] - pl * pl; if (v2 > 0) hs.push(Math.sqrt(v2) - q[0].z); });

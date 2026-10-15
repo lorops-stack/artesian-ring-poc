@@ -14,7 +14,7 @@ static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
 static bool authed[16];                          // per-client PIN auth (client ids are small integers)
 static uint32_t lastFrameSent = 0, lastStatus = 0, lastHealth = 0, lastN = 0;
-static char frameBuf[1400];
+static char frameBuf[2400];
 
 static void makeTempPass() { const char* al = "abcdefghjkmnpqrstuvwxyz23456789"; for (int i = 0; i < 10; i++) g.tempPass[i] = al[esp_random() % strlen(al)]; g.tempPass[10] = 0; }
 static void startAp() {

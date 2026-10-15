@@ -65,7 +65,7 @@ bool saveCal(const char* name, const char* notes) {
 }
 bool loadCal(const char* name) {
   char path[64]; calPath(name, path, sizeof path); JsonDocument doc; if (!readJsonFile(path, doc)) return false;
-  Lock lk; configFromJson(doc["cfg"].as<JsonObjectConst>(), g.cfg); g.cfgDirty = true; g.cfgDirtyAt = millis();
+  Lock lk; configFromJson(doc["cfg"].as<JsonObjectConst>(), g.cfg); g.sensorsReconfig=true; g.cfgDirty = true; g.cfgDirtyAt = millis();
   strncpy(g.calName, name, sizeof g.calName - 1); strncpy(g.calWhen, doc["when"] | "", sizeof g.calWhen - 1); prefs.putString("calName", g.calName); prefs.putString("calWhen", g.calWhen);
   return true;
 }

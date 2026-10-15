@@ -3,7 +3,7 @@
 var RS = globalThis.RS || (globalThis.RS = {});
 (function () {
   'use strict';
-  RS.VERSION = '0.1.0';
+  RS.VERSION = '0.2.0';
   RS.screens = RS.screens || {};
   RS.PROTO = 1;
 
@@ -67,12 +67,12 @@ var RS = globalThis.RS || (globalThis.RS = {});
 
   // Factory defaults (defaults.h). Everything here is editable in the studio (C1 to C4, C9, C10, F14).
   RS.DEFAULTS = {
-    schema: 1,
+    schema: 2,
     plane: { w: 584.2, d: 533.4, unit: 'in' },
     sensors: {
       A: { x: 0,     y: 0,     z: 0, yaw: 45,  tilt: 0, off: 0, on: true },
       B: { x: 584.2, y: 0,     z: 0, yaw: 135, tilt: 0, off: 0, on: true },
-      C: { x: 292.1, y: 533.4, z: 0, yaw: 270, tilt: 0, off: 0, on: false }
+      C: { x: 292.1, y: 533.4, z: 0, yaw: 270, tilt: 0, off: 0, on: true }
     },
     hand: { zmin: -30, zmax: 60, zwork: 0, strMin: 3, strMax: 60000, stillThr: 6, envRef: 0, envK: 2, envDb: 12 },   // envRef: hand strength at 300 mm, 0 = envelope off (C8 learns it)
     rig: { mount: 'flat', slotH: 14, recess: 20, sinkDepth: 190, beamV: 35 },

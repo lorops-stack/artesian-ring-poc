@@ -40,10 +40,12 @@ bool pairFeasible(float rA, float rB, const SensorPose& A, const SensorPose& B, 
 float locate(float rA, float rB, const SensorPose& A, const SensorPose& B, float h, float gx, float gy, float& x, float& y);
 
 struct Echo { float d; float s; };
-struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; const Mask* masks = nullptr; int nMasks = 0; float nearWin = 0; };   // nearWin: mm; 0 = off
-struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; float ux = 0, uy = 0; };   // x,y clamped to the plane; ux,uy the raw fix
+struct AssocOpts { const SensorPose* A; const SensorPose* B; const HandModel* hand; const Plane* plane; const Echo* bgA; int nBgA; const Echo* bgB; int nBgB; bool hasPrev; float prevX, prevY; float maxJump; const Mask* masks = nullptr; int nMasks = 0; float nearWin = 0; const SensorPose* C = nullptr; const Echo* bgC = nullptr; int nBgC = 0; };   // nearWin: mm; 0 = off
+struct Assoc { uint8_t flag; float x, y, rA, rB, res; int iA, iB; float ux = 0, uy = 0; int iC = -1; };   // x,y clamped to the plane; ux,uy the raw fix
 bool strengthInEnvelope(const HandModel& h, float d, float s);
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o);
+
+Assoc associate3(const Echo* eA, int nA, const Echo* eB, int nB, const Echo* eC, int nC, const AssocOpts& o);
 
 class Tracker {
  public:

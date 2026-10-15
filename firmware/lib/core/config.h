@@ -21,7 +21,7 @@ struct Profile { char id[20] = "default"; char name[24] = "Default"; float hotF 
 struct Rig { char mount[8] = "flat"; float slotH = 14, recess = 20, sinkDepth = 190, beamV = 35; };
 
 struct Config {
-  uint8_t schema = 1;
+  uint8_t schema = 2;
   Plane plane;
   SensorPose A, B, C;
   HandModel hand;

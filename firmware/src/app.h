@@ -9,7 +9,7 @@
 #include "geometry.h"
 #include "xm125.h"
 
-#define RING_FW_VERSION "0.1.0"
+#define RING_FW_VERSION "0.2.0"
 #define RING_PROTO 1
 
 namespace app {
@@ -18,7 +18,7 @@ struct SensorFrame { ring::Echo e[10]; uint8_t n = 0; int8_t p = -1; float hz = 
 struct Frame {
   uint32_t t = 0, n = 0; ring::State st = ring::IDLE; ring::Fn fn = ring::Fn::None; char zn[28] = ""; bool hasHand = false;
   float hx = 0, hy = 0, spd = 0, set = 0, ex = 0, dsp = 0, cup = 0, still = 0, cln = 0; uint8_t lk = 0, flag = 1; int lat = -1;
-  SensorFrame A, B;
+  SensorFrame A, B, C;
 };
 // Events cross from core 1 to core 0 through a small ring buffer of pre-rendered JSON lines.
 constexpr int EVQ = 32, EVLEN = 160;
@@ -37,7 +37,7 @@ struct State {
   Frame frame;                 // latest, written by core 1
   EventQueue events;
   Health health;
-  SensorInfo infoA, infoB;
+  SensorInfo infoA, infoB, infoC;
   ring::Totals totals;         // persisted
   bool setupNeeded = true;     // no Wi-Fi password / PIN yet
   char wifiPass[64] = "";

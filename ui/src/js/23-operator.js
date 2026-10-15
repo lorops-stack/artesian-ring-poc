@@ -70,10 +70,10 @@ var RS = globalThis.RS || (globalThis.RS = {});
   OP.exportLast = function () { var s = RS.rec.sessions[RS.rec.sessions.length - 1]; if (!s) return RS.app.toast('No recorded session yet', 'warn'); RS.rec.exportSession(s); RS.app.toast('Session exported', 'ok'); };
   OP.buildEngineering = function () {
     var self = this;
-    this.echoA = h('canvas'); this.echoB = h('canvas');
+    this.echoA = h('canvas'); this.echoB = h('canvas'); this.echoC=h('canvas');
     this.engStats = h('div.grid.c4');
     this.eng.appendChild(h('div.card.tight', h('div.row.between', h('div.eyebrow', 'Live echoes · A'), this.engA = h('span.small.dim.mono')), h('div.echo.mt-s', this.echoA),
-      h('div.row.between.mt', h('div.eyebrow', 'Live echoes · B'), this.engB = h('span.small.dim.mono')), h('div.echo.mt-s', this.echoB), h('div.mt', this.engStats),
+      h('div.row.between.mt', h('div.eyebrow', 'Live echoes · B'), this.engB = h('span.small.dim.mono')), h('div.echo.mt-s', this.echoB), h('div.eyebrow.mt','Live echoes · C'), h('div.echo.mt-s',this.echoC), h('div.mt', this.engStats),
       h('div.small.faint.mt-s', 'Distance along the bar, 60 to 850 mm; bar height is echo strength. The lit echo is the pair used for the fix. Range circles are drawn on the plan.')));
     this.evList = h('div.col.gap-s'); this.eng.appendChild(h('div.card.tight', h('div.eyebrow', 'Recent events'), h('div.mt-s', this.evList)));
   };
@@ -219,7 +219,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     if (f && f.flag === RS.FLAG.JUMP) this.why.appendChild(h('span.fixcode', { onclick: function () { RS.showFix('N2'); } }, 'N2'));
     // engineering panels
     if (S.get('engineering')) {
-      this.drawEchoes(this.echoA, f && f.A, '#4FD1E8', cfg); this.drawEchoes(this.echoB, f && f.B, '#FFB27A', cfg);
+      this.drawEchoes(this.echoA, f && f.A, '#4FD1E8', cfg); this.drawEchoes(this.echoB, f && f.B, '#FFB27A', cfg); this.drawEchoes(this.echoC,f&&f.C,'#B69CFF',cfg);
       this.engA.textContent = f && f.A ? f.A.e.length + ' echoes · ' + (f.A.p != null ? 'using #' + (f.A.p + 1) : 'none used') : '';
       this.engB.textContent = f && f.B ? f.B.e.length + ' echoes · ' + (f.B.p != null ? 'using #' + (f.B.p + 1) : 'none used') : '';
       var es = [['Offset A / B', (cfg.sensors.A.off || 0).toFixed(0) + ' / ' + (cfg.sensors.B.off || 0).toFixed(0), 'mm'], ['Hand depth', cfg.hand.zwork, 'mm'], ['Strength window', cfg.hand.strMin + '–' + cfg.hand.strMax, ''], ['Flag', f ? f.flag : '–', '']];

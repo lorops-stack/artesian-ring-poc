@@ -10,14 +10,15 @@ namespace app { namespace sensing {
 
 static xm125::Sensor sA(Wire, PIN_A_SDA, PIN_A_SCL, PIN_A_RST, "A");
 static xm125::Sensor sB(Wire1, PIN_B_SDA, PIN_B_SCL, PIN_B_RST, "B");
-static EchoHold holdA(ECHO_HOLD_FRAMES), holdB(ECHO_HOLD_FRAMES);
+static xm125::Sensor sC(Wire1, PIN_C_SDA, PIN_C_SCL, PIN_C_RST, "C");
+static EchoHold holdA(ECHO_HOLD_FRAMES), holdB(ECHO_HOLD_FRAMES), holdC(ECHO_HOLD_FRAMES);
 static Tracker tracker; static bool hasPrev = false; static float prevX = 0, prevY = 0; static int miss = 0, jumps = 0; static float jumpX = 0, jumpY = 0; static uint32_t jumpT = 0;
-static Echo bgA[8], bgB[8]; static int nBgA = 0, nBgB = 0;          // still objects learned by the stillness rule
-static uint32_t lastA = 0, lastB = 0; static float hzA = 0, hzB = 0; static uint32_t frameN = 0;
+static Echo bgA[8], bgB[8], bgC[8]; static int nBgA = 0, nBgB = 0, nBgC = 0;          // still objects learned by the stillness rule
+static uint32_t lastA = 0, lastB = 0, lastC = 0; static float hzA = 0, hzB = 0, hzC = 0; static uint32_t frameN = 0;
 static uint32_t idleSince = 0; static bool relearnDone = false; static uint32_t lastSerial = 0; static uint32_t lastRecal = 0;
 static float spreadBuf[24]; static int spreadN = 0;
 
-xm125::Sensor& sensor(char which) { return which == 'A' ? sA : sB; }
+xm125::Sensor& sensor(char which) { return which == 'A' ? sA : (which == 'B' ? sB : sC); }
 static xm125::Settings settingsFromCfg() {
   xm125::Settings s; const Tuning& t = g.cfg.tuning; s.startMm = t.rangeStart; s.endMm = t.rangeEnd; s.sensitivityX1000 = (uint32_t)(500 * t.threshSens); return s;
 }
@@ -36,42 +37,43 @@ static bool setupSensorImpl(xm125::Sensor& s, SensorInfo& inf) {
 }
 // Works on a local record and publishes it in one copy, so core 0 never reads a half-filled one.
 static bool setupSensor(xm125::Sensor& s) {
-  SensorInfo& pub = s.name()[0] == 'A' ? g.infoA : g.infoB;
+  SensorInfo& pub = s.name()[0] == 'A' ? g.infoA : (s.name()[0] == 'B' ? g.infoB : g.infoC);
   SensorInfo inf; inf.setups = pub.setups + 1;
   bool ok = setupSensorImpl(s, inf); pub = inf; return ok;
 }
 void begin() {
   uint32_t hz = g.cfg.tuning.i2cKhz * 1000UL;
-  sA.beginBus(hz); sB.beginBus(hz);
-  sA.hardReset(); sB.hardReset();
-  setupSensor(sA); setupSensor(sB);
-  g.checkFailing = !(sA.ok() && sB.ok());
+  sA.beginBus(hz); sB.beginBus(hz); sC.beginBus(hz);
+  sA.hardReset(); sB.hardReset(); sC.hardReset();
+  setupSensor(sA); setupSensor(sB); setupSensor(sC);
+  g.checkFailing = !(sA.ok() && sB.ok() && sC.ok());
   idleSince = millis();
 }
-void setBusSpeed(uint32_t hz) { sA.setBusSpeed(hz); sB.setBusSpeed(hz); }
+void setBusSpeed(uint32_t hz) { sA.setBusSpeed(hz); sB.setBusSpeed(hz); sC.setBusSpeed(hz); }
 // The XM125 locks its configuration once applied, so a new range or sensitivity needs a module reset and a fresh apply.
 void reconfigure() {
+  setBusSpeed(g.cfg.tuning.i2cKhz * 1000UL); clearBg();
   Serial.println("[sensors] range/threshold changed: resetting and re-configuring (keep the sink empty for 3 s)");
-  sA.hardReset(); esp_task_wdt_reset(); sB.hardReset(); esp_task_wdt_reset();
-  setupSensor(sA); esp_task_wdt_reset(); setupSensor(sB);
-  g.checkFailing = !(sA.ok() && sB.ok()); nBgA = nBgB = 0; hasPrev = false; tracker.reset(); idleSince = millis(); relearnDone = false;
+  sA.hardReset(); esp_task_wdt_reset(); sB.hardReset(); esp_task_wdt_reset(); sC.hardReset(); esp_task_wdt_reset();
+  setupSensor(sA); esp_task_wdt_reset(); setupSensor(sB); esp_task_wdt_reset(); setupSensor(sC);
+  g.checkFailing = !(sA.ok() && sB.ok() && sC.ok()); nBgA = nBgB = nBgC = 0; hasPrev = false; tracker.reset(); idleSince = millis(); relearnDone = false;
 }
 bool sensorPresent(char w) { return sensor(w).present(); }
 uint32_t sensorVersion(char w) { return sensor(w).version(); }
 uint32_t sensorStatus(char w) { return sensor(w).status(); }
 // Reset test (C0 / W4): reset one sensor and report which one restarted (its measure counter went back to 0).
 bool resetTest(char which, char& restartedWhich) {
-  uint32_t cA = sA.measureCounter(), cB = sB.measureCounter();
-  sensor(which).hardReset();
-  uint32_t nA = sA.measureCounter(), nB = sB.measureCounter();
-  bool aRestarted = nA < cA, bRestarted = nB < cB;
-  restartedWhich = aRestarted && !bRestarted ? 'A' : (bRestarted && !aRestarted ? 'B' : (aRestarted && bRestarted ? '2' : '0'));
-  setupSensor(sensor(which));
-  return restartedWhich == which;
+  xm125::Sensor* sensors[] = {&sA, &sB, &sC}; uint32_t before[3];
+  // Establish non-zero counters so resetting a just-configured module is observable.
+  for(int k=0;k<3;k++) { xm125::Result r; if(!sensors[k]->measure(r)) { restartedWhich='0'; return false; } before[k]=sensors[k]->measureCounter(); }
+  sensor(which).hardReset(); int n=0; restartedWhich='0';
+  for(int k=0;k<3;k++) if(sensors[k]->measureCounter()<before[k]) { n++; restartedWhich='A'+k; }
+  if(n>1) restartedWhich='2'; setupSensor(sensor(which)); return restartedWhich==which;
 }
-bool recordBackground() { bool a = sA.calibrate(), b = sB.calibrate(); nBgA = nBgB = 0; return a && b; }
-void clearBg() { nBgA = nBgB = 0; }
-float stillSpread() { if (spreadN < 4) return -1; float m = 0; for (int i = 0; i < spreadN; i++) m += spreadBuf[i]; m /= spreadN; float v = 0; for (int i = 0; i < spreadN; i++) v += (spreadBuf[i] - m) * (spreadBuf[i] - m); return sqrtf(v / (spreadN - 1)); }
+bool recordBackground() { bool a=sA.calibrate(); esp_task_wdt_reset(); bool b=sB.calibrate(); esp_task_wdt_reset(); bool c=sC.calibrate(); nBgA=nBgB=nBgC=0; return a && b && c; }
+void clearBg() { nBgA=nBgB=nBgC=0; holdA.reset(); holdB.reset(); holdC.reset(); }
+
+float stillSpread() { if (spreadN < 4) return -1; float m = 0; for (int i = 0; i < (spreadN < 24 ? spreadN : 24); i++) m += spreadBuf[i]; m /= (spreadN < 24 ? spreadN : 24); float v = 0; for (int i = 0; i < (spreadN < 24 ? spreadN : 24); i++) v += (spreadBuf[i] - m) * (spreadBuf[i] - m); return sqrtf(v / ((spreadN < 24 ? spreadN : 24) - 1)); }
 
 static void readSensor(xm125::Sensor& s, SensorFrame& out, uint32_t& lastT, float& hz) {
   xm125::Result r; out.n = 0; out.p = -1; out.alive = false; out.topStr = 0;
@@ -89,7 +91,7 @@ static void onEvent(const Event& e, void*) {
   char line[EVLEN]; proto::eventJson(e, line, sizeof line); g.events.push(line);
   if (e.type == Ev::Still) { // learn the still object as background for the association
     float dA = range(g.cfg.A, e.x, e.y, g.cfg.hand.zwork) + g.cfg.A.off, dB = range(g.cfg.B, e.x, e.y, g.cfg.hand.zwork) + g.cfg.B.off;
-    addBg(bgA, nBgA, dA, 2500); addBg(bgB, nBgB, dB, 2500);
+    addBg(bgA, nBgA, dA, 2500); addBg(bgB, nBgB, dB, 2500); addBg(bgC, nBgC, range(g.cfg.C,e.x,e.y,g.cfg.hand.zwork)+g.cfg.C.off,2500);
   }
   if (e.type == Ev::Session && e.a && strcmp(e.a, "end") == 0) { g.totals = g.sm->totals(); g.totalsDirty = true; }
   if (g.cfg.tuning.log) Serial.println(line);
@@ -97,27 +99,30 @@ static void onEvent(const Event& e, void*) {
 
 void step() {
   if (g.pauseSensing) { delay(5); return; }
+  struct BusyGuard { BusyGuard() { g.sensingBusy=true; } ~BusyGuard() { g.sensingBusy=false; } } busy;
+  if(g.pauseSensing) return;
   if (g.sensorsReconfig) { g.sensorsReconfig = false; reconfigure(); return; }
   Frame f; f.t = millis(); f.n = ++frameN;
-  g.sensingBusy = true; readSensor(sA, f.A, lastA, hzA); readSensor(sB, f.B, lastB, hzB); g.sensingBusy = false;
+  readSensor(sA, f.A, lastA, hzA); readSensor(sB, f.B, lastB, hzB); readSensor(sC, f.C, lastC, hzC);
   Lock lk;
   static bool hooked = false; if (!hooked) { g.sm->onEvent(onEvent, nullptr); hooked = true; }
   const Config& c = g.cfg; tracker.setAlpha(c.tuning.smooth);
   // Kinematic gate: with a live track the association compares candidates against where the track should be now,
   // not where it was last frame, so a hand in motion is followed and a bounce that moves the wrong way is rejected.
   float gateX = prevX, gateY = prevY; if (hasPrev && tracker.has()) tracker.predict(f.t, gateX, gateY);
-  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, gateX, gateY, 220, c.masks, c.nMasks, c.tuning.nearWin };
-  int nEA = 0, nEB = 0; bool heldA = false, heldB = false;
+  AssocOpts o{ &c.A, &c.B, &c.hand, &c.plane, bgA, nBgA, bgB, nBgB, hasPrev, gateX, gateY, 220, c.masks, c.nMasks, c.tuning.nearWin, &c.C, bgC, nBgC };
+  int nEA = 0, nEB = 0, nEC = 0; bool heldA = false, heldB = false, heldC = false;
   const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
-  Assoc a = (f.A.alive && f.B.alive) ? associate(eA, nEA, eB, nEB, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
-  if (heldA) a.iA = -1; if (heldB) a.iB = -1;   // a held echo has no index in this frame's list
+  const Echo* eC = holdC.update(f.C.e, f.C.n, f.C.alive, nEC, heldC);
+  Assoc a = (f.A.alive && f.B.alive && f.C.alive) ? associate3(eA, nEA, eB, nEB, eC, nEC, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
+  if (heldA) a.iA = -1; if (heldB) a.iB = -1; if (heldC) a.iC = -1;   // a held echo has no index in this frame's list
   bool hasPos = false; float x = 0, y = 0, speed = 0;
-  if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; f.A.p = a.iA; f.B.p = a.iB; }   // prev is the raw fix: a clamped one would pin the track to the edge
+  if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; f.A.p = a.iA; f.B.p = a.iB; f.C.p = a.iC; }   // prev is the raw fix: a clamped one would pin the track to the edge
   else if (a.flag == FLAG_JUMP) {
     // One jump is a bounce or a body; two jumps in a row to the same place is the hand really having moved. The second
     // must land within 60 mm of the first, or it is treated as a new first jump. Speed is the measured displacement.
     bool agrees = jumps > 0 && hypotf(a.ux - jumpX, a.uy - jumpY) <= 60;
-    if (agrees) { jumps = 0; float dt = (f.t - jumpT) / 1000.0f; if (dt < 0.02f) dt = 0.02f; float sp = hypotf(a.ux - jumpX, a.uy - jumpY) / dt; tracker.reset(); tracker.update(a.x, a.y, f.t, x, y, speed); speed = sp > 1500 ? 1500 : sp; hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; a.flag = FLAG_NONE; f.A.p = a.iA; f.B.p = a.iB; }
+    if (agrees) { jumps = 0; float dt = (f.t - jumpT) / 1000.0f; if (dt < 0.02f) dt = 0.02f; float sp = hypotf(a.ux - jumpX, a.uy - jumpY) / dt; tracker.reset(); tracker.update(a.x, a.y, f.t, x, y, speed); speed = sp > 1500 ? 1500 : sp; hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; a.flag = FLAG_NONE; f.A.p = a.iA; f.B.p = a.iB; f.C.p = a.iC; }
     else { jumps = 1; jumpX = a.ux; jumpY = a.uy; jumpT = f.t; if (hasPrev) { x = gateX; y = gateY; hasPos = true; speed = hypotf(tracker.vx(), tracker.vy()); } }
   } else { jumps = 0; if (++miss >= c.tuning.goneFrames) { tracker.reset(); hasPrev = false; } }
   if (hasPos) { spreadBuf[spreadN % 24] = x; spreadN++; } else spreadN = 0;
@@ -129,19 +134,19 @@ void step() {
   // Idle re-learn of the recorded threshold (spec 4.4): IDLE, no session, nothing in the hand window for 30 s
   bool quiet = s.st == IDLE && !g.sm->session() && a.flag == FLAG_NO_HAND;
   if (!quiet) { idleSince = f.t; relearnDone = false; }
-  if (quiet && !relearnDone && f.t - idleSince > c.tuning.bgRelearnIdleMs && f.t - lastRecal > 60000) { relearnDone = true; lastRecal = f.t; Serial.println("[bg] idle 30 s: re-recording the empty-sink threshold"); sA.calibrate(); esp_task_wdt_reset(); sB.calibrate(); nBgA = nBgB = 0; }
-  else if (quiet && (f.A.calNeeded || f.B.calNeeded) && f.t - lastRecal > 20000) { lastRecal = f.t; if (f.A.calNeeded) sA.recalibrate(); if (f.B.calNeeded) sB.recalibrate(); }
-  g.checkFailing = !(f.A.alive && f.B.alive);
+  if (quiet && !relearnDone && f.t - idleSince > c.tuning.bgRelearnIdleMs && f.t - lastRecal > 60000) { relearnDone = true; lastRecal = f.t; Serial.println("[bg] idle 30 s: re-recording the empty-sink threshold"); sA.calibrate(); esp_task_wdt_reset(); sB.calibrate(); esp_task_wdt_reset(); sC.calibrate(); nBgA = nBgB = nBgC = 0; }
+  else if (quiet && (f.A.calNeeded || f.B.calNeeded || f.C.calNeeded) && f.t - lastRecal > 20000) { lastRecal = f.t; if (f.A.calNeeded) sA.recalibrate(); if (f.B.calNeeded) sB.recalibrate(); if (f.C.calNeeded) sC.recalibrate(); }
+  g.checkFailing = !(f.A.alive && f.B.alive && f.C.alive);
   g.frame = f;
   // Phase 0 view: with no Ring Studio connected, print the echo lists on USB serial
   if (g.clients == 0 && f.t - lastSerial >= 45) {
-    lastSerial = f.t; char line[256]; int p = 0;
-    for (int k = 0; k < 2; k++) {
-      const SensorFrame& S = k ? f.B : f.A; p += snprintf(line + p, sizeof line - p, "%s: %s%d echo%s ", k ? "B" : "A", S.alive ? "" : "(no answer) ", S.n, S.n == 1 ? " " : "s");
+    lastSerial = f.t; char line[640]; int p = 0;
+    for (int k = 0; k < 3; k++) {
+      const SensorFrame& S = k == 0 ? f.A : (k == 1 ? f.B : f.C); p += snprintf(line + p, sizeof line - p, "%s: %s%d echo%s ", k == 0 ? "A" : (k == 1 ? "B" : "C"), S.alive ? "" : "(no answer) ", S.n, S.n == 1 ? " " : "s");
       for (int i = 0; i < S.n && i < 3 && p < (int)sizeof line - 40; i++) p += snprintf(line + p, sizeof line - p, "%s%4.0f mm (str %.0f)", i ? ", " : "", S.e[i].d, S.e[i].s);
       p += snprintf(line + p, sizeof line - p, "   ");
     }
-    snprintf(line + p, sizeof line - p, "%.1f Hz  %s%s", (f.A.hz + f.B.hz) / 2, stateName(f.st), f.hasHand ? "" : "");
+    snprintf(line + p, sizeof line - p, "%.1f Hz  %s%s", (f.A.hz + f.B.hz + f.C.hz) / 3, stateName(f.st), f.hasHand ? "" : "");
     if (f.hasHand) { char pos[48]; snprintf(pos, sizeof pos, "  hand x %.0f y %.0f", f.hx, f.hy); strncat(line, pos, sizeof line - strlen(line) - 1); }
     Serial.println(line);
   }

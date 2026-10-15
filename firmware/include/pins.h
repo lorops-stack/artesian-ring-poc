@@ -26,7 +26,7 @@ constexpr int PIN_B_SCL = 18;
 constexpr int PIN_B_RST = 7;    // REQUIRED, same as A
 constexpr int PIN_B_INT = 16;   // OPTIONAL
 
-// ---- Sensor C: RESERVED for a future third XM125 (front-centre, review R6) --
+// ---- Sensor C: third XM125 (front-centre, review R6) --
 // The ESP32-S3 has two hardware I2C controllers and every XM125 answers at 0x52.
 // Plan: sensors are read one after another, so controller 1 is switched between
 // B's pins and C's pins each frame (Wire1.end(); Wire1.begin(10, 11)), or a

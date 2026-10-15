@@ -344,7 +344,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
   P.c2 = function (stu) {
     var cfg = S.cfg(), st = stu.st.c2 || (stu.st.c2 = {}), idn = stu.st.identify || (stu.st.identify = {});
     var pick = function (s) { return { x: s.x, y: s.y, z: s.z }; };
-    if (!st.draft) st.draft = { A: pick(cfg.sensors.A), B: pick(cfg.sensors.B) };
+    if (!st.draft) st.draft = { A: pick(cfg.sensors.A), B: pick(cfg.sensors.B), C:pick(cfg.sensors.C) };
     var d = st.draft, fields = {}, drag = null, spacingBox = h('div.mt'), idBox = h('div');
     var pm = new PlanMini({ maxH: 340, draw: draw });
     function identifying() { return !!(idn.cal && idn.cal.state === 'waiting'); }
@@ -354,11 +354,11 @@ var RS = globalThis.RS || (globalThis.RS = {});
       ctx.save(); ctx.setLineDash([3, 5]); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
       ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '11px Geist, system-ui'; ctx.textAlign = 'center'; ctx.fillText(fmtLen(U.hypot(d.B.x - d.A.x, d.B.y - d.A.y), 1), (ax + bx) / 2, Math.min(ay, by) - 8); ctx.textAlign = 'left';
       if (identifying()) drawHand(ctx, g, plane, S.frame());
-      if (cfg.sensors.C) drawSensorDot(ctx, g, 'C', cfg.sensors.C, COL.C, { faded: true });
-      drawSensorDot(ctx, g, 'A', d.A, COL.A, { drag: drag === 'A' }); drawSensorDot(ctx, g, 'B', d.B, COL.B, { drag: drag === 'B' });
-      planeLabel(ctx, g, plane, identifying() && L.mode === 'sim' ? 'move the cursor near A' : 'drag A or B');
+      
+      drawSensorDot(ctx, g, 'A', d.A, COL.A, { drag: drag === 'A' }); drawSensorDot(ctx, g, 'B', d.B, COL.B, { drag: drag === 'B' }); drawSensorDot(ctx,g,'C',d.C,COL.C,{drag:drag==='C'});
+      planeLabel(ctx, g, plane, identifying() && L.mode === 'sim' ? 'move the cursor near A' : 'drag A, B or C');
     }
-    function nearest(p) { var best = null, bd = 1e9; ['A', 'B'].forEach(function (k) { var dd = U.hypot(p.x - d[k].x, p.y - d[k].y); if (dd < bd) { bd = dd; best = k; } }); return bd * (pm.g ? pm.g.mm : 1) < 18 ? best : null; }
+    function nearest(p) { var best = null, bd = 1e9; ['A', 'B', 'C'].forEach(function (k) { var dd = U.hypot(p.x - d[k].x, p.y - d[k].y); if (dd < bd) { bd = dd; best = k; } }); return bd * (pm.g ? pm.g.mm : 1) < 18 ? best : null; }
     pm.cv.addEventListener('pointerdown', function (e) { var k = nearest(pm.toMm(e, cfg.plane)); if (k) { drag = k; try { pm.cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } pm.dirty = true; } });
     pm.cv.addEventListener('pointermove', function (e) {
       var p = pm.toMm(e, cfg.plane);
@@ -396,12 +396,12 @@ var RS = globalThis.RS || (globalThis.RS = {});
       }
     }
     var apply = btn('Apply positions', function () {
-      var set = {}; ['A', 'B'].forEach(function (k) { ['x', 'y', 'z'].forEach(function (p) { set['sensors.' + k + '.' + p] = U.round(d[k][p], 1); }); });
+      var set = {}; ['A', 'B', 'C'].forEach(function (k) { ['x', 'y', 'z'].forEach(function (p) { set['sensors.' + k + '.' + p] = U.round(d[k][p], 1); }); });
       setCfg(set).then(function (ack) { if (ack) { st.dirty = false; setProgress('c2', 'done'); RS.app.toast('Sensor positions set', 'ok'); } });
     }, 'primary');
     stu.body.appendChild(h('div.card', h('div.row.between.wrap.top', h('div.grow', h('h2', 'Sensor placement'), h('div.sub', 'Where each radar module sits, in plane coordinates. Type the tape-measure values or drag the dots on the plan.')), unitSeg()),
       h('div.mt', callout('info', 'Measure to the centre of the blue module', 'x from the left edge of the opening, y from the back edge (0 when the module sits on the back edge), z the height of the module centre above the ring surface (0 when level with it, negative below).')),
-      h('div.col.gap-s.mt', sensorRow('A', COL.A, d.A, false), sensorRow('B', COL.B, d.B, false), sensorRow('C', COL.C, U.deepClone(cfg.sensors.C || RS.DEFAULTS.sensors.C), true)),
+      h('div.col.gap-s.mt', sensorRow('A', COL.A, d.A, false), sensorRow('B', COL.B, d.B, false), sensorRow('C', COL.C, d.C, false)),
       spacingBox, h('div.row.end.mt', apply)));
     stu.body.appendChild(h('div.card', h('div.eyebrow', 'Plan · drag a sensor to move it'), h('div.mt', pm.el)));
     stu.body.appendChild(h('div.card', idBox));
@@ -409,7 +409,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     return {
       tick: function () { pm.tick(cfg.plane); },
       onFrame: function () { if (identifying()) pm.dirty = true; },
-      onCfg: function () { cfg = S.cfg(); if (!st.dirty) { d.A = pick(cfg.sensors.A); d.B = pick(cfg.sensors.B); ['A', 'B'].forEach(function (k) { ['x', 'y', 'z'].forEach(function (p) { fields[k][p].refresh(); }); }); } refreshSpacing(); pm.dirty = true; },
+      onCfg: function () { cfg = S.cfg(); if (!st.dirty) { d.A = pick(cfg.sensors.A); d.B = pick(cfg.sensors.B); d.C=pick(cfg.sensors.C); ['A', 'B', 'C'].forEach(function (k) { ['x', 'y', 'z'].forEach(function (p) { fields[k][p].refresh(); }); }); } refreshSpacing(); pm.dirty = true; },
       onCal: function (cal) { if (cal.step && cal.step !== 'identify') return; if (cal.state === 'done') { simHand(null); if (cal.result && cal.result.swapped) setProgress('c2', 'fail'); } renderIdentify(); pm.dirty = true; },
       destroy: function () { simHand(null); }
     };
@@ -418,13 +418,13 @@ var RS = globalThis.RS || (globalThis.RS = {});
   // ---- C3 · sensor angles ---------------------------------------------------------------------------------------------------------------
   P.c3 = function (stu) {
     var cfg = S.cfg(), st = stu.st.c3 || (stu.st.c3 = {});
-    var take = function () { return { A: { yaw: cfg.sensors.A.yaw, tilt: cfg.sensors.A.tilt }, B: { yaw: cfg.sensors.B.yaw, tilt: cfg.sensors.B.tilt }, beamHalf: cfg.tuning.beamHalf || 60 }; };
+    var take = function () { return { A: { yaw: cfg.sensors.A.yaw, tilt: cfg.sensors.A.tilt }, B: { yaw: cfg.sensors.B.yaw, tilt: cfg.sensors.B.tilt }, C: {yaw:cfg.sensors.C.yaw,tilt:cfg.sensors.C.tilt}, beamHalf: cfg.tuning.beamHalf || 60 }; };
     if (!st.draft) st.draft = take();
     var d = st.draft, fields = [];
     var pm = new PlanMini({ maxH: 340, draw: function (ctx, g) {
       drawBasin(ctx, g); drawZones(ctx, g, S.zones(), { labels: false, fillAlpha: 0.04 });
-      ['A', 'B'].forEach(function (k) { drawCone(ctx, g, { x: cfg.sensors[k].x, y: cfg.sensors[k].y, yaw: d[k].yaw }, COL[k], d.beamHalf); });
-      ['A', 'B'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k]); });
+      ['A', 'B', 'C'].forEach(function (k) { drawCone(ctx, g, { x: cfg.sensors[k].x, y: cfg.sensors[k].y, yaw: d[k].yaw }, COL[k], d.beamHalf); });
+      ['A', 'B', 'C'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k]); });
       planeLabel(ctx, g, cfg.plane, 'beam cones at ±' + Math.round(d.beamHalf) + '°');
     } });
     function angleField(label, obj, key, min, max) {
@@ -436,14 +436,14 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     function sensorCard(k) { return h('div.card.tight', h('div.row.gap-s', h('span', { style: { width: '10px', height: '10px', borderRadius: '5px', background: COL[k], display: 'inline-block' } }), h('h3', { style: { margin: 0 } }, 'Sensor ' + k)), h('div.grid.c2.mt-s', angleField('Yaw (aim in the plane)', d[k], 'yaw', 0, 360), angleField('Tilt (down into the basin)', d[k], 'tilt', -60, 20))); }
     var apply = btn('Apply angles', function () {
-      setCfg({ 'sensors.A.yaw': d.A.yaw, 'sensors.A.tilt': d.A.tilt, 'sensors.B.yaw': d.B.yaw, 'sensors.B.tilt': d.B.tilt, 'tuning.beamHalf': d.beamHalf }).then(function (ack) { if (ack) { st.dirty = false; setProgress('c3', 'done'); RS.app.toast('Angles set', 'ok'); } });
+      setCfg({ 'sensors.A.yaw': d.A.yaw, 'sensors.A.tilt': d.A.tilt, 'sensors.B.yaw': d.B.yaw, 'sensors.B.tilt': d.B.tilt, 'sensors.C.yaw':d.C.yaw,'sensors.C.tilt':d.C.tilt, 'tuning.beamHalf': d.beamHalf }).then(function (ack) { if (ack) { st.dirty = false; setProgress('c3', 'done'); RS.app.toast('Angles set', 'ok'); } });
     }, 'primary');
     stu.body.appendChild(h('div.card', h('h2', 'Sensor angles'), h('div.sub', 'Yaw is the aim in the plane: 0° points right (+x), 90° points toward you, 45° from the back-left corner aims at the sink centre. Tilt is negative down into the basin, about -20° on the PoC rig. Angles do not change the distance maths; they drive the coverage prediction in C5 and the aim checks in C7.'),
-      h('div.grid.c2.mt', sensorCard('A'), sensorCard('B')),
-      h('div.card.tight.mt', h('h3', 'Beam'), h('div.grid.c2.mt-s', angleField('Beam half-angle (tuning.beamHalf)', d, 'beamHalf', 20, 90), h('div.small.dim', 'An assumption until measured on the bench. The XM125 module is roughly ±60° at half power. Narrower beams leave the far corners outside a cone in C5.'))),
+      h('div.grid.c2.mt', sensorCard('A'), sensorCard('B'), sensorCard('C')),
+      h('div.card.tight.mt', h('h3', 'Beam'), h('div.grid.c2.mt-s', angleField('Beam half-angle (tuning.beamHalf)', d, 'beamHalf', 20, 90), h('div.small.dim', 'An assumption until measured on the bench. The effective beam depends on antenna orientation and the slot; verify it with a hand sweep. Narrower beams leave the far corners outside a cone in C5.'))),
       h('div.row.end.mt', apply)));
     stu.body.appendChild(h('div.card', h('div.eyebrow', 'Beam cones'), h('div.mt', pm.el)));
-    return { tick: function () { pm.tick(cfg.plane); }, onCfg: function () { cfg = S.cfg(); if (!st.dirty) { var t = take(); d.A = t.A; d.B = t.B; d.beamHalf = t.beamHalf; st.draft = d; fields.forEach(function (f) { f.refresh(); }); } pm.dirty = true; } };
+    return { tick: function () { pm.tick(cfg.plane); }, onCfg: function () { cfg = S.cfg(); if (!st.dirty) { var t = take(); d.A = t.A; d.B = t.B; d.C=t.C; d.beamHalf = t.beamHalf; st.draft = d; fields.forEach(function (f) { f.refresh(); }); } pm.dirty = true; } };
   };
 
   // ---- C4 · hand depth band -------------------------------------------------------------------------------------------------------------
@@ -479,8 +479,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
       ctx.fillStyle = 'rgba(255,160,160,0.9)'; ctx.font = '10px Geist, system-ui'; ctx.fillText('mirror band (P7)', g.bx + 8, g.by + mb - 4);
       ctx.restore();
       drawZones(ctx, g, cov.zones, { fillAlpha: 0, outline: 'rgba(255,255,255,0.4)' });
-      ['A', 'B'].forEach(function (k) { drawCone(ctx, g, cfg.sensors[k], COL[k], cfg.tuning.beamHalf || 60); });
-      ['A', 'B'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k]); });
+      ['A', 'B', 'C'].forEach(function (k) { drawCone(ctx, g, cfg.sensors[k], COL[k], cfg.tuning.beamHalf || 60); });
+      ['A', 'B', 'C'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k]); });
       planeLabel(ctx, g, cfg.plane, 'hand depth ' + Math.round(cfg.hand.zmin) + ' to ' + Math.round(cfg.hand.zmax) + ' mm');
     }
     function swatch(bg, label, hatched) { var s = h('span', { style: { width: '14px', height: '14px', borderRadius: '4px', background: bg, border: '1px solid rgba(255,255,255,0.15)', display: 'inline-block', backgroundImage: hatched ? 'repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 1px, transparent 1px 4px)' : '' } }); return h('span.row.gap-s.small.dim', s, label); }
@@ -582,7 +582,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     function draw(ctx, g) {
       var cfg = S.cfg(), plane = cfg.plane; drawBasin(ctx, g); drawZones(ctx, g, S.zones(), { labels: false, fillAlpha: 0.03 });
       drawHoles(ctx, g, G.templateHoles(plane), holeStates().map(function (x) { return x.s; }));
-      ['A', 'B'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k], { r: 9 }); if (st.result && st.result.fits && st.result.fits[k]) drawSensorDot(ctx, g, k, st.result.fits[k], COL[k], { hollow: true, r: 12 }); });
+      ['A', 'B', 'C'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k], { r: 9 }); if (st.result && st.result.fits && st.result.fits[k]) drawSensorDot(ctx, g, k, st.result.fits[k], COL[k], { hollow: true, r: 12 }); });
       planeLabel(ctx, g, plane, st.result ? 'dashed: fitted position' : 'hole 1 at the back-left');
     }
     function start() { st.result = null; st.skips = {}; st.skipHole = null; st.applied = false; st.cal = { step: 'c7', state: 'waiting', hole: 1, depth: CAL.depths[0], i: 0, n: 32 }; renderAll(); send({ c: 'cal', step: 'c7', a: 'start' }); }
@@ -595,8 +595,8 @@ var RS = globalThis.RS || (globalThis.RS = {});
     }
     function stop() { send({ c: 'cal', step: 'c7', a: 'stop' }); }
     function apply() {
-      var r = st.result; if (!r || !r.fits || !r.fits.A || !r.fits.B) return;
-      var sens = {}; ['A', 'B'].forEach(function (k) { var f = r.fits[k]; sens[k] = { x: U.round(f.x, 1), y: U.round(f.y, 1), z: U.round(f.z, 1), off: U.round(f.off, 1) }; });
+      var r = st.result; if (!r || !r.fits || !r.fits.A || !r.fits.B || !r.fits.C) return;
+      var sens = {}; ['A', 'B', 'C'].forEach(function (k) { var f = r.fits[k]; sens[k] = { x: U.round(f.x, 1), y: U.round(f.y, 1), z: U.round(f.z, 1), off: U.round(f.off, 1) }; });
       send({ c: 'cal', step: 'c7', a: 'apply', sensors: sens }).then(function (ack) { if (ack) { st.applied = true; setProgress('c7', 'done'); RS.app.toast('Fitted positions and offsets applied', 'ok'); renderReport(); pm.dirty = true; } });
     }
     function exportResult() { if (!st.result) return; U.download('ring-cal-c7-' + U.fileStamp() + '.json', JSON.stringify({ kind: 'ring-cal-c7', when: new Date().toISOString(), fw: L.info.fw, cfg: S.cfg(), result: st.result })); RS.app.toast('Result exported', 'ok'); }
@@ -620,14 +620,14 @@ var RS = globalThis.RS || (globalThis.RS = {});
       U.empty(report); var r = st.result; if (!r) return;
       var cfg = S.cfg();
       report.appendChild(h('div.eyebrow.mt-l', 'Result'));
-      if (!r.fits || !r.fits.A || !r.fits.B) { report.appendChild(h('div.mt-s', RS.fixPanel('P2', { onTest: start, detail: r.message || 'Not enough readings to fit both sensors.' }))); setProgress('c7', 'fail'); return; }
+      if (!r.fits || !r.fits.A || !r.fits.B || !r.fits.C) { report.appendChild(h('div.mt-s', RS.fixPanel('P2', { onTest: start, detail: r.message || 'Not enough readings to fit all three sensors.' }))); setProgress('c7', 'fail'); return; }
       var pass = r.rms <= CAL.fitPassMm, fA = r.fits.A, fB = r.fits.B, dz = Math.abs(fA.z - fB.z), gap = r.strengthGapDb;
       var rmsT = tile('Fit error, RMS', r.rms.toFixed(1), 'mm · pass under ' + CAL.fitPassMm); rmsT.appendChild(chip(pass ? 'Pass' : 'Fail', pass ? 'ok' : 'bad'));
       var dzT = tile('Height difference, A vs B', dz.toFixed(0), 'mm · limit ' + CAL.heightDiffMm); dzT.appendChild(chip(dz > CAL.heightDiffMm ? 'Over limit (P9)' : 'Within limit', dz > CAL.heightDiffMm ? 'warn' : 'ok'));
       var gapT = tile('Strength gap, A vs B', gap == null ? '–' : gap.toFixed(1), 'dB · limit ' + CAL.strengthGapDb); gapT.appendChild(chip(gap != null && Math.abs(gap) > CAL.strengthGapDb ? 'Over limit (S5)' : 'Within limit', gap != null && Math.abs(gap) > CAL.strengthGapDb ? 'warn' : 'ok'));
       report.appendChild(h('div.grid.c3.mt-s', rmsT, dzT, gapT));
       report.appendChild(h('div.card.tight.mt', h('table.t.compact', h('thead', h('tr', h('th', 'Sensor'), h('th', 'Typed in C2'), h('th', 'Fitted'), h('th', 'Moved'), h('th', 'Distance offset'), h('th', 'Yaw: typed · estimated'))),
-        h('tbody', ['A', 'B'].map(function (k) {
+        h('tbody', ['A', 'B', 'C'].map(function (k) {
           var f = r.fits[k], typed = f.typed || cfg.sensors[k], far = f.moved > CAL.poseFailMm;
           return h('tr', h('td', h('strong', { style: { color: COL[k] } }, k)), h('td.num', xyz(typed)), h('td.num', xyz(f)), h('td.num', h('span', { style: far ? { color: 'var(--bad)' } : null }, 'moved ' + fmtLen(f.moved, 1) + (far ? ' (P1)' : ''))), h('td.num', (f.off >= 0 ? '+' : '') + f.off.toFixed(0) + ' mm'), h('td.num', Math.round(cfg.sensors[k].yaw) + '° · ' + (f.yawEst == null ? '–' : Math.round(f.yawEst) + '°')));
         })))));
@@ -682,7 +682,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var cfg = S.cfg(), plane = cfg.plane; drawBasin(ctx, g); drawZones(ctx, g, S.zones(), { labels: false, fillAlpha: 0.03 });
       drawHoles(ctx, g, G.templateHoles(plane), pointStates().map(function (x) { return x.s; }));
       if (st.cal && st.cal.phase === 'still') { var cx = g.bx + g.bw / 2, cy = g.by + g.bh / 2; ctx.strokeStyle = RS.ACCENT; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(cx, cy, 14, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
-      ['A', 'B'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k], { r: 9 }); });
+      ['A', 'B', 'C'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k], { r: 9 }); });
       planeLabel(ctx, g, plane, 'the same 16 points as C7');
     }
     function start() { st.result = null; st.applied = false; st.stillStart = null; st.cal = { step: 'c8', state: 'waiting', hole: 1, high: true, i: 0, n: 33 }; renderAll(); send({ c: 'cal', step: 'c8', a: 'start' }); }
@@ -876,7 +876,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       drawBasin(ctx, g); drawZones(ctx, g, zones, { highlight: tgt ? tgt.id : null });
       if (tgt) { var c = G.zoneCentre(tgt, plane), x = g.bx + c.x * g.mm, y = g.by + c.y * g.mm, col = FN[tgt.fn] ? FN[tgt.fn].color : RS.ACCENT, ph = (U.now() / 600) % 1; ctx.strokeStyle = rgba(col, 0.9 - 0.6 * ph); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 10 + 14 * ph, 0, 7); ctx.stroke(); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); }
       drawHand(ctx, g, plane, S.frame());
-      ['A', 'B'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k], { r: 9 }); });
+      ['A', 'B', 'C'].forEach(function (k) { drawSensorDot(ctx, g, k, cfg.sensors[k], COL[k], { r: 9 }); });
       planeLabel(ctx, g, plane, L.mode === 'sim' ? 'your cursor is the hand' : null);
     }
     pm.cv.addEventListener('pointermove', function (e) { if (L.mode !== 'sim') return; var p = pm.toMm(e, cfg.plane); simHand(p.inside ? { x: p.x, y: p.y, h: cfg.hand.zwork } : null); });
@@ -947,7 +947,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       var now = U.now(), old = null; for (var i = 0; i < hist.length; i++) if (now - hist[i].t <= 60000) { old = hist[i].h; break; }
       var winMin = old ? Math.max(0.1, (now - hist[i].t) / 60000) : 1;
       var d = function (k, sub) { if (!old) return 0; var a = sub ? (hh[k] || {})[sub] : hh[k], b = sub ? (old[k] || {})[sub] : old[k]; return (a || 0) - (b || 0); };
-      ['A', 'B'].forEach(function (k) {
+      ['A', 'B', 'C'].forEach(function (k) {
         var s = hh[k] || {}, erRate = d(k, 'er') / winMin, bright = (hh.led || 0) >= 128, codes = [];
         setT('hz' + k, s.hz == null ? '–' : Number(s.hz).toFixed(1), 'Hz · fail under 20', s.hz != null && s.hz < 20 ? ['N1'] : []);
         if (erRate > 0) codes.push('W2'); if (erRate > 0 && bright) codes.push('N4');
