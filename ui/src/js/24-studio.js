@@ -402,7 +402,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       setCfg(set).then(function (ack) { if (ack) { st.dirty = false; setProgress('c2', 'done'); RS.app.toast('Sensor positions set', 'ok'); } });
     }, 'primary');
     stu.body.appendChild(h('div.card', h('div.row.between.wrap.top', h('div.grow', h('h2', 'Sensor placement'), h('div.sub', 'Where each radar module sits, in plane coordinates. Type the tape-measure values or drag the dots on the plan.')), unitSeg()),
-      h('div.mt', callout('info', 'Measure to the centre of the blue module', 'x from the left edge of the opening, y from the back edge (0 when the module sits on the back edge), z the height of the module centre above the ring surface (0 when level with it, negative below).')),
+      h('div.mt', callout('info', 'Measure to the radar antenna centre', 'x from the left edge of the opening, y from the back edge (0 when the module sits on the back edge), z the height of the antenna centre above the ring surface (0 when level with it, negative below).')),
       h('div.col.gap-s.mt', sensorRow('A', COL.A, d.A, false), sensorRow('B', COL.B, d.B, false), sensorRow('C', COL.C, d.C, false)),
       spacingBox, h('div.row.end.mt', apply)));
     stu.body.appendChild(h('div.card', h('div.eyebrow', 'Plan · drag a sensor to move it'), h('div.mt', pm.el)));

@@ -19,7 +19,7 @@ test('capture works with no health and no aim', () => {
   assert.match(BN.summary(e), /no aim sweep/); assert.match(BN.summary(e), /no sensor data/); assert.match(BN.text(e), /Aim sweep: none run/);
 });
 test('summary names spacing, yaws, dead areas, aim error and sensor status', () => {
-  const s = BN.summary(mk()); assert.match(s, /spacing 584 mm/); assert.match(s, /A 45°/); assert.match(s, /0 dead areas/); assert.match(s, /aim off A \+3° B -5°/); assert.match(s, /sensors OK/);
+  const s = BN.summary(mk()); assert.match(s, /spacing 656 mm/); assert.match(s, /A 43°/); assert.match(s, /0 dead areas/); assert.match(s, /aim off A \+3° B -5°/); assert.match(s, /sensors OK/);
   const bad = JSON.parse(JSON.stringify(hwOk)); bad.B.pres = false; assert.equal(BN.hwLevel(mk({ health: bad })), 'fault');
 });
 test('diff lists changed settings and dead areas only', () => {
@@ -42,7 +42,7 @@ test('restore patch applied to the simulator puts the setup back', () => {
   assert.equal(sim.cfg.sensors.A.yaw, c0.sensors.A.yaw); assert.equal(sim.cfg.masks && sim.cfg.masks.m3, undefined);
 });
 test('text report carries the facts a reviewer needs', () => {
-  const t = BN.text(mk()); assert.match(t, /BENCH SNAPSHOT: T1/); assert.match(t, /Sensor A: x 0/); assert.match(t, /yaw 45/); assert.match(t, /Dead areas: none/); assert.match(t, /Sensor B health: answers, configured/); assert.match(t, /A measured 48.2°/);
+  const t = BN.text(mk()); assert.match(t, /BENCH SNAPSHOT: T1/); assert.match(t, /Sensor A: x -35.9/); assert.match(t, /yaw 43/); assert.match(t, /Dead areas: none/); assert.match(t, /Sensor B health: answers, configured/); assert.match(t, /A measured 48.2°/);
 });
 test('storage: newest first, capped, import skips duplicates and junk', () => {
   BN.clear(); const a = mk({ label: 'a' }), b = mk({ label: 'b' }); BN.add(a); BN.add(b); assert.equal(BN.list()[0].label, 'b');

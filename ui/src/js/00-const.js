@@ -46,7 +46,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     flat: {
       name: 'Flat slot', note: 'Sensors in the gap between sink and countertop, aimed across the opening',
       tilt: 0, z: 0, hand: { zmin: -30, zmax: 60, zwork: 0 }, calDepths: [10, 50], handDepths: [5, 35],
-      rig: { mount: 'flat', slotH: 14, recess: 20, sinkDepth: 190, beamV: 35 }
+      rig: { mount: 'flat', slotH: 14, recess: 50.8, sinkDepth: 190, beamV: 26.5 }
     },
     raised: {
       name: 'Raised, tilted', note: 'Sensors above the plane, tilted down at the hand',
@@ -70,12 +70,12 @@ var RS = globalThis.RS || (globalThis.RS = {});
     schema: 2,
     plane: { w: 584.2, d: 533.4, unit: 'in' },
     sensors: {
-      A: { x: 0,     y: 0,     z: 0, yaw: 45,  tilt: 0, off: 0, on: true },
-      B: { x: 584.2, y: 0,     z: 0, yaw: 135, tilt: 0, off: 0, on: true },
-      C: { x: 0, y: 533.4, z: 0, yaw: 315, tilt: 0, off: 0, on: true }
+      A: { x: -35.92, y: -35.92, z: 0, yaw: 43,  tilt: 0, off: 0, on: true },
+      B: { x: 620.12, y: -35.92, z: 0, yaw: 129, tilt: 0, off: 0, on: true },
+      C: { x: -35.92, y: 569.32, z: 0, yaw: 323, tilt: 0, off: 0, on: true }
     },
     hand: { zmin: -30, zmax: 60, zwork: 0, strMin: 3, strMax: 60000, stillThr: 6, envRef: 0, envK: 2, envDb: 12 },   // envRef: hand strength at 300 mm, 0 = envelope off (C8 learns it)
-    rig: { mount: 'flat', slotH: 14, recess: 20, sinkDepth: 190, beamV: 35 },
+    rig: { mount: 'flat', slotH: 14, recess: 50.8, sinkDepth: 190, beamV: 26.5 },
     masks: {},
     layout: 'kitchen',
     layouts: JSON.parse(JSON.stringify(RS.LAYOUTS)),
@@ -83,7 +83,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       settleMs: 150, settleSpeed: 250, startSpeed: 60, goneFrames: 3, exitMs: 1000, stillOffMs: 10000, presentFrames: 2,
       disposalHoldMs: 1000, disposalRunMs: 15000, cleanMs: 60000, cleanHoldMs: 3000,
       rangeStart: 60, rangeEnd: 850, threshSens: 1.5, i2cKhz: 400, log: false, wifiCh: 6,
-      ledCount: 132, ledBright: 90, ledOrder: 'GRB', hyst: 20, beamHalf: 60, nearWin: 120, smooth: 0.35
+      ledCount: 132, ledBright: 90, ledOrder: 'GRB', hyst: 20, beamHalf: 32.5, nearWin: 120, smooth: 0.35
     },
     profile: 'default',
     profiles: {

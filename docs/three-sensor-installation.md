@@ -6,21 +6,21 @@
 
 ![Top view](three-sensor-layout.svg)
 
-Viewed from the person using the sink, put A at the back-left corner, B at the back-right corner, and C at the front-left corner, aimed diagonally toward the back-right. Three corner positions improve shared angular coverage relative to a front-centre C. The front-right corner (584.2, 533.4), yaw 225°, is a mirrored alternative if it has better mechanical clearance; enter that pose explicitly. This is the best starting arrangement among the compared candidates for overlap, not a physically proven optimum. A front-centre C offers slightly better range-noise geometry but loses more of the near-front area when all three sensors are required.
-
-Putting all three antennas on the back edge makes this solver's noncollinear initialization degenerate. Keep a wide triangle. The reproducible [placement comparison](placement-comparison.md) explains the geometry/coverage tradeoff and its assumptions.
+Viewed from the user, put A back-left, B back-right and C front-left. Each antenna centre is **2 inches (50.8 mm) diagonally outside its opening corner**: 1.414 inches (35.92 mm) along each axis, not 2 inches along each axis. Use adjustable mounts and the angles below. This is the selected bench layout; the ideal horizontal 65° sector model gives about 71% all-three overlap, not 100% coverage or a measured detection rate. See the [placement comparison](placement-comparison.md).
 
 | Sensor | Antenna centre x | Antenna centre y | Starting yaw | Tilt / z |
 |---|---:|---:|---:|---:|
-| A — back-left | 0 mm | 0 mm | 45° | 0° / 0 mm |
-| B — back-right | 584.2 mm | 0 mm | 135° | 0° / 0 mm |
-| C — front-left | 0 mm | 533.4 mm | 315° | 0° / 0 mm |
+| A — back-left | −35.92 mm | −35.92 mm | 43° | 0° / 0 mm |
+| B — back-right | 620.12 mm | −35.92 mm | 129° | 0° / 0 mm |
+| C — front-left | −35.92 mm | 569.32 mm | 323° | 0° / 0 mm |
+
+**Existing devices:** firmware updates preserve saved calibration. In Studio C1 keep the opening at 584.2 × 533.4 mm; in C2 enter the actual A/B/C antenna coordinates; in C3 enter yaw and tilt. Set the model's horizontal half-angle to 32.5° and vertical half-angle to 26.5° only when the wider antenna plane is horizontal. In Aim, enter measured recess and slot height; 50.8 mm recess and 14 mm slot are provisional factory modelling values. Re-run empty-sink and hand calibration after moving sensors or changing the cover. Export the old calibration before editing; do not erase all settings just to change the mount.
 
 Origin is the nominal back-left opening corner; x goes right, y goes toward the user. Yaw is measured from +x toward +y. Values locate the radar antenna, not the PCB corner or mounting screw. If the antenna sits outside this nominal rectangle, enter its actual coordinates; do not move the coordinate origin to hide a setback. The opening dimensions and antenna baseline are not necessarily equal.
 
 Mount each antenna face toward the intended sensing area: radiation leaves the face of the antenna package, approximately normal to its plane. Laying a board flat under the counter with its antenna pointing upward will not produce the horizontal arrangement drawn here. The SparkFun PCB is roughly 25.4 × 50.8 mm; verify that the board and required orientation actually fit the slot. If the slot cannot accommodate this, the mechanical mount must change before calibration.
 
-Use adjustable, nonmetallic supports. Keep the antenna's view clear of the metal sink lip, fasteners and foil-backed trim; place it as close to the slot mouth as the enclosure and splash protection permit. Keep all three sensing planes level initially. Do not assume radar sees through the metal sink or stone countertop. A radome, countertop overhang or deep recess changes the result and needs testing in its final position. Record actual slot height, antenna recess and z offset. No unmeasured numeric clearance is guaranteed here.
+Use adjustable, nonmetallic supports. Use a replaceable, controlled-thickness radar window before permanent resin encapsulation. Optical clarity does not establish radar transparency. The material, thickness, antenna spacing and wet surface must be tested together. A straight window perpendicular to the beam, 50.8 mm from the antenna, needs roughly 64.7 mm clear horizontal width to avoid clipping a 65° fan; a continuous radar-transparent wall differs from a narrow opaque tunnel. Keep the antenna's view clear of the metal sink lip, fasteners and foil-backed trim; place it as close to the slot mouth as the enclosure and splash protection permit. Keep all three sensing planes level initially. Do not assume radar sees through the metal sink or stone countertop. A radome, countertop overhang or deep recess changes the result and needs testing in its final position. Record actual slot height, antenna recess and z offset. No unmeasured numeric clearance is guaranteed here.
 
 A third range improves geometric conditioning when all sensors see the same target; it does not guarantee full coverage. Each sensor can miss adjacent edge regions with a narrow installed beam, or have its view blocked by the user's hand/arm. The 60 mm minimum detector range also creates local exclusion regions. The UI beam widths are adjustable modelling assumptions, not measured installed antenna specifications. Plan for a tested working area inside the opening and exclude unreliable cells.
 

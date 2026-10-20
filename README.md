@@ -4,7 +4,7 @@ Three SparkFun XM125 radar modules and one ESP32-S3-N8R2 track a hand over a nom
 
 ## Build and install
 
-Start with the [three-sensor installation guide](docs/three-sensor-installation.md), [wiring diagram](docs/three-sensor-wiring.svg) and [placement drawing](docs/three-sensor-layout.svg). Firmware pin assignments live in `firmware/include/pins.h`; factory geometry lives in `firmware/include/defaults.h`. Enter measured antenna positions before calibration. The default C position is front-left, aimed diagonally inward; [the placement comparison](docs/placement-comparison.md) explains why.
+Start with the [three-sensor installation guide](docs/three-sensor-installation.md), [wiring diagram](docs/three-sensor-wiring.svg) and [placement drawing](docs/three-sensor-layout.svg). Firmware pin assignments live in `firmware/include/pins.h`; factory geometry lives in `firmware/include/defaults.h`. Enter measured antenna positions before calibration. Factory defaults place A back-left, B back-right and C front-left, each 2 inches diagonally outside its opening corner, aimed at 43°/129°/323°. Saved calibrations are preserved: existing devices must enter the new measured positions in C2 and angles in C3; [the placement comparison](docs/placement-comparison.md) explains why.
 
 ```sh
 python tools/build_ui.py

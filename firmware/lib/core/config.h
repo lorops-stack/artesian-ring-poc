@@ -13,12 +13,12 @@ struct Tuning {
   uint32_t stillOffMs = 10000; uint8_t presentFrames = 2; uint16_t disposalHoldMs = 1000; uint32_t disposalRunMs = 15000;
   uint32_t cleanMs = 60000; uint16_t cleanHoldMs = 3000; uint16_t rangeStart = 60; uint16_t rangeEnd = 850; float threshSens = 1.5f;
   uint16_t i2cKhz = 400; bool log = false; uint8_t wifiCh = 6; uint16_t ledCount = 132; uint8_t ledBright = 90; char ledOrder[5] = "GRB";
-  float hyst = 20; float beamHalf = 60; uint16_t ledOffset = 0; uint32_t bgRelearnIdleMs = 30000; float nearWin = 120; float smooth = 0.35f;
+  float hyst = 20; float beamHalf = 32.5f; uint16_t ledOffset = 0; uint32_t bgRelearnIdleMs = 30000; float nearWin = 120; float smooth = 0.35f;
 };
 struct Profile { char id[20] = "default"; char name[24] = "Default"; float hotF = 110, hotCapF = 120, warmF = 100, cupMl = 350, soapMl = 0.8f, flowGpm = 1.5f; };
 
 // How the sensors are built into the sink (side view in Ring Studio's Aim screen). Not used by the firmware's maths except through the studio.
-struct Rig { char mount[8] = "flat"; float slotH = 14, recess = 20, sinkDepth = 190, beamV = 35; };
+struct Rig { char mount[8] = "flat"; float slotH = 14, recess = 50.8f, sinkDepth = 190, beamV = 26.5f; };
 
 struct Config {
   uint8_t schema = 2;
