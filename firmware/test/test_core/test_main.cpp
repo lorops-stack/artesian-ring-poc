@@ -126,7 +126,7 @@ void test_masks_and_flat_defaults() {
   TEST_ASSERT_FLOAT_WITHIN(0.01, 584.2f, c.plane.w); TEST_ASSERT_FLOAT_WITHIN(0.01, 533.4f, c.plane.d);
   // Bench body-only evidence: 559/602 mm solves to about (193,524), beyond the measured 19 in front edge.
   // It must be rejected, while the simultaneous near wood/hand pair remains a valid in-plane target.
-  c.plane.w=488.95f; c.plane.d=482.6f; c.B.x=c.plane.w; // retain the original measured fixture geometry
+  c.plane.w=488.95f; c.plane.d=482.6f; c.A.x=0; c.A.y=0; c.B.x=c.plane.w; c.B.y=0; // retain the original measured fixture geometry
   Echo bodyA[1] = { { 559, 73 } }, bodyB[1] = { { 602, 72 } };
   AssocOpts bodyO{ &c.A, &c.B, &c.hand, &c.plane, nullptr, 0, nullptr, 0, false, 0, 0, 220 }; bodyO.nearWin = 120;
   TEST_ASSERT_EQUAL(FLAG_OUTSIDE, associate(bodyA, 1, bodyB, 1, bodyO).flag);

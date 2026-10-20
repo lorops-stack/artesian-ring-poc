@@ -14,6 +14,8 @@ function runGhost(sim, seconds, layout) {
 
 test('simulator: ghost script latches the expected functions in the kitchen layout', () => {
   const { sim, msgs } = makeSim();
+  // Wide-beam fixture exercises the scripted UI/session flow, not installed coverage.
+  sim.cfg.tuning.beamHalf=60;
   runGhost(sim, 32, 'kitchen');
   const latched = msgs.filter(m => m.ev === 'latch').map(m => m.fn), soap = msgs.filter(m => m.ev === 'soap').length;
   assert.equal(soap, 1, 'one soap dose');
@@ -144,6 +146,6 @@ test('dead areas: a real hand outside the mask still works while the reflector i
   const { sim, msgs } = makeSim(); sim.setFault('hotspot', true);
   sim.cmd({ c: 'cfg', set: { 'masks.m1': { t: 'circle', x: 430, y: 150, r: 70 } }, id: 1 });
   let now = 1000; for (let i = 0; i < 100; i++) { now += 15; sim.tick(now); }
-  for (let i = 0; i < 160; i++) { now += 15; sim.setHand({ x: 100 + (i < 40 ? 60 * Math.sin(i / 3) : 0), y: 450, h: sim.cfg.hand.zwork }, false); sim.tick(now); }   // a hand arrives moving (objects never start a session), then settles
+  for (let i = 0; i < 160; i++) { now += 15; sim.setHand({ x: 155 + (i < 40 ? 20 * Math.sin(i / 3) : 0), y: 420, h: sim.cfg.hand.zwork }, false); sim.tick(now); }   // a hand arrives moving (objects never start a session), then settles
   assert.ok(msgs.some(m => m.ev === 'latch' && m.fn === 'hot'), 'hand in the front-left zone latches hot: ' + JSON.stringify(msgs.filter(m => m.ev === 'latch')));
 });

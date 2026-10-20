@@ -9,10 +9,11 @@ constexpr float PLANE_D_MM = 533.4f;  // 21 in, nominal opening depth
 
 // ---- Sensor geometry (studio C2/C3), origin = back-left corner, y toward user
 struct SensorPose { float x_mm, y_mm, z_mm, yaw_deg, tilt_deg; bool enabled; };
-// Flat slot mount (production build): sensors in the gap between the undermount sink and the countertop, level with the plane, no tilt.
-constexpr SensorPose DEFAULT_A = {   0.0f, 0.0f, 0.0f,  45.0f, 0.0f, true  };
-constexpr SensorPose DEFAULT_B = { 584.2f, 0.0f, 0.0f, 135.0f, 0.0f, true  };
-constexpr SensorPose DEFAULT_C = { 0.0f, 533.4f, 0.0f, 315.0f, 0.0f, true  }; // front-left
+// Bench ring mount: 50.8 mm total diagonal setback from each opening corner.
+// Actual antenna positions and window/slot coverage must be measured.
+constexpr SensorPose DEFAULT_A = { -35.92f, -35.92f, 0.0f, 43.0f, 0.0f, true  };
+constexpr SensorPose DEFAULT_B = { 620.12f, -35.92f, 0.0f, 129.0f, 0.0f, true  };
+constexpr SensorPose DEFAULT_C = { -35.92f, 569.32f, 0.0f, 323.0f, 0.0f, true  }; // front-left
 
 // Hand depth is mm BELOW the sensor plane (negative = above it). Flat mount: the hand is about level with the sensors.
 constexpr float HAND_DEPTH_MIN_MM = -30.0f;  // studio C4 (for the coverage prediction)

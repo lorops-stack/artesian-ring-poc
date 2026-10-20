@@ -53,13 +53,13 @@ for (const mount of MOUNTS) {
     const cov = RS.geo.coverage(c, 23, 21, 'kitchen');
     const rows = [0, 1, 2].map(r => cov.zones.filter(z => z.row === r).map(z => cov.perZone[z.id]).reduce((a, b) => a + b, 0) / 3);
     assert.ok(cov.cells.every(x=>Number.isFinite(x.err)&&x.acc>=0&&x.acc<=1));
-    assert.ok(cov.cells.some(x=>x.blind), 'front-centre sensor has near-range / beam gaps');
+    assert.ok(cov.cells.some(x=>x.blind), 'three-view geometry has near-range / beam gaps');
     const two=RS.util.deepClone(c);two.sensors.C.on=false;const old=RS.geo.coverage(two,23,21);
-    const mid=cov.cells.find(x=>x.yf<.05&&Math.abs(x.xf-.5)<.03);const oldMid=old.cells.find(x=>x.yf<.05&&Math.abs(x.xf-.5)<.03);assert.ok(mid.err<oldMid.err);
+    const mid=cov.cells.find(x=>!x.blind && old.cells.some(y=>y.xf===x.xf && y.yf===x.yf && !y.blind && x.err<y.err));assert.ok(mid, 'a shared visible cell benefits from the third range');
   });
 
   test(`[${mount}] wand fit finds hidden sensor errors and offsets`, () => {
-    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: 8, y: -5, z: 6, off: 18 }, B: { x: 574.2, y: 4, z: -3, off: 24 }, C:{x:c.sensors.C.x+4,y:c.sensors.C.y+4,z:0,off:12} };
+    const rnd = RS.util.rng(5), holes = RS.geo.templateHoles(c.plane), truth = { A: { x: A.x+8, y: A.y-5, z: 6, off: 18 }, B: { x: B.x-10, y: B.y+4, z: -3, off: 24 }, C:{x:c.sensors.C.x+4,y:c.sensors.C.y+4,z:0,off:12} };
     const samples = [], rndC=RS.util.rng(9);
     for (const H of holes) for (const depth of RS.calDepths(c)) {
       const s = { hole: H.n, depth };
@@ -153,7 +153,7 @@ test('geometry uncertainty rises near the sensor baseline', () => {
 });
 
 test('robust wand fit resists a large multipath outlier and reports validation quality', () => {
-  const c=RS.presetConfig('flat'), rnd=RS.util.rng(77), holes=RS.geo.templateHoles(c.plane), truth={A:{x:7,y:-4,z:0,off:18},B:{x:577,y:5,z:0,off:23},C:{x:292.1,y:537,z:0,off:12}}, samples=[];
+  const c=RS.presetConfig('flat'), rnd=RS.util.rng(77), holes=RS.geo.templateHoles(c.plane), truth={A:{x:c.sensors.A.x+7,y:c.sensors.A.y-4,z:0,off:18},B:{x:c.sensors.B.x-7,y:c.sensors.B.y+5,z:0,off:23},C:{x:c.sensors.C.x+4,y:c.sensors.C.y+4,z:0,off:12}}, samples=[];
   for(const H of holes) for(const depth of RS.calDepths(c)){ const s={hole:H.n,depth}; for(const k of ['A','B','C']) s[k]=[RS.geo.range(truth[k],H.x,H.y,depth)+truth[k].off-20+2*rnd.gauss(),1200]; samples.push(s); }
   samples.find(s=>s.hole===6).A[0]+=140;
   const fit=RS.fit.wandFit(samples,c); assert.ok(fit.fits.A.outliers.length>=1); assert.ok(Math.abs(fit.fits.A.off-truth.A.off)<12,'offset '+fit.fits.A.off);

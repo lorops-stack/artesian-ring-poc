@@ -379,7 +379,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     function refreshSpacing() {
       U.empty(spacingBox); var sp = U.hypot(d.B.x - d.A.x, d.B.y - d.A.y), diff = sp - cfg.plane.w;
       spacingBox.appendChild(h('div.grid.c2', tile('Sensor spacing, A to B', fmtLen(sp, 1), ''), tile('Sink width from C1', fmtLen(cfg.plane.w, 1), '')));
-      if (Math.abs(diff) > 25) spacingBox.appendChild(h('div.mt-s', callout('warn', 'Spacing differs from the sink width by ' + fmtLen(Math.abs(diff), 1), 'Check that the width in C1 and both positions here were entered in the same units, then re-measure if needed.', h('div.row.mt-s', fixChip('P8')))));
+      if (Math.abs(diff) > 25) spacingBox.appendChild(h('div.mt-s', callout('info', 'Antenna spacing differs from opening width by ' + fmtLen(Math.abs(diff), 1), 'This is expected with setback mounts. Keep C1 at the measured opening size and C2 at the measured antenna centres; do not change the opening width to match the antenna spacing.')));
     }
     function swapAB() {
       var s = cfg.sensors, set = {}; ['x', 'y', 'z', 'yaw', 'tilt'].forEach(function (k) { set['sensors.A.' + k] = s.B[k]; set['sensors.B.' + k] = s.A[k]; });
@@ -402,7 +402,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
       setCfg(set).then(function (ack) { if (ack) { st.dirty = false; setProgress('c2', 'done'); RS.app.toast('Sensor positions set', 'ok'); } });
     }, 'primary');
     stu.body.appendChild(h('div.card', h('div.row.between.wrap.top', h('div.grow', h('h2', 'Sensor placement'), h('div.sub', 'Where each radar module sits, in plane coordinates. Type the tape-measure values or drag the dots on the plan.')), unitSeg()),
-      h('div.mt', callout('info', 'Measure to the centre of the blue module', 'x from the left edge of the opening, y from the back edge (0 when the module sits on the back edge), z the height of the module centre above the ring surface (0 when level with it, negative below).')),
+      h('div.mt', callout('info', 'Measure to the radar antenna centre', 'x from the left edge of the opening, y from the back edge (0 when the module sits on the back edge), z the height of the antenna centre above the ring surface (0 when level with it, negative below).')),
       h('div.col.gap-s.mt', sensorRow('A', COL.A, d.A, false), sensorRow('B', COL.B, d.B, false), sensorRow('C', COL.C, d.C, false)),
       spacingBox, h('div.row.end.mt', apply)));
     stu.body.appendChild(h('div.card', h('div.eyebrow', 'Plan · drag a sensor to move it'), h('div.mt', pm.el)));
