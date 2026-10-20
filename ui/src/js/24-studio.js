@@ -379,7 +379,7 @@ var RS = globalThis.RS || (globalThis.RS = {});
     function refreshSpacing() {
       U.empty(spacingBox); var sp = U.hypot(d.B.x - d.A.x, d.B.y - d.A.y), diff = sp - cfg.plane.w;
       spacingBox.appendChild(h('div.grid.c2', tile('Sensor spacing, A to B', fmtLen(sp, 1), ''), tile('Sink width from C1', fmtLen(cfg.plane.w, 1), '')));
-      if (Math.abs(diff) > 25) spacingBox.appendChild(h('div.mt-s', callout('warn', 'Spacing differs from the sink width by ' + fmtLen(Math.abs(diff), 1), 'Check that the width in C1 and both positions here were entered in the same units, then re-measure if needed.', h('div.row.mt-s', fixChip('P8')))));
+      if (Math.abs(diff) > 25) spacingBox.appendChild(h('div.mt-s', callout('info', 'Antenna spacing differs from opening width by ' + fmtLen(Math.abs(diff), 1), 'This is expected with setback mounts. Keep C1 at the measured opening size and C2 at the measured antenna centres; do not change the opening width to match the antenna spacing.')));
     }
     function swapAB() {
       var s = cfg.sensors, set = {}; ['x', 'y', 'z', 'yaw', 'tilt'].forEach(function (k) { set['sensors.A.' + k] = s.B[k]; set['sensors.B.' + k] = s.A[k]; });
