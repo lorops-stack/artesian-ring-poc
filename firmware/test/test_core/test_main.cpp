@@ -260,8 +260,61 @@ void test_three_sensor() {
   c.C.on=false; TEST_ASSERT_NOT_EQUAL(FLAG_NONE,associate3(&a,1,&b,1,&d,1,o).flag);
 }
 
+void test_association_diagnostics() {
+  Config c; setDefaults(c); AssocOpts o{}; o.A=&c.A; o.B=&c.B; o.C=&c.C; o.hand=&c.hand; o.plane=&c.plane;
+  Echo a{range(c.A,292,260,0),100}, b{range(c.B,292,260,0),100}, d{range(c.C,292,260,0),100};
+  AssocDiagnostics diag;
+  auto solve=[&]() { return associate3(&a,1,&b,1,&d,1,o,&diag); };
+  TEST_ASSERT_EQUAL(FLAG_NONE,solve().flag); TEST_ASSERT_EQUAL_STRING("accepted",diag.why);
+  TEST_ASSERT_EQUAL(1,diag.tried); TEST_ASSERT_FLOAT_WITHIN(.01,0,diag.minResidual);
+  o.hasPrev=true; o.prevX=0; o.prevY=0; o.maxJump=10;
+  TEST_ASSERT_EQUAL(FLAG_JUMP,solve().flag); TEST_ASSERT_EQUAL_STRING("jump",diag.why); o.hasPrev=false;
+  c.C.on=false; TEST_ASSERT_EQUAL(FLAG_NO_HAND,solve().flag); TEST_ASSERT_EQUAL_STRING("disabled",diag.why);
+  TEST_ASSERT_EQUAL(0,diag.tried); TEST_ASSERT_EQUAL_FLOAT(-1,diag.minResidual); c.C.on=true;
+  TEST_ASSERT_EQUAL(FLAG_NO_HAND,associate3(&a,1,&b,1,&d,0,o,&diag).flag); TEST_ASSERT_EQUAL_STRING("missing",diag.why);
+  a.s=0; TEST_ASSERT_EQUAL(FLAG_STRENGTH,solve().flag); TEST_ASSERT_EQUAL(1,diag.filtered[0]); a.s=100;
+  o.bgA=&a; o.nBgA=1; TEST_ASSERT_EQUAL(FLAG_NO_HAND,solve().flag);
+  TEST_ASSERT_EQUAL_STRING("filtered",diag.why); TEST_ASSERT_EQUAL(1,diag.background[0]); o.nBgA=0;
+  float cy=c.C.y; c.C.y=c.A.y; TEST_ASSERT_EQUAL(FLAG_NO_HAND,solve().flag);
+  TEST_ASSERT_EQUAL_STRING("geometry",diag.why); c.C.y=cy;
+  c.hand.zwork=600; TEST_ASSERT_EQUAL(FLAG_NO_HAND,solve().flag); TEST_ASSERT_EQUAL(1,diag.depth); c.hand.zwork=0;
+  Mask mask; mask.kind=1; mask.x=292; mask.y=260; mask.a=40; o.masks=&mask; o.nMasks=1;
+  TEST_ASSERT_EQUAL(FLAG_MASKED,solve().flag); TEST_ASSERT_EQUAL(1,diag.masked); o.nMasks=0;
+  a.d=range(c.A,-100,260,0); b.d=range(c.B,-100,260,0); d.d=range(c.C,-100,260,0);
+  TEST_ASSERT_EQUAL(FLAG_OUTSIDE,solve().flag); TEST_ASSERT_EQUAL(1,diag.boundary);
+  a.d=1; b.d=1; d.d=800; TEST_ASSERT_NOT_EQUAL(FLAG_NONE,solve().flag); TEST_ASSERT_EQUAL(1,diag.solver);
+  // Actual representative ranges, but ASSUMED factory configuration. These do
+  // not reproduce the logged Zone 5 acceptance; do not treat as bench calibration.
+  for (auto ranges : {std::vector<float>{380,404,288}, std::vector<float>{256,267,437}}) {
+    a.d=ranges[0]; b.d=ranges[1]; d.d=ranges[2];
+    TEST_ASSERT_EQUAL(FLAG_OUTSIDE,solve().flag); TEST_ASSERT_EQUAL(1,diag.residual);
+    TEST_ASSERT_TRUE(diag.minResidual>35); TEST_ASSERT_EQUAL_STRING("no-fit",diag.why);
+  }
+  // A rejected early echo must not hide a later valid triple. Instrumentation
+  // must preserve selected indices, position, residual and jump status.
+  a.d=range(c.A,292,260,0); b.d=range(c.B,292,260,0); d.d=range(c.C,292,260,0);
+  Echo echoes[2]={{1,100},d};
+  auto observed=associate3(&a,1,&b,1,echoes,2,o,&diag);
+  auto plain=associate3(&a,1,&b,1,echoes,2,o);
+  TEST_ASSERT_EQUAL(FLAG_NONE,observed.flag); TEST_ASSERT_EQUAL(1,observed.iC); TEST_ASSERT_EQUAL(2,diag.tried);
+  TEST_ASSERT_EQUAL(plain.flag,observed.flag); TEST_ASSERT_EQUAL_FLOAT(plain.x,observed.x); TEST_ASSERT_EQUAL_FLOAT(plain.res,observed.res);
+}
+
+void test_stationary_position_does_not_start_session() {
+  Config c; setDefaults(c); StateMachine sm(&c);
+  for(uint32_t t=100;t<=2000;t+=100) {
+    auto s=sm.step(Input{t,true,292,260,0,FLAG_NONE});
+    TEST_ASSERT_EQUAL(IDLE,s.st); TEST_ASSERT_FALSE(s.session);
+  }
+  sm.step(Input{2100,true,292,260,100,FLAG_NONE});
+  auto s=sm.step(Input{2200,true,302,260,100,FLAG_NONE});
+  TEST_ASSERT_EQUAL(ARMING,s.st); TEST_ASSERT_TRUE(s.session);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
+  RUN_TEST(test_association_diagnostics);
+  RUN_TEST(test_stationary_position_does_not_start_session);
   RUN_TEST(test_three_sensor);
   RUN_TEST(test_zones_kitchen); RUN_TEST(test_hysteresis); RUN_TEST(test_locate); RUN_TEST(test_geometry_uncertainty); RUN_TEST(test_associate); RUN_TEST(test_reflection_filters); RUN_TEST(test_tracker_smoothing); RUN_TEST(test_masks_and_flat_defaults); RUN_TEST(test_config_json_roundtrip_and_set); RUN_TEST(test_config_validation_rejects_bad_values_atomically);
   RUN_TEST(test_fixtures); RUN_TEST(test_echo_hold); RUN_TEST(test_layout_change_and_clean_commands);

@@ -104,6 +104,14 @@ static void readSensor(xm125::Sensor& s, SensorFrame& out, uint32_t& lastT, floa
   out.er = s.errors(); out.hz = hz;
 }
 static void addBg(Echo* list, int& n, float d, float s) { for (int i = 0; i < n; i++) if (fabsf(list[i].d - d) <= 25) { if (s > list[i].s) list[i].s = s; return; } if (n < 8) { list[n].d = d; list[n].s = s; n++; } }
+static void appendAssociation(BoundedWriter& w, const Assoc& a, const AssocDiagnostics& d) {
+  w.append(" pick=%d/%d/%d assoc=%u why=%s", a.iA, a.iB, a.iC, (unsigned)a.flag, d.why);
+  w.append(" cand=%d/%d/%d filter=%d/%d/%d bg=%d/%d/%d", d.candidates[0],d.candidates[1],d.candidates[2],d.filtered[0],d.filtered[1],d.filtered[2],d.background[0],d.background[1],d.background[2]);
+  w.append(" tried=%d reject=%d/%d/%d/%d/%d minRes=%.1f", d.tried,d.depth,d.solver,d.residual,d.boundary,d.masked,d.minResidual);
+  // Unselected candidates have no raw fix. Zero-initialized coordinates and
+  // uncertainty previously looked like measurements even when no fit existed.
+  if (a.iA>=0 && a.iB>=0 && a.iC>=0) w.append(" raw=%.0f,%.0f r=%.1f",a.ux,a.uy,a.res);
+}
 static void onEvent(const Event& e, void*) {
   char line[EVLEN]; proto::eventJson(e, line, sizeof line); g.events.push(line);
   if (e.type == Ev::Still) { // learn the still object as background for the association
@@ -132,9 +140,11 @@ void step() {
   int nEA = 0, nEB = 0, nEC = 0; bool heldA = false, heldB = false, heldC = false;
   const Echo* eA = holdA.update(f.A.e, f.A.n, f.A.alive, nEA, heldA); const Echo* eB = holdB.update(f.B.e, f.B.n, f.B.alive, nEB, heldB);
   const Echo* eC = holdC.update(f.C.e, f.C.n, f.C.alive, nEC, heldC);
-  Assoc a = (f.A.alive && f.B.alive && f.C.alive) ? associate3(eA, nEA, eB, nEB, eC, nEC, o) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
-  if ((heldA&&heldB&&heldC)||(!hasPrev&&(heldA||heldB||heldC))) a.flag=FLAG_NO_HAND;
+  AssocDiagnostics diag;
+  Assoc a = (f.A.alive && f.B.alive && f.C.alive) ? associate3(eA, nEA, eB, nEB, eC, nEC, o, &diag) : Assoc{ FLAG_NO_HAND, 0, 0, 0, 0, 0, -1, -1 };
+  if ((heldA&&heldB&&heldC)||(!hasPrev&&(heldA||heldB||heldC))) { a.flag=FLAG_NO_HAND; diag.why="held"; }
   if (heldA) a.iA = -1; if (heldB) a.iB = -1; if (heldC) a.iC = -1;   // a held echo has no index in this frame's list
+  const Assoc association = a; // preserve solver result across jump recovery and tracker boundary checks
   bool hasPos = false; float x = 0, y = 0, speed = 0;
   if (a.flag == FLAG_NONE) { miss = 0; jumps = 0; tracker.update(a.x, a.y, f.t, x, y, speed); hasPos = true; hasPrev = true; prevX = a.ux; prevY = a.uy; f.A.p = a.iA; f.B.p = a.iB; f.C.p = a.iC; }   // prev is the raw fix: a clamped one would pin the track to the edge
   else if (a.flag == FLAG_JUMP) {
@@ -174,8 +184,8 @@ void step() {
     w.append(" B%d", f.B.n);
     for (int i = 0; i < f.B.n && i < 3 && !w.truncated(); i++) w.append("%s%.0f/%.0f", i ? "," : " ", f.B.e[i].d, f.B.e[i].s);
     w.append(" C%d",f.C.n); for(int i=0;i<f.C.n&&i<3;i++) w.append(" %.0f/%.0f",f.C.e[i].d,f.C.e[i].s);
-    w.append(" pick=%d/%d/%d%s%s%s assoc=%u", a.iA, a.iB, a.iC, heldA ? " holdA" : "", heldB ? " holdB" : "", heldC ? " holdC" : "", (unsigned)a.flag);
-    if (a.flag != FLAG_NO_HAND) w.append(" raw=%.0f,%.0f r=%.1f u=%.1f", a.ux, a.uy, a.res, a.uncertainty);
+    appendAssociation(w, association, diag);
+    w.append("%s%s%s post=%u state=%s", heldA?" holdA":"",heldB?" holdB":"",heldC?" holdC":"",(unsigned)a.flag,stateName(f.st));
     if (f.hasHand) w.append(" track=%.0f,%.0f spd=%.0f", f.hx, f.hy, f.spd);
     else w.append(" track=none");
     Serial.println(line);
@@ -190,6 +200,8 @@ void step() {
     }
     w.append("%.1f Hz  %s", (f.A.hz+f.B.hz+f.C.hz)/3, stateName(f.st));
     if (f.hasHand) w.append("  hand x %.0f y %.0f", f.hx, f.hy);
+    appendAssociation(w, association, diag);
+    w.append("%s%s%s post=%u",heldA?" holdA":"",heldB?" holdB":"",heldC?" holdC":"",(unsigned)a.flag);
     Serial.println(line);
   }
   } // Release shared state before slow detector operations; BusyGuard retains bus ownership.
