@@ -26,6 +26,7 @@ function Save-RingSnapshot([string]$Phase) {
         }
     }
 }
+Read-Host 'Remove the bottle and hands from the sensing area. Press Enter when the scene is empty'
 Save-RingSnapshot 'before'
 $serial = New-Object IO.Ports.SerialPort $Port,921600,'None',8,'One'
 $serial.ReadTimeout = 250
@@ -34,6 +35,38 @@ $serial.RtsEnable = $false
 $log = Join-Path $folder 'serial.txt'
 try {
     $serial.Open()
+    $serial.DiscardInBuffer()
+    Write-Host 'Keep the scene EMPTY. Now briefly press the ESP32 EN/RESET button once (NOT BOOT and not an XM125 button).'
+    Write-Host 'Waiting for a fresh startup and successful A, B, C configuration. Do not place the bottle yet.'
+    $startupTimer = [Diagnostics.Stopwatch]::StartNew()
+    $sawBoot = $false
+    $ready = $false
+    $configured = @{}
+    while ($startupTimer.Elapsed.TotalSeconds -lt 90 -and -not $ready) {
+        try {
+            $startupLine = $serial.ReadLine().TrimEnd("`r")
+            $startupLine | Add-Content (Join-Path $folder 'startup.txt') -Encoding UTF8
+            Write-Host $startupLine
+            if ($startupLine -match '^\[ring\] Artesian Ring PoC firmware') {
+                $sawBoot = $true
+                $configured = @{}
+            }
+            if ($sawBoot -and $startupLine -match '^\[([ABC])\] configure OK') {
+                $configured[$Matches[1]] = $true
+            }
+            if ($sawBoot -and $startupLine -match '^\[[ABC]\] configure FAILED') {
+                throw "Sensor setup failed. Leave the target out and share startup.txt from $folder"
+            }
+            if ($sawBoot -and $configured.Count -eq 3 -and $startupLine -match '^\[ring\] running\.') {
+                $ready = $true
+            }
+        } catch [TimeoutException] { }
+    }
+    if (-not $ready) {
+        throw "No verified complete restart was captured. No target test was recorded. Share startup.txt from $folder"
+    }
+    Read-Host 'With serial still open, place the bottle at the test position, move your hands away, then press Enter to record'
+    $serial.DiscardInBuffer()
     $timer = [Diagnostics.Stopwatch]::StartNew()
     Write-Host "Recording $Label for $Seconds seconds. Saved to $folder"
     while ($timer.Elapsed.TotalSeconds -lt $Seconds) {

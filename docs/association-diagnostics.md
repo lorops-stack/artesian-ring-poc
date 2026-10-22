@@ -45,7 +45,7 @@ Representative Zone 5 ranges (380,404,288) and Zone 2 retest ranges (256,267,437
 
 ## Retest
 
-1. Export the current configuration before changing anything. Connect this PC to ArtesianRing Wi-Fi. Close any serial monitor using the ESP32 COM port. Ring Studio may stay open.
+1. Export the current configuration before changing anything. Connect this PC to ArtesianRing Wi-Fi. Close any serial monitor using the ESP32 COM port. Ring Studio may stay open. The capture script asks for an empty scene, then a brief press of the ESP32 EN/RESET button with serial open. It requires a fresh boot banner, A/B/C configure OK and the running message before asking for the target. Opening serial alone is not a reliable reset. Do not press BOOT or reset the XM125 boards individually. The script stops if startup is not verified; it does not label a timed wait as calibration.
 2. Run the capture script below for the empty scene, stationary Zone 5, stationary Zone 2, then a moving hand entering and settling in each zone. Keep the same settings between captures. Record the exact flashed source commit, target type/diameter, target centre XY, and antenna-centre XYZ measurements. Preserve both before/after JSON exports.
 3. On the diagnostic build, inspect `why`, `cand`, `bg`, `reject`, `minRes`. Correct verified dimensions, positions, offsets or working depth in Ring Studio; reboot with an empty scene before a controlled repeat to clear software background and tracker history. Do not widen 35 mm or force a two-range solution.
 4. Test a missing C and inconsistent triples: no new three-range acquisition is expected. After software checks, physical coverage, withdrawal timing and empty/wet scene acceptance still belong to issue #5.
