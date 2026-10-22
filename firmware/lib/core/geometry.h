@@ -46,7 +46,15 @@ bool strengthInEnvelope(const HandModel& h, float d, float s);
 float geometryUncertainty(const SensorPose& A, const SensorPose& B, float x, float y, float h, float rangeSigma = 8.0f);
 Assoc associate(const Echo* eA, int nA, const Echo* eB, int nB, const AssocOpts& o);
 
-Assoc associate3(const Echo* eA, int nA, const Echo* eB, int nB, const Echo* eC, int nC, const AssocOpts& o);
+// Optional observation only: never changes candidate selection or acceptance.
+// Rejection counters count triples, filter counters count individual echoes.
+struct AssocDiagnostics {
+  const char* why = "unavailable";
+  int candidates[3] = {}, filtered[3] = {}, background[3] = {};
+  int tried = 0, depth = 0, solver = 0, residual = 0, boundary = 0, masked = 0;
+  float minResidual = -1; // no finite solved triple yet
+};
+Assoc associate3(const Echo* eA, int nA, const Echo* eB, int nB, const Echo* eC, int nC, const AssocOpts& o, AssocDiagnostics* diagnostics = nullptr);
 
 class Tracker {
  public:

@@ -7,7 +7,7 @@ ESP32-S3 firmware for the ring. Build and upload with PlatformIO (VS Code: the a
 | `include/pins.h`, `include/defaults.h` | the pin layout and factory defaults (single source of truth, also mirrored in the UI) |
 | `lib/core/` | geometry (zones with hysteresis, trilateration, echo association, tracker), the configuration model and its JSON, the latch state machine (spec section 4). Plain C++17; runs on the host |
 | `lib/xm125/` | register-level driver for the Acconeer I2C Distance Detector on the SparkFun XM125 (one per I2C bus, RST line) |
-| `src/sensing.cpp` | core 1: measure A then B, associate, track, run the state machine, publish the frame. Prints echo lists on USB serial while no Ring Studio is connected (Phase 0 view) |
+| `src/sensing.cpp` | core 1: measure A, B, C, associate, track, run the state machine, publish the frame. Prints echo lists and association diagnostics on USB serial |
 | `src/protocol.cpp` | JSON frames, events, status, health and the command dispatcher (docs/10-protocol.md) |
 | `src/net.cpp` | Wi-Fi access point `ArtesianRing`, Ring Studio static files from LittleFS, WebSocket `/ws`, HTTP API, over-the-air update |
 | `src/calib.cpp` | calibration steps on the device: C0 hardware check, identify, C6 background capture, C7 and C8 readings (the fits run in the browser) |
@@ -15,6 +15,8 @@ ESP32-S3 firmware for the ring. Build and upload with PlatformIO (VS Code: the a
 | `src/button.cpp` | BOOT button while running: short = clean mode, 3 to 8 s = calibration, 10 s = reset the Wi-Fi password and PIN |
 | `src/storage.cpp` | LittleFS `/cfg.json` and `/cals/*.json`; NVS for the Wi-Fi password, PIN and running totals |
 | `test/test_core/` | Unity tests: geometry, config JSON, and the state machine against `test/fixtures/scenarios.json`, which the UI's JavaScript machine also runs |
+
+For three echoes with no position, see [association diagnostics and PowerShell capture](../docs/association-diagnostics.md). Capture the saved configuration as well as serial readings before changing geometry or tolerances.
 
 First boot: the access point uses a **temporary password printed on the serial monitor**; Ring Studio asks for the real password and the studio PIN (`setup` command). Hold BOOT for 10 s while running to reset both.
 
